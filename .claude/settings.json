@@ -37,6 +37,9 @@
       "mcp__t2v-fal-veo3-fast__veo3_fast_submit",
       "mcp__t2v-fal-veo3-fast__veo3_fast_status",
       "mcp__t2v-fal-veo3-fast__veo3_fast_result",
+      "mcp__i2v-fal-hailuo-02-pro__hailuo_02_submit",
+      "mcp__i2v-fal-hailuo-02-pro__hailuo_02_status",
+      "mcp__i2v-fal-hailuo-02-pro__hailuo_02_result",
       "mcp__t2m-google-lyria__lyria_generate"
     ]
   }
