@@ -1,0 +1,127 @@
+name: Issue Video Trigger
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: write
+  actions: write
+
+jobs:
+  trigger-video-creation:
+    if: |
+      (github.event.action == 'opened' && contains(github.event.issue.body, '@create-video-i2v')) ||
+      (github.event.action == 'created' && contains(github.event.comment.body, '@create-video-i2v'))
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Parse video request
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const content = context.payload.action === 'opened' 
+              ? context.payload.issue.body 
+              : context.payload.comment.body;
+            
+            console.log('Action:', context.payload.action);
+            console.log('Content:', content);
+            
+            // Check if content includes @create-video-i2v
+            if (!content.includes('@create-video-i2v')) {
+              core.setFailed('No @create-video-i2v command found');
+              return;
+            }
+            
+            // Extract concept from content (simple extraction after コンセプト：)
+            const conceptMatch = content.match(/コンセプト\s*[：:]\s*(.+?)$/s);
+            
+            if (!conceptMatch) {
+              const user = context.eventName === 'issues' 
+                ? context.payload.issue.user.login 
+                : context.payload.comment.user.login;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `@${user} さん、以下の形式で記述してください：\n\n\`\`\`\n@create-video-i2v\nコンセプト：[動画のコンセプトや内容を記述]\n\`\`\`\n\n※コンセプトは複数行で記述可能です。`
+              });
+              core.setFailed('Invalid format');
+              return;
+            }
+            
+            // Clean up the extracted text
+            const concept = conceptMatch[1].trim().replace(/\s+/g, ' ');
+            
+            core.setOutput('prompt', concept);
+            
+            // Add reaction to acknowledge
+            if (context.eventName === 'issue_comment') {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'rocket'
+              });
+            } else {
+              await github.rest.reactions.createForIssue({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                content: 'rocket'
+              });
+            }
+            
+            // Post status comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🎬 AI動画生成 (Image-to-Video) を開始しました！\n\n**コンセプト**: ${concept}\n\nワークフローの進行状況は[こちら](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})で確認できます。\n\n🤖 AIエージェントが以下の処理を自動実行します：\n1. 📋 コンセプト分析 - 最適な画像・動画プロンプトを生成\n2. 🎨 画像生成 - Imagen4 Ultraで高品質画像生成\n3. 🔍 画像認識 - 生成画像を分析して動画プロンプト最適化\n4. 🎬 動画生成 - Vidu Q1でImage-to-Video生成\n\n⏰ 動画生成には15-20分程度かかります。しばらくお待ちください。`
+            });
+      
+      - name: Trigger video creation workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const concept = '${{ steps.parse.outputs.prompt }}';
+            
+            // Trigger the video creation workflow
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'create-video-from-prompt.yml',
+              ref: 'main',
+              inputs: {
+                prompt: concept
+              }
+            });
+      
+      - name: Update issue on completion
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `✅ AI動画生成 (I2V) ワークフローがトリガーされました！\n\n🎯 **処理フロー**:\n1. 📋 計画エージェント - ユーザー指示を分析\n2. 🎨 画像生成 - Imagen4 Ultraで高品質画像生成\n3. 🔍 画像認識 - 生成画像を分析して動画プロンプト最適化\n4. 🎬 動画生成 - Vidu Q1で Image-to-Video 生成\n5. 📎 PR作成 - 全成果物をまとめてプルリクエスト作成\n\n進行状況は[Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions)で確認してください。\n完了後、プルリクエストが自動作成されます！`
+            });
+      
+      - name: Handle error
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `❌ エラーが発生しました。詳細は[ワークフローログ](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})を確認してください。\n\n**トラブルシューティング**:\n- プロンプトが正しく記述されているか確認\n- APIキーが正しく設定されているか確認\n- 再度コメントで \`@create-video-i2v\` を実行してみてください`
+            });
