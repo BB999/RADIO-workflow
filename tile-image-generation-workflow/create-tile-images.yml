@@ -1,0 +1,948 @@
+name: Create Tile Images (4x Grid)
+
+on:
+  workflow_dispatch:
+    inputs:
+      main_concept:
+        description: 'メインコンセプト（4枚の画像の共通テーマ）'
+        required: true
+        type: string
+      image_model:
+        description: '画像生成モデル'
+        required: true
+        type: choice
+        options:
+          - t2i-google-imagen3
+          - t2i-fal-imagen4-ultra
+          - t2i-fal-imagen4-fast
+          - t2i-fal-flux-schnell
+          - t2i-fal-rundiffusion-photo-flux
+        default: t2i-fal-imagen4-fast
+      tile_layout:
+        description: 'タイルレイアウト'
+        required: true
+        type: choice
+        options:
+          - '2x2'
+          - '1x4'
+          - '4x1'
+        default: '2x2'
+      custom_prompts:
+        description: 'カスタムプロンプト（JSON形式、空の場合は自動生成）'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  setup-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      branch-name: ${{ steps.create-branch.outputs.branch-name }}
+      folder-name: ${{ steps.create-branch.outputs.folder-name }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create branch for tile image generation
+        id: create-branch
+        run: |
+          BRANCH_NAME="tile-images/$(date +%Y%m%d)-${{ github.run_id }}"
+          FOLDER_NAME="tile-images-$(date +%Y%m%d)-${{ github.run_id }}"
+          git checkout -b $BRANCH_NAME
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git push origin $BRANCH_NAME
+          echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "folder-name=$FOLDER_NAME" >> $GITHUB_OUTPUT
+          echo "Created branch: $BRANCH_NAME"
+          echo "Folder name: $FOLDER_NAME"
+
+  planning:
+    runs-on: ubuntu-latest
+    needs: [setup-branch]
+    permissions:
+      contents: write
+    outputs:
+      planning-completed: ${{ steps.planning.outputs.completed }}
+      image-prompt-1: ${{ steps.planning.outputs.image-prompt-1 }}
+      image-prompt-2: ${{ steps.planning.outputs.image-prompt-2 }}
+      image-prompt-3: ${{ steps.planning.outputs.image-prompt-3 }}
+      image-prompt-4: ${{ steps.planning.outputs.image-prompt-4 }}
+      tile-concept: ${{ steps.planning.outputs.tile-concept }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: タイル画像制作計画エージェント
+        id: planning
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::📋 Tile Image Planning Agent Execution"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # 設定
+          MAIN_CONCEPT="${{ inputs.main_concept }}"
+          IMAGE_MODEL="${{ inputs.image_model }}"
+          TILE_LAYOUT="${{ inputs.tile_layout }}"
+          CUSTOM_PROMPTS="${{ inputs.custom_prompts }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          PLANNING_DIR="$FOLDER_NAME/planning"
+          
+          echo "Main concept: $MAIN_CONCEPT"
+          echo "Image model: $IMAGE_MODEL"
+          echo "Tile layout: $TILE_LAYOUT"
+          echo "Planning folder: $PLANNING_DIR"
+          
+          # 計画フォルダを事前に作成
+          if [ ! -d "$PLANNING_DIR" ]; then
+            mkdir -p "$PLANNING_DIR"
+            echo "📁 Created planning folder: $PLANNING_DIR"
+          fi
+          
+          # プロンプトの構築
+          PROMPT="あなたは画像制作の専門プランナーです。メインコンセプトから4枚の関連性のある画像を生成するための詳細な計画を立ててください。
+
+          **メインコンセプト**: $MAIN_CONCEPT
+          **画像生成モデル**: $IMAGE_MODEL
+          **タイルレイアウト**: $TILE_LAYOUT
+          **カスタムプロンプト**: $CUSTOM_PROMPTS
+
+          **タスク**:
+          1. メインコンセプトを分析し、4枚の画像が統一感を持ちながら多様性も表現する計画を立案
+          2. 各画像に対して具体的で詳細な生成プロンプトを作成
+          3. タイルレイアウトに最適化された構図とスタイルを考慮
+          4. 以下のファイルを作成：
+             - \`$PLANNING_DIR/tile-plan.md\` - 全体計画書
+             - \`$PLANNING_DIR/image-prompt-1.txt\` - 画像1のプロンプト
+             - \`$PLANNING_DIR/image-prompt-2.txt\` - 画像2のプロンプト
+             - \`$PLANNING_DIR/image-prompt-3.txt\` - 画像3のプロンプト
+             - \`$PLANNING_DIR/image-prompt-4.txt\` - 画像4のプロンプト
+             - \`$PLANNING_DIR/tile-concept.txt\` - タイル画像全体のコンセプト
+
+          **計画のポイント**:
+          - 4枚の画像の統一感（色調、スタイル、テーマ）
+          - 各画像の個性と多様性
+          - $TILE_LAYOUT レイアウトに適した構図
+          - $IMAGE_MODEL モデルの特性を活かした最適化
+          - 視覚的に美しいタイル配置を意識
+
+          **画像生成プロンプトの要件**:
+          - 選択された$IMAGE_MODELに最適化された詳細なプロンプト
+          - 統一されたスタイルと色調を指定
+          - タイル配置時の見栄えを考慮した構図
+          - 高解像度・高品質を意識した記述
+          - 各プロンプトは50-100語程度
+
+          **カスタムプロンプト処理**:
+          - カスタムプロンプトが提供されている場合はそれを参考に調整
+          - 空の場合はメインコンセプトから自動生成
+
+          **重要**: 
+          1. 必ず6つのファイルを作成してください
+          2. txtファイルは機械処理用（1行テキスト）
+          3. 各ファイルの内容は具体的で詳細に記述
+          4. ファイル作成後、必ずファイルパスを確認・報告"
+          
+          echo "🚀 Starting Planning Agent Claude Code CLI..."
+          echo "📝 Prompt length: ${#PROMPT}"
+          
+          # Claude Code CLIの実行
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Read,Write,Edit" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
+          
+          # 生成された計画の確認と出力
+          echo ""
+          echo "📋 Checking generated planning files..."
+          
+          # 各画像プロンプトの確認
+          for i in 1 2 3 4; do
+            PROMPT_FILE="$PLANNING_DIR/image-prompt-$i.txt"
+            if [ -f "$PROMPT_FILE" ]; then
+              IMAGE_PROMPT=$(cat "$PROMPT_FILE" | tr '\n' ' ')
+              echo "::notice::✅ Image prompt $i generated"
+              echo "Image prompt $i: $IMAGE_PROMPT"
+              echo "image-prompt-$i=$IMAGE_PROMPT" >> $GITHUB_OUTPUT
+            else
+              echo "::error::❌ Image prompt $i file not found"
+              exit 1
+            fi
+          done
+          
+          # タイルコンセプトの確認
+          if [ -f "$PLANNING_DIR/tile-concept.txt" ]; then
+            TILE_CONCEPT=$(cat "$PLANNING_DIR/tile-concept.txt" | tr '\n' ' ')
+            echo "::notice::✅ Tile concept generated"
+            echo "Tile concept: $TILE_CONCEPT"
+            echo "tile-concept=$TILE_CONCEPT" >> $GITHUB_OUTPUT
+          else
+            echo "::error::❌ Tile concept file not found"
+            exit 1
+          fi
+          
+          # 計画書の確認
+          if [ -f "$PLANNING_DIR/tile-plan.md" ]; then
+            echo "::notice::✅ Tile plan document generated"
+            echo "First 10 lines of plan:"
+            head -10 "$PLANNING_DIR/tile-plan.md"
+          else
+            echo "::warning::⚠️ Tile plan document not found"
+          fi
+          
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+      
+      - name: Commit and push planning
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ needs.setup-branch.outputs.folder-name }}/
+          if git diff --cached --quiet; then
+            echo "No planning files to commit"
+          else
+            git commit -m "Add tile image planning: ${{ inputs.main_concept }}"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
+          fi
+
+  # 4つの画像生成ジョブを並列実行
+  image-generation-1:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, planning]
+    permissions:
+      contents: write
+    outputs:
+      image-completed: ${{ steps.image.outputs.completed }}
+      google-image-url: ${{ steps.image.outputs.google-image-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: 画像生成エージェント 1/4
+        id: image
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::🎨 Image Generation Agent 1/4 Execution"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # 設定
+          MAIN_CONCEPT="${{ inputs.main_concept }}"
+          IMAGE_MODEL="${{ inputs.image_model }}"
+          PLANNED_IMAGE_PROMPT="${{ needs.planning.outputs.image-prompt-1 }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          IMAGES_DIR="$FOLDER_NAME/images"
+          
+          echo "Main concept: $MAIN_CONCEPT"
+          echo "Image model: $IMAGE_MODEL"
+          echo "Planned image prompt: $PLANNED_IMAGE_PROMPT"
+          echo "Target folder: $IMAGES_DIR"
+          
+          # 画像フォルダを事前に作成
+          if [ ! -d "$IMAGES_DIR" ]; then
+            mkdir -p "$IMAGES_DIR"
+            echo "📁 Created images folder: $IMAGES_DIR"
+          fi
+          
+          # MCP設定の確認
+          MCP_CONFIG_PATH=".claude/mcp-kamuicode.json"
+          MCP_CONFIG_ABS_PATH="$(pwd)/$MCP_CONFIG_PATH"
+          
+          echo "📋 MCP Configuration Check:"
+          echo "Working directory: $(pwd)"
+          echo "MCP config path: $MCP_CONFIG_PATH"
+          echo "MCP config absolute path: $MCP_CONFIG_ABS_PATH"
+          
+          # MCP設定ファイルの存在確認
+          if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
+            echo "✅ MCP config file exists at: $MCP_CONFIG_ABS_PATH"
+            echo "MCP servers configured:"
+            jq -r '.mcpServers | keys[]' "$MCP_CONFIG_ABS_PATH" 2>/dev/null || echo "MCP config format check skipped"
+          else
+            echo "❌ MCP config file not found at: $MCP_CONFIG_ABS_PATH"
+            exit 1
+          fi
+          
+          # 動的にMCPツール名を決定
+          MCP_TOOLS=""
+          BASH_TOOLS="Bash"
+          case "$IMAGE_MODEL" in
+            "t2i-google-imagen3")
+              MCP_TOOLS="mcp__t2i-google-imagen3__imagen3_submit,mcp__t2i-google-imagen3__imagen3_status,mcp__t2i-google-imagen3__imagen3_result"
+              ;;
+            "t2i-fal-imagen4-ultra")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-ultra__imagen4_ultra_submit,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_status,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_result"
+              ;;
+            "t2i-fal-imagen4-fast")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-fast__imagen4_fast_submit,mcp__t2i-fal-imagen4-fast__imagen4_fast_status,mcp__t2i-fal-imagen4-fast__imagen4_fast_result"
+              ;;
+            "t2i-fal-flux-schnell")
+              MCP_TOOLS="mcp__t2i-fal-flux-schnell__flux_schnell_submit,mcp__t2i-fal-flux-schnell__flux_schnell_status,mcp__t2i-fal-flux-schnell__flux_schnell_result"
+              ;;
+            "t2i-fal-rundiffusion-photo-flux")
+              MCP_TOOLS="mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_submit,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_status,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_result"
+              ;;
+            *)
+              echo "::error::❌ Unsupported image model: $IMAGE_MODEL"
+              exit 1
+              ;;
+          esac
+          
+          ALLOWED_TOOLS="$MCP_TOOLS,$BASH_TOOLS"
+          echo "Allowed tools: $ALLOWED_TOOLS"
+          
+          # プロンプトの構築
+          PROMPT="以下のプロンプトで$IMAGE_MODELを使用して高品質な画像を生成してください（4枚中の1枚目）。
+
+          **メインコンセプト**: $MAIN_CONCEPT
+          **画像生成プロンプト**: $PLANNED_IMAGE_PROMPT
+          **使用モデル**: $IMAGE_MODEL
+
+          **実行手順**:
+          1. 最適化された画像生成プロンプト（$PLANNED_IMAGE_PROMPT）を使用して$IMAGE_MODELで画像生成
+          2. 適切なMCPツールで画像生成を開始（submit）
+          3. ステータス確認（status）
+          4. 結果取得してGoogle URLを取得（result）
+          5. **重要**: 生成時に取得したGoogle URLを「$FOLDER_NAME/google-image-url-1.txt」ファイルに保存
+          6. 取得したGoogle URLをBashツールで「$IMAGES_DIR/tile-image-1.png」にダウンロード保存
+
+          **重要な注意点**:
+          - Google URLの有効期限は約1時間のため、生成後すぐにダウンロード
+          - 必ずGoogle提供の認証済URLを使用
+          - 画像は必ず「$IMAGES_DIR」ディレクトリに保存
+          - ファイル名は「tile-image-1.png」とする
+          - **最重要**: 生成時のGoogle URLを「$FOLDER_NAME/google-image-url-1.txt」に保存
+          - **両方を実行**: ①Google URLをテキストファイルに保存 ②Google URLから画像をダウンロードしてローカル保存"
+          
+          echo "🚀 Starting Image Generation Agent 1/4 Claude Code CLI..."
+          echo "📝 Prompt length: ${#PROMPT}"
+          
+          # Claude Code CLIの実行
+          npx @anthropic-ai/claude-code \
+            --mcp-config="$MCP_CONFIG_ABS_PATH" \
+            --allowedTools "$ALLOWED_TOOLS" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
+          
+          # 生成された画像の確認
+          echo ""
+          echo "📸 Checking generated image 1/4..."
+          if [ -f "$IMAGES_DIR/tile-image-1.png" ]; then
+            echo "::notice::✅ Image 1/4 generated successfully"
+            
+            # Google URLを確認してGitHub Outputに設定
+            if [ -f "$FOLDER_NAME/google-image-url-1.txt" ]; then
+              GOOGLE_URL=$(cat "$FOLDER_NAME/google-image-url-1.txt")
+              echo "Google image URL: $GOOGLE_URL"
+              echo "google-image-url=$GOOGLE_URL" >> $GITHUB_OUTPUT
+            else
+              echo "::warning::⚠️ Google image URL not found in file"
+              echo "google-image-url=" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "::error::❌ Image 1/4 was not generated"
+            exit 1
+          fi
+          
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+  image-generation-2:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, planning]
+    permissions:
+      contents: write
+    outputs:
+      image-completed: ${{ steps.image.outputs.completed }}
+      google-image-url: ${{ steps.image.outputs.google-image-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: 画像生成エージェント 2/4
+        id: image
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::🎨 Image Generation Agent 2/4 Execution"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # 設定
+          MAIN_CONCEPT="${{ inputs.main_concept }}"
+          IMAGE_MODEL="${{ inputs.image_model }}"
+          PLANNED_IMAGE_PROMPT="${{ needs.planning.outputs.image-prompt-2 }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          IMAGES_DIR="$FOLDER_NAME/images"
+          
+          echo "Main concept: $MAIN_CONCEPT"
+          echo "Image model: $IMAGE_MODEL"
+          echo "Planned image prompt: $PLANNED_IMAGE_PROMPT"
+          echo "Target folder: $IMAGES_DIR"
+          
+          # 画像フォルダを事前に作成
+          if [ ! -d "$IMAGES_DIR" ]; then
+            mkdir -p "$IMAGES_DIR"
+            echo "📁 Created images folder: $IMAGES_DIR"
+          fi
+          
+          # MCP設定の確認
+          MCP_CONFIG_PATH=".claude/mcp-kamuicode.json"
+          MCP_CONFIG_ABS_PATH="$(pwd)/$MCP_CONFIG_PATH"
+          
+          # 動的にMCPツール名を決定
+          MCP_TOOLS=""
+          BASH_TOOLS="Bash"
+          case "$IMAGE_MODEL" in
+            "t2i-google-imagen3")
+              MCP_TOOLS="mcp__t2i-google-imagen3__imagen3_submit,mcp__t2i-google-imagen3__imagen3_status,mcp__t2i-google-imagen3__imagen3_result"
+              ;;
+            "t2i-fal-imagen4-ultra")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-ultra__imagen4_ultra_submit,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_status,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_result"
+              ;;
+            "t2i-fal-imagen4-fast")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-fast__imagen4_fast_submit,mcp__t2i-fal-imagen4-fast__imagen4_fast_status,mcp__t2i-fal-imagen4-fast__imagen4_fast_result"
+              ;;
+            "t2i-fal-flux-schnell")
+              MCP_TOOLS="mcp__t2i-fal-flux-schnell__flux_schnell_submit,mcp__t2i-fal-flux-schnell__flux_schnell_status,mcp__t2i-fal-flux-schnell__flux_schnell_result"
+              ;;
+            "t2i-fal-rundiffusion-photo-flux")
+              MCP_TOOLS="mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_submit,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_status,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_result"
+              ;;
+            *)
+              echo "::error::❌ Unsupported image model: $IMAGE_MODEL"
+              exit 1
+              ;;
+          esac
+          
+          ALLOWED_TOOLS="$MCP_TOOLS,$BASH_TOOLS"
+          
+          # プロンプトの構築
+          PROMPT="以下のプロンプトで$IMAGE_MODELを使用して高品質な画像を生成してください（4枚中の2枚目）。
+
+          **メインコンセプト**: $MAIN_CONCEPT
+          **画像生成プロンプト**: $PLANNED_IMAGE_PROMPT
+          **使用モデル**: $IMAGE_MODEL
+
+          **実行手順**:
+          1. 最適化された画像生成プロンプト（$PLANNED_IMAGE_PROMPT）を使用して$IMAGE_MODELで画像生成
+          2. 適切なMCPツールで画像生成を開始（submit）
+          3. ステータス確認（status）
+          4. 結果取得してGoogle URLを取得（result）
+          5. **重要**: 生成時に取得したGoogle URLを「$FOLDER_NAME/google-image-url-2.txt」ファイルに保存
+          6. 取得したGoogle URLをBashツールで「$IMAGES_DIR/tile-image-2.png」にダウンロード保存
+
+          **重要な注意点**:
+          - ファイル名は「tile-image-2.png」とする
+          - **最重要**: 生成時のGoogle URLを「$FOLDER_NAME/google-image-url-2.txt」に保存"
+          
+          echo "🚀 Starting Image Generation Agent 2/4 Claude Code CLI..."
+          
+          # Claude Code CLIの実行
+          npx @anthropic-ai/claude-code \
+            --mcp-config="$MCP_CONFIG_ABS_PATH" \
+            --allowedTools "$ALLOWED_TOOLS" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
+          
+          # 生成された画像の確認
+          if [ -f "$IMAGES_DIR/tile-image-2.png" ]; then
+            echo "::notice::✅ Image 2/4 generated successfully"
+            
+            if [ -f "$FOLDER_NAME/google-image-url-2.txt" ]; then
+              GOOGLE_URL=$(cat "$FOLDER_NAME/google-image-url-2.txt")
+              echo "google-image-url=$GOOGLE_URL" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "::error::❌ Image 2/4 was not generated"
+            exit 1
+          fi
+          
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+  image-generation-3:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, planning]
+    permissions:
+      contents: write
+    outputs:
+      image-completed: ${{ steps.image.outputs.completed }}
+      google-image-url: ${{ steps.image.outputs.google-image-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: 画像生成エージェント 3/4
+        id: image
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::🎨 Image Generation Agent 3/4 Execution"
+          
+          # 設定
+          MAIN_CONCEPT="${{ inputs.main_concept }}"
+          IMAGE_MODEL="${{ inputs.image_model }}"
+          PLANNED_IMAGE_PROMPT="${{ needs.planning.outputs.image-prompt-3 }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          IMAGES_DIR="$FOLDER_NAME/images"
+          
+          # 画像フォルダを事前に作成
+          if [ ! -d "$IMAGES_DIR" ]; then
+            mkdir -p "$IMAGES_DIR"
+          fi
+          
+          # MCP設定
+          MCP_CONFIG_ABS_PATH="$(pwd)/.claude/mcp-kamuicode.json"
+          
+          # 動的にMCPツール名を決定
+          case "$IMAGE_MODEL" in
+            "t2i-google-imagen3")
+              MCP_TOOLS="mcp__t2i-google-imagen3__imagen3_submit,mcp__t2i-google-imagen3__imagen3_status,mcp__t2i-google-imagen3__imagen3_result"
+              ;;
+            "t2i-fal-imagen4-ultra")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-ultra__imagen4_ultra_submit,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_status,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_result"
+              ;;
+            "t2i-fal-imagen4-fast")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-fast__imagen4_fast_submit,mcp__t2i-fal-imagen4-fast__imagen4_fast_status,mcp__t2i-fal-imagen4-fast__imagen4_fast_result"
+              ;;
+            "t2i-fal-flux-schnell")
+              MCP_TOOLS="mcp__t2i-fal-flux-schnell__flux_schnell_submit,mcp__t2i-fal-flux-schnell__flux_schnell_status,mcp__t2i-fal-flux-schnell__flux_schnell_result"
+              ;;
+            "t2i-fal-rundiffusion-photo-flux")
+              MCP_TOOLS="mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_submit,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_status,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_result"
+              ;;
+          esac
+          
+          ALLOWED_TOOLS="$MCP_TOOLS,Bash"
+          
+          # プロンプトの構築
+          PROMPT="以下のプロンプトで$IMAGE_MODELを使用して高品質な画像を生成してください（4枚中の3枚目）。
+
+          **メインコンセプト**: $MAIN_CONCEPT
+          **画像生成プロンプト**: $PLANNED_IMAGE_PROMPT
+          **使用モデル**: $IMAGE_MODEL
+
+          **実行手順**:
+          1. 最適化された画像生成プロンプト（$PLANNED_IMAGE_PROMPT）を使用して$IMAGE_MODELで画像生成
+          2. 適切なMCPツールで画像生成を開始（submit）
+          3. ステータス確認（status）
+          4. 結果取得してGoogle URLを取得（result）
+          5. **重要**: 生成時に取得したGoogle URLを「$FOLDER_NAME/google-image-url-3.txt」ファイルに保存
+          6. 取得したGoogle URLをBashツールで「$IMAGES_DIR/tile-image-3.png」にダウンロード保存
+
+          **重要な注意点**:
+          - ファイル名は「tile-image-3.png」とする
+          - **最重要**: 生成時のGoogle URLを「$FOLDER_NAME/google-image-url-3.txt」に保存"
+          
+          # Claude Code CLIの実行
+          npx @anthropic-ai/claude-code \
+            --mcp-config="$MCP_CONFIG_ABS_PATH" \
+            --allowedTools "$ALLOWED_TOOLS" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
+          
+          # 生成された画像の確認
+          if [ -f "$IMAGES_DIR/tile-image-3.png" ]; then
+            echo "::notice::✅ Image 3/4 generated successfully"
+            
+            if [ -f "$FOLDER_NAME/google-image-url-3.txt" ]; then
+              GOOGLE_URL=$(cat "$FOLDER_NAME/google-image-url-3.txt")
+              echo "google-image-url=$GOOGLE_URL" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "::error::❌ Image 3/4 was not generated"
+            exit 1
+          fi
+          
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+  image-generation-4:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, planning]
+    permissions:
+      contents: write
+    outputs:
+      image-completed: ${{ steps.image.outputs.completed }}
+      google-image-url: ${{ steps.image.outputs.google-image-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: 画像生成エージェント 4/4
+        id: image
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::🎨 Image Generation Agent 4/4 Execution"
+          
+          # 設定
+          MAIN_CONCEPT="${{ inputs.main_concept }}"
+          IMAGE_MODEL="${{ inputs.image_model }}"
+          PLANNED_IMAGE_PROMPT="${{ needs.planning.outputs.image-prompt-4 }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          IMAGES_DIR="$FOLDER_NAME/images"
+          
+          # 画像フォルダを事前に作成
+          if [ ! -d "$IMAGES_DIR" ]; then
+            mkdir -p "$IMAGES_DIR"
+          fi
+          
+          # MCP設定
+          MCP_CONFIG_ABS_PATH="$(pwd)/.claude/mcp-kamuicode.json"
+          
+          # 動的にMCPツール名を決定
+          case "$IMAGE_MODEL" in
+            "t2i-google-imagen3")
+              MCP_TOOLS="mcp__t2i-google-imagen3__imagen3_submit,mcp__t2i-google-imagen3__imagen3_status,mcp__t2i-google-imagen3__imagen3_result"
+              ;;
+            "t2i-fal-imagen4-ultra")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-ultra__imagen4_ultra_submit,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_status,mcp__t2i-fal-imagen4-ultra__imagen4_ultra_result"
+              ;;
+            "t2i-fal-imagen4-fast")
+              MCP_TOOLS="mcp__t2i-fal-imagen4-fast__imagen4_fast_submit,mcp__t2i-fal-imagen4-fast__imagen4_fast_status,mcp__t2i-fal-imagen4-fast__imagen4_fast_result"
+              ;;
+            "t2i-fal-flux-schnell")
+              MCP_TOOLS="mcp__t2i-fal-flux-schnell__flux_schnell_submit,mcp__t2i-fal-flux-schnell__flux_schnell_status,mcp__t2i-fal-flux-schnell__flux_schnell_result"
+              ;;
+            "t2i-fal-rundiffusion-photo-flux")
+              MCP_TOOLS="mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_submit,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_status,mcp__t2i-fal-rundiffusion-photo-flux__rundiffusion_photo_flux_result"
+              ;;
+          esac
+          
+          ALLOWED_TOOLS="$MCP_TOOLS,Bash"
+          
+          # プロンプトの構築
+          PROMPT="以下のプロンプトで$IMAGE_MODELを使用して高品質な画像を生成してください（4枚中の4枚目）。
+
+          **メインコンセプト**: $MAIN_CONCEPT
+          **画像生成プロンプト**: $PLANNED_IMAGE_PROMPT
+          **使用モデル**: $IMAGE_MODEL
+
+          **実行手順**:
+          1. 最適化された画像生成プロンプト（$PLANNED_IMAGE_PROMPT）を使用して$IMAGE_MODELで画像生成
+          2. 適切なMCPツールで画像生成を開始（submit）
+          3. ステータス確認（status）
+          4. 結果取得してGoogle URLを取得（result）
+          5. **重要**: 生成時に取得したGoogle URLを「$FOLDER_NAME/google-image-url-4.txt」ファイルに保存
+          6. 取得したGoogle URLをBashツールで「$IMAGES_DIR/tile-image-4.png」にダウンロード保存
+
+          **重要な注意点**:
+          - ファイル名は「tile-image-4.png」とする
+          - **最重要**: 生成時のGoogle URLを「$FOLDER_NAME/google-image-url-4.txt」に保存"
+          
+          # Claude Code CLIの実行
+          npx @anthropic-ai/claude-code \
+            --mcp-config="$MCP_CONFIG_ABS_PATH" \
+            --allowedTools "$ALLOWED_TOOLS" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
+          
+          # 生成された画像の確認
+          if [ -f "$IMAGES_DIR/tile-image-4.png" ]; then
+            echo "::notice::✅ Image 4/4 generated successfully"
+            
+            if [ -f "$FOLDER_NAME/google-image-url-4.txt" ]; then
+              GOOGLE_URL=$(cat "$FOLDER_NAME/google-image-url-4.txt")
+              echo "google-image-url=$GOOGLE_URL" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "::error::❌ Image 4/4 was not generated"
+            exit 1
+          fi
+          
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+  # 全ての画像生成完了後にタイル画像を作成
+  tile-composition:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, planning, image-generation-1, image-generation-2, image-generation-3, image-generation-4]
+    permissions:
+      contents: write
+    outputs:
+      tile-completed: ${{ steps.tile.outputs.completed }}
+      tile-image-url: ${{ steps.tile.outputs.tile-image-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+      
+      - name: タイル画像合成エージェント
+        id: tile
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::🖼️ Tile Composition Agent Execution"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # 設定
+          MAIN_CONCEPT="${{ inputs.main_concept }}"
+          TILE_LAYOUT="${{ inputs.tile_layout }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          IMAGES_DIR="$FOLDER_NAME/images"
+          FINAL_DIR="$FOLDER_NAME/final"
+          
+          echo "Main concept: $MAIN_CONCEPT"
+          echo "Tile layout: $TILE_LAYOUT"
+          echo "Images folder: $IMAGES_DIR"
+          echo "Final folder: $FINAL_DIR"
+          
+          # 最終フォルダを事前に作成
+          if [ ! -d "$FINAL_DIR" ]; then
+            mkdir -p "$FINAL_DIR"
+            echo "📁 Created final folder: $FINAL_DIR"
+          fi
+          
+          # 4つの画像ファイルの存在確認
+          echo "📸 Checking individual images..."
+          for i in 1 2 3 4; do
+            if [ -f "$IMAGES_DIR/tile-image-$i.png" ]; then
+              echo "✅ tile-image-$i.png found"
+            else
+              echo "::error::❌ tile-image-$i.png not found"
+              exit 1
+            fi
+          done
+          
+          # プロンプトの構築
+          PROMPT="4枚の個別画像を使用して、$TILE_LAYOUT レイアウトでタイル状に配置した1枚の合成画像を作成してください。
+
+          **タスク概要**:
+          - 4枚の画像: $IMAGES_DIR/tile-image-1.png, tile-image-2.png, tile-image-3.png, tile-image-4.png
+          - レイアウト: $TILE_LAYOUT
+          - 最終画像: $FINAL_DIR/tile-composed.png
+
+          **実行手順**:
+          1. 4つの画像ファイルの存在と解像度を確認
+          2. $TILE_LAYOUT レイアウトに応じて適切なImageMagickコマンドを構築
+          3. 画像を統一サイズにリサイズ（必要に応じて）
+          4. タイル状に配置して合成
+          5. 最終画像を「$FINAL_DIR/tile-composed.png」として保存
+          6. 合成画像の情報（サイズ、品質等）を確認・報告
+
+          **レイアウト仕様**:
+          - 2x2: 2行2列のグリッド配置
+          - 1x4: 1行4列の横並び配置  
+          - 4x1: 4行1列の縦並び配置
+
+          **ImageMagickコマンド例**:
+          - 2x2の場合: montage tile-image-1.png tile-image-2.png tile-image-3.png tile-image-4.png -tile 2x2 -geometry +0+0 output.png
+          - 1x4の場合: montage tile-image-1.png tile-image-2.png tile-image-3.png tile-image-4.png -tile 4x1 -geometry +0+0 output.png
+          - 4x1の場合: montage tile-image-1.png tile-image-2.png tile-image-3.png tile-image-4.png -tile 1x4 -geometry +0+0 output.png
+
+          **重要な注意点**:
+          - 各画像の縦横比を保持
+          - 統一された品質とサイズ
+          - 境界線や余白の調整
+          - 最終画像の品質確保
+          - ファイル名は必ず「tile-composed.png」とする"
+          
+          echo "🚀 Starting Tile Composition Agent Claude Code CLI..."
+          echo "📝 Prompt length: ${#PROMPT}"
+          
+          # Claude Code CLIの実行
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Bash,Read" \
+            --max-turns 15 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
+          
+          # 合成画像の確認
+          echo ""
+          echo "🖼️ Checking composed tile image..."
+          if [ -f "$FINAL_DIR/tile-composed.png" ]; then
+            echo "::notice::✅ Tile composition completed successfully"
+            
+            # 画像情報の表示
+            echo "Image info:"
+            file "$FINAL_DIR/tile-composed.png"
+            
+            # ファイルサイズの確認
+            SIZE=$(stat -f%z "$FINAL_DIR/tile-composed.png" 2>/dev/null || stat -c%s "$FINAL_DIR/tile-composed.png" 2>/dev/null || echo "unknown")
+            echo "File size: $SIZE bytes"
+            
+            # 今回はローカルファイルパスをURLとして出力（実際の環境では適切なURLに変更）
+            TILE_IMAGE_URL="file://$(pwd)/$FINAL_DIR/tile-composed.png"
+            echo "Tile image path: $TILE_IMAGE_URL"
+            echo "tile-image-url=$TILE_IMAGE_URL" >> $GITHUB_OUTPUT
+          else
+            echo "::error::❌ Tile composition failed - file not found"
+            exit 1
+          fi
+          
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+      
+      - name: Commit and push all generated content
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ needs.setup-branch.outputs.folder-name }}/
+          if git diff --cached --quiet; then
+            echo "No files to commit"
+          else
+            git commit -m "Add tile images: ${{ inputs.main_concept }} (${{ inputs.tile_layout }} layout)"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
+          fi
+
+  # プルリクエスト作成
+  create-pr:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, tile-composition]
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # プルリクエストのタイトルと本文を作成
+          PR_TITLE="🎨 Add Tile Images: ${{ inputs.main_concept }}"
+          PR_BODY="## 🖼️ Tile Image Generation Results
+
+          **Main Concept**: ${{ inputs.main_concept }}
+          **Layout**: ${{ inputs.tile_layout }}
+          **Model**: ${{ inputs.image_model }}
+          **Branch**: ${{ needs.setup-branch.outputs.branch-name }}
+
+          ### 📁 Generated Content
+          - ✅ Planning documents
+          - ✅ 4 individual images (tile-image-1.png ~ tile-image-4.png)
+          - ✅ Composed tile image (tile-composed.png)
+          - ✅ Google image URLs for external access
+
+          ### 🎯 Features
+          - **Multi-model support**: Compatible with 5 different AI image models
+          - **Flexible layouts**: 2x2, 1x4, 4x1 tile arrangements
+          - **Parallel processing**: 4 images generated simultaneously
+          - **Automatic composition**: ImageMagick-based tile assembly
+          - **Quality assurance**: High-resolution output with unified styling
+
+          ---
+          🤖 Generated automatically by **Tile Image Generation Workflow**"
+
+          # プルリクエストを作成
+          gh pr create \
+            --title "$PR_TITLE" \
+            --body "$PR_BODY" \
+            --base main \
+            --head ${{ needs.setup-branch.outputs.branch-name }} || {
+              echo "::warning::Failed to create PR, possibly already exists"
+            }
+          
+          echo "✅ Pull request creation completed"
