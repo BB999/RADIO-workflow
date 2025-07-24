@@ -402,6 +402,8 @@ jobs:
             echo "No files to commit for image 1/4"
           else
             git commit -m "Add generated image 1/4: ${{ inputs.main_concept }}"
+            # 最新の変更を取得してからプッシュ
+            git pull origin ${{ needs.setup-branch.outputs.branch-name }} --rebase
             git push origin ${{ needs.setup-branch.outputs.branch-name }}
           fi
 
@@ -548,6 +550,8 @@ jobs:
             echo "No files to commit for image 2/4"
           else
             git commit -m "Add generated image 2/4: ${{ inputs.main_concept }}"
+            # 最新の変更を取得してからプッシュ
+            git pull origin ${{ needs.setup-branch.outputs.branch-name }} --rebase
             git push origin ${{ needs.setup-branch.outputs.branch-name }}
           fi
 
@@ -678,6 +682,8 @@ jobs:
             echo "No files to commit for image 3/4"
           else
             git commit -m "Add generated image 3/4: ${{ inputs.main_concept }}"
+            # 最新の変更を取得してからプッシュ
+            git pull origin ${{ needs.setup-branch.outputs.branch-name }} --rebase
             git push origin ${{ needs.setup-branch.outputs.branch-name }}
           fi
 
@@ -808,6 +814,8 @@ jobs:
             echo "No files to commit for image 4/4"
           else
             git commit -m "Add generated image 4/4: ${{ inputs.main_concept }}"
+            # 最新の変更を取得してからプッシュ
+            git pull origin ${{ needs.setup-branch.outputs.branch-name }} --rebase
             git push origin ${{ needs.setup-branch.outputs.branch-name }}
           fi
 
