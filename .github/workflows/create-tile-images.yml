@@ -390,6 +390,20 @@ jobs:
           
           echo "completed=true" >> $GITHUB_OUTPUT
           echo "::endgroup::"
+      
+      - name: Commit and push image 1/4
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ needs.setup-branch.outputs.folder-name }}/
+          if git diff --cached --quiet; then
+            echo "No files to commit for image 1/4"
+          else
+            git commit -m "Add generated image 1/4: ${{ inputs.main_concept }}"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
+          fi
 
   image-generation-2:
     runs-on: ubuntu-latest
@@ -522,6 +536,20 @@ jobs:
           
           echo "completed=true" >> $GITHUB_OUTPUT
           echo "::endgroup::"
+      
+      - name: Commit and push image 2/4
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ needs.setup-branch.outputs.folder-name }}/
+          if git diff --cached --quiet; then
+            echo "No files to commit for image 2/4"
+          else
+            git commit -m "Add generated image 2/4: ${{ inputs.main_concept }}"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
+          fi
 
   image-generation-3:
     runs-on: ubuntu-latest
@@ -638,6 +666,20 @@ jobs:
           
           echo "completed=true" >> $GITHUB_OUTPUT
           echo "::endgroup::"
+      
+      - name: Commit and push image 3/4
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ needs.setup-branch.outputs.folder-name }}/
+          if git diff --cached --quiet; then
+            echo "No files to commit for image 3/4"
+          else
+            git commit -m "Add generated image 3/4: ${{ inputs.main_concept }}"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
+          fi
 
   image-generation-4:
     runs-on: ubuntu-latest
@@ -754,6 +796,20 @@ jobs:
           
           echo "completed=true" >> $GITHUB_OUTPUT
           echo "::endgroup::"
+      
+      - name: Commit and push image 4/4
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ needs.setup-branch.outputs.folder-name }}/
+          if git diff --cached --quiet; then
+            echo "No files to commit for image 4/4"
+          else
+            git commit -m "Add generated image 4/4: ${{ inputs.main_concept }}"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
+          fi
 
   # 全ての画像生成完了後にタイル画像を作成
   tile-composition:
