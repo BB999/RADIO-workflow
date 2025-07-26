@@ -61,8 +61,7 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code
+      # Claude Code CLIセットアップは不要（npxで直接実行）
       
       - name: ラジオ台本作成エージェント
         id: planning
@@ -122,7 +121,15 @@ jobs:
           ファイルを作成し、戦略を計画してください。"
 
           # Claude Codeを実行
-          npx claude-code --prompt "$PROMPT"
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Read,Write,Edit" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
           
           # 出力の確認
           if [ -f "$PLANNING_DIR/radio-script.txt" ]; then
@@ -181,8 +188,7 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code
+      # Claude Code CLIセットアップは不要（npxで直接実行）
       
       # 音声生成（aivis-api使用）
       - name: 音声生成エージェント
@@ -223,7 +229,15 @@ jobs:
 
           音声を生成し、ファイルを保存してください。"
 
-          npx claude-code --prompt "$PROMPT"
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Read,Write,Edit" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
           
           # 音声ファイルの確認
           if [ -f "$AUDIO_DIR/radio-voice.wav" ]; then
@@ -266,7 +280,15 @@ jobs:
 
           kamuicode MCPの音楽生成機能を使用して、ラジオ番組に適した背景音楽を生成してください。"
 
-          npx claude-code --prompt "$PROMPT"
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Read,Write,Edit" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
           
           # 音楽ファイルの確認
           if [ -f "$MUSIC_DIR/background-music.wav" ]; then
@@ -296,8 +318,7 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code
+      # Claude Code CLIセットアップは不要（npxで直接実行）
       
       - name: Install FFmpeg
         run: |
@@ -339,7 +360,15 @@ jobs:
 
           音声と音楽を合成し、高品質なラジオ音声を完成させてください。"
 
-          npx claude-code --prompt "$PROMPT"
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Read,Write,Edit" \
+            --max-turns 25 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
           
           # 最終ファイルの確認
           if [ -f "$FINAL_DIR/final-radio-audio.wav" ]; then
