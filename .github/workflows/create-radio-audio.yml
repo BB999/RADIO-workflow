@@ -205,20 +205,20 @@ jobs:
           # 音声フォルダ作成
           mkdir -p "$AUDIO_DIR"
           
-          RADIO_SCRIPT="${{ needs.script-planning.outputs.radio-script }}"
-          VOICE_STYLE="${{ needs.script-planning.outputs.voice-style }}"
+          PLANNING_DIR="${{ needs.setup-branch.outputs.folder-name }}/planning"
           
           PROMPT="aivis-apiを使用してラジオ音声を生成してください。
 
-          **台本**: $RADIO_SCRIPT
-          **音声設定**: $VOICE_STYLE
+          **台本ファイル**: $PLANNING_DIR/radio-script.txt
+          **音声設定ファイル**: $PLANNING_DIR/voice-style.json
           **API Key**: 環境変数AIVIS_API_KEYから取得
 
           **タスク**:
-          1. aivis-api（https://api.aivis-project.com/v1/tts/synthesize）を使って音声生成
-          2. 高音質WAV形式で出力
-          3. 生成した音声ファイルを「$AUDIO_DIR/radio-voice.wav」に保存
-          4. 音声ファイルのURLを出力
+          1. 台本ファイルとvoice-style.jsonファイルを読み込む（Readツール使用）
+          2. aivis-api（https://api.aivis-project.com/v1/tts/synthesize）を使って音声生成
+          3. 高音質WAV形式で出力
+          4. 生成した音声ファイルを「$AUDIO_DIR/radio-voice.wav」に保存
+          5. 音声ファイルのURLを出力
 
           aivis-apiの使用方法:
           - エンドポイント: POST https://api.aivis-project.com/v1/tts/synthesize
