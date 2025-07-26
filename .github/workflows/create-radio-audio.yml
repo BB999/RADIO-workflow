@@ -265,10 +265,11 @@ jobs:
             echo "voice-generated=true" >> $GITHUB_OUTPUT
             
             # ファイルをコミット
-            git add "$AUDIO_DIR/radio-voice.wav"
+            git add "$AUDIO_DIR"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git commit -m "Add generated voice file" || echo "No changes to commit"
+            git pull origin ${{ needs.setup-branch.outputs.branch-name }} --rebase || echo "No remote changes to pull"
             git push origin ${{ needs.setup-branch.outputs.branch-name }}
           else
             echo "❌ Voice generation failed"
@@ -391,10 +392,11 @@ jobs:
             echo "music-generated=true" >> $GITHUB_OUTPUT
             
             # ファイルをコミット
-            git add "$MUSIC_DIR/background-music.wav"
+            git add "$MUSIC_DIR"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git commit -m "Add generated music file" || echo "No changes to commit"
+            git pull origin ${{ needs.setup-branch.outputs.branch-name }} --rebase || echo "No remote changes to pull"
             git push origin ${{ needs.setup-branch.outputs.branch-name }}
           else
             echo "❌ Music generation failed"
