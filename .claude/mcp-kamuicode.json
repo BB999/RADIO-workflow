@@ -89,6 +89,16 @@
       "type": "http",
       "url": "https://mcp-creatify-lipsync-20250719-010824-a071b7b8-820994673238.us-central1.run.app/v2v/fal/creatify/lipsync",
       "description": "Fal.ai Creatify Lipsync - Realistic lipsync video optimized for speed, quality, and consistency ⭐"
+    },
+    "v2v-fal-pixverse-lipsync": {
+      "type": "http",
+      "url": "https://mcp-pixverse-lipsync-20250723-100530-4cf515f5-zl3xx5lsaq-uc.a.run.app/v2v/fal/pixverse/lipsync",
+      "description": "Fal.ai Pixverse Lipsync - High-quality video-to-video lipsync generation ⭐"
+    },
+    "v2v-fal-minimax-voice-design": {
+      "type": "http",
+      "url": "https://mcp-fal-minimax-voice-design-20250725-133906-d3c2-zl3xx5lsaq-uc.a.run.app/v2v/fal/minimax/voice-design",
+      "description": "Fal.ai Minimax Voice Design - Custom voice generation and design ⭐"
     }
   }
 }
