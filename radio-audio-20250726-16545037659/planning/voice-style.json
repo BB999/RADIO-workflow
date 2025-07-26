@@ -1,0 +1,28 @@
+{
+  "voice_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.0,
+    "emotional_intensity": 0.6,
+    "output_format": "wav"
+  },
+  "tone_characteristics": {
+    "overall_tone": "gentle_conversational",
+    "emotional_depth": "warm_reflective",
+    "delivery_style": "intimate_storytelling"
+  },
+  "speech_patterns": {
+    "pace": "relaxed_contemplative",
+    "emphasis": "soft_natural_pauses",
+    "inflection": "gentle_rises_on_key_moments"
+  },
+  "content_adaptations": {
+    "music_sync": "leave_space_for_instrumental_interludes",
+    "volume_considerations": "consistent_mid_range_for_mixing",
+    "breath_control": "natural_pauses_between_paragraphs"
+  },
+  "technical_notes": {
+    "recording_quality": "high_quality_for_professional_mixing",
+    "post_processing": "minimal_compression_preserve_naturalness",
+    "music_integration": "voice_as_primary_music_as_atmospheric"
+  }
+}
