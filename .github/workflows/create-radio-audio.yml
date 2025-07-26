@@ -298,6 +298,18 @@ jobs:
       
       # Claude Code CLIセットアップは不要（npxで直接実行）
       
+      # MCP設定ファイルの確認
+      - name: Check MCP configuration
+        run: |
+          echo "📋 Checking MCP configuration..."
+          if [ -f ".claude/mcp-kamuicode.json" ]; then
+            echo "✅ MCP configuration file found"
+            echo "📄 Configuration content:"
+            cat .claude/mcp-kamuicode.json | jq '.' 2>/dev/null || cat .claude/mcp-kamuicode.json
+          else
+            echo "❌ MCP configuration file not found"
+          fi
+      
       - name: 音楽生成エージェント
         id: music-generation
         env:
@@ -325,19 +337,25 @@ jobs:
           echo "📄 Music prompt content:"
           cat "$PLANNING_DIR/music-prompt.txt" || echo "Failed to read music prompt"
           
-          PROMPT="kamuicode MCPを使用して背景音楽を生成してください。
+          PROMPT="Google Lyria MCPサーバーを使用して背景音楽を生成してください。
 
           **音楽プロンプトファイル**: $PLANNING_DIR/music-prompt.txt
           **出力長さ**: 約60-90秒（音声の1分間＋余裕）
+          **MCPサーバー**: t2m-google-lyria（.claude/mcp-kamuicode.jsonに定義済み）
 
           **タスク**:
           1. 音楽プロンプトファイルを読み込む（Readツール使用）
-          2. Google Lyriaを使って背景音楽を生成
+          2. HTTP MCPサーバー経由でGoogle Lyriaを使って背景音楽を生成
           3. 音声に適したボリューム・テンポで生成
           4. 生成した音楽ファイルを「$MUSIC_DIR/background-music.wav」に保存
           5. 音楽ファイルのURLを出力
 
-          kamuicode MCPの音楽生成機能を使用して、ラジオ番組に適した背景音楽を生成してください。"
+          **重要**: MCPサーバーへの直接APIコールが必要な場合は、以下を使用：
+          - URL: https://mcp-creatify-lipsync-20250719-010824-a071b7b8-820994673238.us-central1.run.app/t2m/google/lyria
+          - Method: POST
+          - Content-Type: application/json
+
+          Google Lyria MCPサーバーを使用して、ラジオ番組に適した背景音楽を生成してください。"
 
           npx @anthropic-ai/claude-code \
             --allowedTools "Read,Write,Edit,Bash" \
