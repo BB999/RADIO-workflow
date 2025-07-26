@@ -1,0 +1,46 @@
+{
+  "voice_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.0,
+    "emotional_intensity": 0.6,
+    "output_format": "wav",
+    "voice_style": "casual_narrative",
+    "tone": "warm_storytelling"
+  },
+  "style_characteristics": {
+    "delivery": "落ち着いたペースで親しみやすく",
+    "emotion": "穏やかで心温まる語り",
+    "emphasis": "感情的な部分で自然な強弱をつける",
+    "pauses": "「えっと」「で」「なんか」の後に自然な間を作る"
+  },
+  "content_adaptation": {
+    "story_segments": [
+      {
+        "segment": "導入部",
+        "style": "カジュアルで親しみやすい導入",
+        "rate": 1.0
+      },
+      {
+        "segment": "物語描写",
+        "style": "穏やかで感情を込めた語り",
+        "rate": 0.95
+      },
+      {
+        "segment": "感動的な部分",
+        "style": "少し感情を込めて、間を大切に",
+        "rate": 0.9
+      },
+      {
+        "segment": "締めくくり",
+        "style": "温かみのある余韻を残す語り",
+        "rate": 0.95
+      }
+    ]
+  },
+  "technical_settings": {
+    "sample_rate": 44100,
+    "bit_depth": 16,
+    "channels": "mono",
+    "format": "wav"
+  }
+}

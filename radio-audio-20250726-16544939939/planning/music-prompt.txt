@@ -1,0 +1,34 @@
+【ラジオ番組用BGM生成プロンプト】
+
+## 音楽コンセプト
+フリーレンの図書館での静かな午後のシーンに合う、落ち着いた癒し系BGM
+
+## 音楽的要素
+- **ジャンル**: アコースティック・アンビエント、ローファイ
+- **テンポ**: ゆったり（60-80 BPM）
+- **楽器構成**: 
+  - メイン: アコースティックギター（フィンガーピッキング）
+  - サブ: ピアノ（優しいメロディ）
+  - ambient pad（背景の温かみ）
+  - 軽やかなストリングス
+- **音色**: 温かく柔らかい、木漏れ日のような明るさ
+
+## 感情表現
+- **前半（0-30秒）**: 静寂から始まり、徐々に温かみが増す
+- **中盤（30-45秒）**: 花束を受け取る感動的なシーン、少し感情が高まる
+- **後半（45-60秒）**: 夕日と詩集のシーン、余韻を残して静かに終わる
+
+## 音響設定
+- **ダイナミクス**: 音声を邪魔しない程度の音量（-20dB to -15dB）
+- **周波数**: 人の声域（200Hz-3kHz）は控えめに
+- **ステレオ感**: 広がりを持たせつつ、音声の明瞭性を保つ
+- **リバーブ**: 図書館の静かな空間を演出する軽いルームリバーブ
+
+## 具体的な音楽生成指示
+"Create a gentle, warm acoustic ambient track for a radio story about a peaceful library scene. Soft fingerpicked acoustic guitar as the main melody, supported by gentle piano and warm pad sounds. Tempo around 70 BPM. The track should evoke the feeling of afternoon sunlight streaming through library windows, with a nostalgic yet hopeful mood. Duration: 60-75 seconds. Include subtle string arrangements and maintain space for clear vocal narration."
+
+## ミキシング指針
+- 音声との調和を最優先
+- 感情的な部分で音楽も微妙に盛り上がる
+- 図書館の静寂感を音楽で表現
+- 最後は自然にフェードアウト
