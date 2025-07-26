@@ -290,18 +290,19 @@ jobs:
           # 音楽フォルダ作成
           mkdir -p "$MUSIC_DIR"
           
-          MUSIC_PROMPT="${{ needs.script-planning.outputs.music-prompt }}"
+          PLANNING_DIR="${{ needs.setup-branch.outputs.folder-name }}/planning"
           
           PROMPT="kamuicode MCPを使用して背景音楽を生成してください。
 
-          **音楽プロンプト**: $MUSIC_PROMPT
+          **音楽プロンプトファイル**: $PLANNING_DIR/music-prompt.txt
           **出力長さ**: 約60-90秒（音声の1分間＋余裕）
 
           **タスク**:
-          1. Google Lyriaを使って背景音楽を生成
-          2. 音声に適したボリューム・テンポで生成
-          3. 生成した音楽ファイルを「$MUSIC_DIR/background-music.wav」に保存
-          4. 音楽ファイルのURLを出力
+          1. 音楽プロンプトファイルを読み込む（Readツール使用）
+          2. Google Lyriaを使って背景音楽を生成
+          3. 音声に適したボリューム・テンポで生成
+          4. 生成した音楽ファイルを「$MUSIC_DIR/background-music.wav」に保存
+          5. 音楽ファイルのURLを出力
 
           kamuicode MCPの音楽生成機能を使用して、ラジオ番組に適した背景音楽を生成してください。"
 
