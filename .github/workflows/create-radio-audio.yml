@@ -122,10 +122,10 @@ jobs:
 
           # Claude Codeを実行
           npx @anthropic-ai/claude-code \
-            --allowedTools "Read,Write,Edit" \
+            --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "acceptEdits" \
+            --permission-mode "preApprove" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
@@ -230,10 +230,10 @@ jobs:
           音声を生成し、ファイルを保存してください。"
 
           npx @anthropic-ai/claude-code \
-            --allowedTools "Read,Write,Edit" \
+            --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "acceptEdits" \
+            --permission-mode "preApprove" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
@@ -281,10 +281,10 @@ jobs:
           kamuicode MCPの音楽生成機能を使用して、ラジオ番組に適した背景音楽を生成してください。"
 
           npx @anthropic-ai/claude-code \
-            --allowedTools "Read,Write,Edit" \
+            --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "acceptEdits" \
+            --permission-mode "preApprove" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
@@ -361,10 +361,10 @@ jobs:
           音声と音楽を合成し、高品質なラジオ音声を完成させてください。"
 
           npx @anthropic-ai/claude-code \
-            --allowedTools "Read,Write,Edit" \
+            --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "acceptEdits" \
+            --permission-mode "preApprove" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
