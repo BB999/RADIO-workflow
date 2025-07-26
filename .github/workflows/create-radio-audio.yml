@@ -313,6 +313,18 @@ jobs:
           
           PLANNING_DIR="${{ needs.setup-branch.outputs.folder-name }}/planning"
           
+          # ファイルの存在確認
+          echo "📁 Checking music prompt file..."
+          ls -la "$PLANNING_DIR" || echo "Planning directory not found"
+          
+          if [ ! -f "$PLANNING_DIR/music-prompt.txt" ]; then
+            echo "❌ music-prompt.txt not found in $PLANNING_DIR"
+            exit 1
+          fi
+          
+          echo "📄 Music prompt content:"
+          cat "$PLANNING_DIR/music-prompt.txt" || echo "Failed to read music prompt"
+          
           PROMPT="kamuicode MCPを使用して背景音楽を生成してください。
 
           **音楽プロンプトファイル**: $PLANNING_DIR/music-prompt.txt
