@@ -361,8 +361,20 @@ jobs:
             git commit -m "Add generated music file" || echo "No changes to commit"
             git push origin ${{ needs.setup-branch.outputs.branch-name }}
           else
-            echo "❌ Music generation failed"
-            exit 1
+            echo "⚠️ Music generation failed - kamuicode MCP not available"
+            echo "🎵 Music prompt and specifications have been prepared"
+            echo "📝 Generated files:"
+            ls -la "$MUSIC_DIR" 2>/dev/null || echo "No music files found"
+            
+            # 音楽が生成できなくてもワークフローは継続
+            echo "music-generated=false" >> $GITHUB_OUTPUT
+            
+            # 準備されたファイルをコミット
+            git add "$MUSIC_DIR" 2>/dev/null || echo "No music files to commit"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Add music generation preparation files (kamuicode MCP not available)" || echo "No changes to commit"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
           fi
           
           echo "::endgroup::"
@@ -406,25 +418,42 @@ jobs:
           VOICE_FILE="${{ needs.setup-branch.outputs.folder-name }}/audio/radio-voice.wav"
           MUSIC_FILE="${{ needs.setup-branch.outputs.folder-name }}/music/background-music.wav"
           
-          PROMPT="FFmpegを使用して音声と音楽を合成し、最終的なラジオ音声を作成してください。
+          # 音楽ファイルの存在確認
+          if [ -f "$MUSIC_FILE" ]; then
+            echo "🎵 Music file found - creating audio with background music"
+            COMPOSITION_MODE="with_music"
+          else
+            echo "🎤 Music file not found - creating voice-only audio"
+            COMPOSITION_MODE="voice_only"
+          fi
+          
+          PROMPT="音声ファイルを処理し、最終的なラジオ音声を作成してください。
 
           **音声ファイル**: $VOICE_FILE
           **音楽ファイル**: $MUSIC_FILE
+          **処理モード**: $COMPOSITION_MODE
           **出力先**: $FINAL_DIR/final-radio-audio.wav
 
-          **合成要件**:
+          **処理方法**:
+          
+          **with_musicモードの場合**:
           1. 背景音楽のボリュームを音声の20-30%に調整
           2. 音声をメインに、音楽を背景として配置
           3. フェードイン・フェードアウトを適用
           4. 音声の長さに合わせて音楽をループまたはトリミング
           5. 最終的な音質は高品質を維持
+          
+          **voice_onlyモードの場合**:
+          1. 音声ファイルをそのまま最終出力にコピー
+          2. 音質向上処理（ノイズ除去、音量正規化）を適用
+          3. フェードイン・フェードアウトを適用
 
           **FFmpegコマンド例**:
-          - 音楽ボリューム調整: -filter:a \"volume=0.3\"
-          - 音声と音楽の合成: -filter_complex \"[1:a]volume=0.3[bg];[0:a][bg]amix=inputs=2[out]\"
-          - フェード効果: afade=in:st=0:d=2,afade=out:st=(duration-2):d=2
+          - 音楽ありの場合: -filter_complex \"[1:a]volume=0.3[bg];[0:a][bg]amix=inputs=2[out]\"
+          - 音声のみの場合: -af \"volume=1.0,afade=in:st=0:d=1,afade=out:st=(duration-1):d=1\"
 
-          音声と音楽を合成し、高品質なラジオ音声を完成させてください。"
+          現在のモードに応じて適切に音声を処理し、高品質なラジオ音声を完成させてください。
+          kamuicode MCPが利用可能になれば、音楽ファイルが生成されてwith_musicモードで処理されます。"
 
           npx @anthropic-ai/claude-code \
             --allowedTools "Read,Write,Edit,Bash" \
