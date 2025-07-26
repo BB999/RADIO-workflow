@@ -168,14 +168,13 @@ jobs:
           echo "completed=true" >> $GITHUB_OUTPUT
           echo "::endgroup::"
 
-  generate-audio-and-music:
+  generate-voice:
     runs-on: ubuntu-latest
     needs: [setup-branch, script-planning]
     permissions:
       contents: write
     outputs:
-      voice-url: ${{ steps.voice-generation.outputs.voice-url }}
-      music-url: ${{ steps.music-generation.outputs.music-url }}
+      voice-generated: ${{ steps.voice-generation.outputs.voice-generated }}
     
     steps:
       - name: Checkout repository
@@ -242,8 +241,14 @@ jobs:
           # 音声ファイルの確認
           if [ -f "$AUDIO_DIR/radio-voice.wav" ]; then
             echo "✅ Voice generated successfully"
-            # 相対パスをGitHub出力に設定
-            echo "voice-url=$AUDIO_DIR/radio-voice.wav" >> $GITHUB_OUTPUT
+            echo "voice-generated=true" >> $GITHUB_OUTPUT
+            
+            # ファイルをコミット
+            git add "$AUDIO_DIR/radio-voice.wav"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Add generated voice file" || echo "No changes to commit"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
           else
             echo "❌ Voice generation failed"
             exit 1
@@ -251,7 +256,27 @@ jobs:
           
           echo "::endgroup::"
 
-      # 音楽生成（並列実行）
+  generate-music:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, script-planning]
+    permissions:
+      contents: write
+    outputs:
+      music-generated: ${{ steps.music-generation.outputs.music-generated }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      # Claude Code CLIセットアップは不要（npxで直接実行）
+      
       - name: 音楽生成エージェント
         id: music-generation
         env:
@@ -293,7 +318,14 @@ jobs:
           # 音楽ファイルの確認
           if [ -f "$MUSIC_DIR/background-music.wav" ]; then
             echo "✅ Music generated successfully"
-            echo "music-url=$MUSIC_DIR/background-music.wav" >> $GITHUB_OUTPUT
+            echo "music-generated=true" >> $GITHUB_OUTPUT
+            
+            # ファイルをコミット
+            git add "$MUSIC_DIR/background-music.wav"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "Add generated music file" || echo "No changes to commit"
+            git push origin ${{ needs.setup-branch.outputs.branch-name }}
           else
             echo "❌ Music generation failed"
             exit 1
@@ -303,7 +335,7 @@ jobs:
 
   compose-final-audio:
     runs-on: ubuntu-latest
-    needs: [setup-branch, script-planning, generate-audio-and-music]
+    needs: [setup-branch, script-planning, generate-voice, generate-music]
     permissions:
       contents: write
     
@@ -337,8 +369,8 @@ jobs:
           # 最終出力フォルダ作成
           mkdir -p "$FINAL_DIR"
           
-          VOICE_FILE="${{ needs.generate-audio-and-music.outputs.voice-url }}"
-          MUSIC_FILE="${{ needs.generate-audio-and-music.outputs.music-url }}"
+          VOICE_FILE="${{ needs.setup-branch.outputs.folder-name }}/audio/radio-voice.wav"
+          MUSIC_FILE="${{ needs.setup-branch.outputs.folder-name }}/music/background-music.wav"
           
           PROMPT="FFmpegを使用して音声と音楽を合成し、最終的なラジオ音声を作成してください。
 
