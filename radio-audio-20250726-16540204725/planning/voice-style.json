@@ -1,0 +1,29 @@
+{
+  "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+  "speaking_rate": 1.0,
+  "emotional_intensity": 0.6,
+  "voice_style": {
+    "tone": "穏やか",
+    "emotion": "ほんわか",
+    "pace": "ゆったり",
+    "emphasis": "落ち着いた語りかけ"
+  },
+  "output_format": "wav",
+  "audio_settings": {
+    "sample_rate": 44100,
+    "bit_depth": 16,
+    "channels": "mono"
+  },
+  "speaking_characteristics": {
+    "use_filler_words": true,
+    "casual_tone": true,
+    "friendly_delivery": true,
+    "technical_explanation_style": false,
+    "storytelling_mode": true
+  },
+  "background_music_sync": {
+    "leave_silence_for_music": true,
+    "speaking_volume_adjustment": -6,
+    "natural_pause_extension": 0.5
+  }
+}
