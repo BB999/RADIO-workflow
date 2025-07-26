@@ -391,7 +391,9 @@ jobs:
       - name: Commit and push results
         run: |
           git add .
-          git commit -m "Add generated radio audio: ${{ inputs.script_content }}" || echo "No changes to commit"
+          # 最初の30文字だけを使ってコミットメッセージを作成
+          COMMIT_MSG="Add generated radio audio: $(echo '${{ inputs.script_content }}' | head -c 30)..."
+          git commit -m "$COMMIT_MSG" || echo "No changes to commit"
           git push origin ${{ needs.setup-branch.outputs.branch-name }}
 
       - name: Create Pull Request
@@ -399,7 +401,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           gh pr create \
-            --title "Add new AI-generated radio audio: $(echo '${{ inputs.script_content }}' | head -c 50)..." \
+            --title "Add new AI-generated radio audio" \
             --body "## 生成されたラジオ音声
 
           **原稿**: ${{ inputs.script_content }}
