@@ -125,7 +125,7 @@ jobs:
             --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "preApprove" \
+            --permission-mode "bypassPermissions" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
@@ -233,7 +233,7 @@ jobs:
             --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "preApprove" \
+            --permission-mode "bypassPermissions" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
@@ -284,7 +284,7 @@ jobs:
             --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "preApprove" \
+            --permission-mode "bypassPermissions" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
@@ -364,7 +364,7 @@ jobs:
             --allowedTools "Read,Write,Edit,Bash" \
             --max-turns 25 \
             --verbose \
-            --permission-mode "preApprove" \
+            --permission-mode "bypassPermissions" \
             -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
