@@ -165,6 +165,13 @@ jobs:
             exit 1
           fi
 
+          # ファイルをコミット・プッシュ
+          git add "$PLANNING_DIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Add planning files for radio audio generation" || echo "No changes to commit"
+          git push origin ${{ needs.setup-branch.outputs.branch-name }}
+          
           echo "completed=true" >> $GITHUB_OUTPUT
           echo "::endgroup::"
 
@@ -205,6 +212,20 @@ jobs:
           mkdir -p "$AUDIO_DIR"
           
           PLANNING_DIR="${{ needs.setup-branch.outputs.folder-name }}/planning"
+          
+          # ファイルの存在確認
+          echo "📁 Checking planning files..."
+          ls -la "$PLANNING_DIR" || echo "Planning directory not found"
+          
+          if [ ! -f "$PLANNING_DIR/radio-script.txt" ]; then
+            echo "❌ radio-script.txt not found in $PLANNING_DIR"
+            exit 1
+          fi
+          
+          if [ ! -f "$PLANNING_DIR/voice-style.json" ]; then
+            echo "❌ voice-style.json not found in $PLANNING_DIR"
+            exit 1
+          fi
           
           PROMPT="aivis-apiを使用してラジオ音声を生成してください。
 
