@@ -67,7 +67,7 @@ jobs:
       - name: ラジオ台本作成エージェント
         id: planning
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           echo "::group::🎙️ Radio Script Planning Agent Execution"
           echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
@@ -188,7 +188,7 @@ jobs:
       - name: 音声生成エージェント
         id: voice-generation
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           AIVIS_API_KEY: ${{ secrets.AIVIS_API_KEY }}
         run: |
           echo "::group::🎤 Voice Generation Agent Execution"
@@ -241,7 +241,7 @@ jobs:
       - name: 音楽生成エージェント
         id: music-generation
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           echo "::group::🎵 Music Generation Agent Execution"
           
@@ -306,7 +306,7 @@ jobs:
       
       - name: 音声合成エージェント
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           echo "::group::🎚️ Audio Composition Agent Execution"
           
