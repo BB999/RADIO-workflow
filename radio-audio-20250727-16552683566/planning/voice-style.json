@@ -1,0 +1,37 @@
+{
+  "aivis_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.15,
+    "emotional_intensity": 0.8,
+    "output_format": "wav",
+    "audio_quality": "high",
+    "sample_rate": 44100
+  },
+  "voice_characteristics": {
+    "tone": "energetic",
+    "style": "casual_friendly",
+    "accent": "japanese_standard",
+    "personality": "enthusiastic_tech_narrator"
+  },
+  "speech_patterns": {
+    "frequent_fillers": ["えっと", "ですね", "ちょっと"],
+    "characteristic_phrases": ["みたいな感じ", "っていう感じ", "やばい", "すごい"],
+    "emphasis_style": "natural_enthusiasm",
+    "pause_frequency": "moderate"
+  },
+  "technical_settings": {
+    "pitch_variation": 0.7,
+    "volume_consistency": 0.9,
+    "background_noise_reduction": true,
+    "normalize_audio": true,
+    "fade_in_duration": 0.5,
+    "fade_out_duration": 0.5
+  },
+  "radio_specific": {
+    "broadcast_eq": true,
+    "compression_level": "medium",
+    "stereo_width": "narrow",
+    "low_cut_filter": 80,
+    "high_cut_filter": 12000
+  }
+}

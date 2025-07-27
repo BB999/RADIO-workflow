@@ -1,0 +1,35 @@
+【音楽生成プロンプト】
+
+メインプロンプト:
+Energetic, upbeat tech podcast intro music, 60 seconds, modern electronic beats with synthesizer melodies, bright and optimistic tone, radio broadcast quality, instrumental only
+
+詳細指定:
+- ジャンル: Electronic / Synthwave / Tech House
+- BPM: 120-130
+- キー: C major (明るい印象)
+- 長さ: 60秒（音声とぴったり合わせる）
+- 楽器構成: シンセサイザー、電子ドラム、ベース、デジタルエフェクト
+- 音量バランス: 音声と重ねることを考慮してミドル〜ローレンジ中心
+
+構成案:
+0-10秒: イントロ（フルボリューム）
+10-50秒: メイン部分（音声用に音量下げ、-15dB程度）
+50-60秒: アウトロ（フェードアウト）
+
+雰囲気キーワード:
+- エネルギッシュ
+- 未来的
+- 親しみやすい
+- テクノロジー感
+- ポジティブ
+- ラジオ番組らしい軽快さ
+
+技術的要件:
+- サンプルレート: 44.1kHz
+- ビットレート: 320kbps以上
+- ステレオ
+- 音声と重ねるため、中音域（300-3000Hz）は控えめに
+- ダイナミックレンジを考慮してコンプレッション適用
+
+代替プロンプト（Suno AI用）:
+Upbeat electronic intro music for tech podcast, synthesizer melody, energetic drums, 60 seconds, instrumental, modern sound, bright and optimistic
