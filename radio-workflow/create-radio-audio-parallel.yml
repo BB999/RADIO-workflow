@@ -164,7 +164,7 @@ jobs:
   # 音声生成専用ジョブ（独立実行）
   generate-voice:
     runs-on: ubuntu-latest
-    needs: [script-planning]
+    needs: [setup-branch, script-planning]
     permissions:
       contents: write
     outputs:
@@ -245,7 +245,7 @@ jobs:
   # 音楽生成専用ジョブ（独立実行）
   generate-music:
     runs-on: ubuntu-latest
-    needs: [script-planning]
+    needs: [setup-branch, script-planning]
     permissions:
       contents: write
     outputs:
