@@ -1,0 +1,34 @@
+{
+  "voice_generation_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.1,
+    "emotional_intensity": 0.7,
+    "output_format": "wav",
+    "sample_rate": 44100,
+    "bit_depth": 16
+  },
+  "speaker_characteristics": {
+    "tone": "カジュアルで親しみやすい",
+    "energy_level": "中程度（落ち着いているが興味深そう）",
+    "pace": "やや速め（思考の流れに合わせて）",
+    "emotion": "明るく技術に対する興奮を含む",
+    "personality": "技術解説者、親しみやすい先生"
+  },
+  "voice_adjustments": {
+    "pronunciation_style": "関西弁なし、標準的な日本語",
+    "pause_handling": "「えっと」「ま」での自然な間を重視",
+    "emphasis_points": [
+      "「めちゃくちゃ画期的」",
+      "「いい感じ」",
+      "「グリグリやってくれて」"
+    ],
+    "breathing_pattern": "自然な話し方、急がない"
+  },
+  "technical_settings": {
+    "noise_reduction": true,
+    "volume_normalization": true,
+    "target_loudness": -23.0,
+    "compression_ratio": 3.0
+  },
+  "context_notes": "カムイ日報配信者の特徴を反映。技術的内容を親しみやすく解説する口調。落ち着いた明るい音楽に合わせてややリラックスした話し方。"
+}
