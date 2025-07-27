@@ -13,8 +13,74 @@ on:
         type: string
 
 jobs:
+  check-api-status:
+    runs-on: ubuntu-latest
+    outputs:
+      all-apis-healthy: ${{ steps.api-check.outputs.all-healthy }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: API稼働状況チェック
+        id: api-check
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          AIVIS_API_KEY: ${{ secrets.AIVIS_API_KEY }}
+        run: |
+          echo "::group::🔍 API Status Check"
+          echo "Starting API health checks at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # API稼働状況フラグ
+          ALL_HEALTHY=true
+          
+          # 1. aivis-api チェック
+          echo "📡 Checking aivis-api status..."
+          if curl -s -f -H "Authorization: Bearer $AIVIS_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST "https://api.aivis-project.com/v1/tts/synthesize" \
+             -d '{"text":"test","model_uuid":"a59cb814-0083-4369-8542-f51a29e72af7","output_format":"wav"}' \
+             --max-time 10 > /dev/null 2>&1; then
+            echo "✅ aivis-api: Healthy"
+          else
+            echo "❌ aivis-api: Unhealthy or unreachable"
+            ALL_HEALTHY=false
+          fi
+          
+          # 2. Claude Code OAuth Token チェック
+          echo "📡 Checking Claude Code OAuth Token..."
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ "$CLAUDE_CODE_OAUTH_TOKEN" != "" ]; then
+            echo "✅ Claude Code OAuth Token: Present"
+          else
+            echo "❌ Claude Code OAuth Token: Missing or empty"
+            ALL_HEALTHY=false
+          fi
+          
+          # 3. kamuicode MCP接続チェック（音楽生成用）
+          echo "📡 Checking kamuicode MCP availability..."
+          # MCP設定ファイルの存在確認
+          if [ -f ".claude/mcp-kamuicode.json" ]; then
+            echo "✅ kamuicode MCP config: Found"
+          else
+            echo "❌ kamuicode MCP config: Missing"
+            ALL_HEALTHY=false
+          fi
+          
+          # 結果の判定
+          if [ "$ALL_HEALTHY" = "true" ]; then
+            echo "🎉 All APIs are healthy - proceeding with workflow"
+            echo "all-healthy=true" >> $GITHUB_OUTPUT
+          else
+            echo "🚨 One or more APIs are unhealthy - workflow will be terminated"
+            echo "all-healthy=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+
   setup-branch:
     runs-on: ubuntu-latest
+    needs: [check-api-status]
     permissions:
       contents: write
     outputs:
