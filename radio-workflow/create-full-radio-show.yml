@@ -1,4 +1,4 @@
-name: Create Full Radio Show (Opening + Main)
+name: 【新】3. ラジオ完全版結合（オープニング＋メイン）
 
 on:
   workflow_dispatch:

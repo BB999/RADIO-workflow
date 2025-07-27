@@ -1,4 +1,4 @@
-name: Create Radio Opening
+name: 【新】1. ラジオオープニング作成
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Create Radio Main Content
+name: 【新】2. ラジオメインコンテンツ作成
 
 on:
   workflow_dispatch:
