@@ -33,7 +33,7 @@ radio-opening-20250127-123456/
 
 ### 2. メインコンテンツ作成
 ```bash
-# GitHub Actionsページで「Create Radio Main Content」を選択
+# GitHub Actionsページで「create-radio-main-content.yml」を選択
 # 入力項目:
 # - script_content: ラジオの原稿（テキスト形式）
 # - music_mood: 音楽の雰囲気（例：リラックス、エネルギッシュ、ジャズ風）
