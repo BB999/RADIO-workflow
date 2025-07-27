@@ -1,0 +1,242 @@
+name: Create Full Radio Show (Opening + Main)
+
+on:
+  workflow_dispatch:
+    inputs:
+      opening_audio_path:
+        description: 'オープニング音声ファイルのパス（例: radio-opening-20250127-123456/final/final-opening-audio.wav）'
+        required: true
+        type: string
+      main_audio_path:
+        description: 'メインコンテンツ音声ファイルのパス（例: radio-main-20250127-123456/final/final-main-audio.wav）'
+        required: true
+        type: string
+      show_title:
+        description: '番組タイトル'
+        required: true
+        type: string
+
+jobs:
+  setup-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      branch-name: ${{ steps.create-branch.outputs.branch-name }}
+      folder-name: ${{ steps.create-branch.outputs.folder-name }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create branch for full radio show generation
+        id: create-branch
+        run: |
+          BRANCH_NAME="radio-full/$(date +%Y%m%d)-${{ github.run_id }}"
+          FOLDER_NAME="radio-full-$(date +%Y%m%d)-${{ github.run_id }}"
+          git checkout -b $BRANCH_NAME
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git push origin $BRANCH_NAME
+          echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "folder-name=$FOLDER_NAME" >> $GITHUB_OUTPUT
+          echo "Created branch: $BRANCH_NAME"
+          echo "Folder name: $FOLDER_NAME"
+
+  validate-audio-files:
+    runs-on: ubuntu-latest
+    needs: [setup-branch]
+    permissions:
+      contents: write
+    outputs:
+      validation-completed: ${{ steps.validate.outputs.completed }}
+      opening-duration: ${{ steps.validate.outputs.opening-duration }}
+      main-duration: ${{ steps.validate.outputs.main-duration }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+      
+      - name: 音声ファイル検証
+        id: validate
+        run: |
+          echo "::group::🔍 Audio Files Validation"
+          
+          OPENING_PATH="${{ inputs.opening_audio_path }}"
+          MAIN_PATH="${{ inputs.main_audio_path }}"
+          
+          echo "Checking opening audio: $OPENING_PATH"
+          echo "Checking main audio: $MAIN_PATH"
+          
+          # オープニング音声ファイルの確認
+          if [ -f "$OPENING_PATH" ]; then
+            echo "✅ Opening audio file found"
+            OPENING_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$OPENING_PATH" 2>/dev/null || echo "0")
+            echo "🎵 Opening duration: ${OPENING_DURATION}s"
+            echo "opening-duration=$OPENING_DURATION" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Opening audio file not found: $OPENING_PATH"
+            exit 1
+          fi
+          
+          # メイン音声ファイルの確認
+          if [ -f "$MAIN_PATH" ]; then
+            echo "✅ Main audio file found"
+            MAIN_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$MAIN_PATH" 2>/dev/null || echo "0")
+            echo "📻 Main duration: ${MAIN_DURATION}s"
+            echo "main-duration=$MAIN_DURATION" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Main audio file not found: $MAIN_PATH"
+            exit 1
+          fi
+          
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+  compose-full-radio-show:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, validate-audio-files]
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+      
+      - name: 完全版ラジオ番組合成エージェント
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "::group::🎚️ Full Radio Show Composition Agent Execution"
+          
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          FINAL_DIR="$FOLDER_NAME/final"
+          
+          # 最終出力フォルダ作成
+          mkdir -p "$FINAL_DIR"
+          
+          OPENING_FILE="${{ inputs.opening_audio_path }}"
+          MAIN_FILE="${{ inputs.main_audio_path }}"
+          SHOW_TITLE="${{ inputs.show_title }}"
+          OPENING_DURATION="${{ needs.validate-audio-files.outputs.opening-duration }}"
+          MAIN_DURATION="${{ needs.validate-audio-files.outputs.main-duration }}"
+          
+          PROMPT="FFmpegを使用してオープニングとメインコンテンツを結合し、完全版のラジオ番組を作成してください。
+
+          **オープニング音声**: $OPENING_FILE （時間: ${OPENING_DURATION}秒）
+          **メインコンテンツ音声**: $MAIN_FILE （時間: ${MAIN_DURATION}秒）
+          **番組タイトル**: $SHOW_TITLE
+          **出力先**: $FINAL_DIR/full-radio-show.wav
+
+          **結合要件**:
+          1. オープニング音声を最初に配置
+          2. オープニングとメインの間に0.5秒の無音を挿入（自然な間を作る）
+          3. メインコンテンツ音声を続けて配置
+          4. 全体の音量レベルを統一
+          5. 最終的な音質は高品質を維持
+          6. 番組の最後にフェードアウトを適用（2秒間）
+
+          **FFmpegコマンド例**:
+          - 音声結合: -filter_complex \"[0:a][1:a]concat=n=2:v=0:a=1[out]\"
+          - 無音挿入: anullsrc=channel_layout=stereo:sample_rate=48000
+          - 音量統一: volume=1.0
+          - フェードアウト: afade=out:st=(total_duration-2):d=2
+
+          **追加タスク**:
+          1. 結合した音声ファイルを保存
+          2. 番組の総時間を計算して表示
+          3. ファイル情報（サイズ、時間など）を出力
+          4. 品質チェック用のメタデータを作成し「$FINAL_DIR/show-metadata.txt」に保存
+
+          完全版のラジオ番組を高品質で作成してください。"
+
+          npx claude-code --prompt "$PROMPT"
+          
+          # 最終ファイルの確認
+          if [ -f "$FINAL_DIR/full-radio-show.wav" ]; then
+            echo "✅ Full radio show created successfully"
+            
+            # ファイル情報を表示
+            echo "📊 File information:"
+            ls -lh "$FINAL_DIR/full-radio-show.wav"
+            
+            # 音声時間を表示
+            TOTAL_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$FINAL_DIR/full-radio-show.wav" 2>/dev/null || echo "Unknown")
+            echo "⏱️ Total Duration: ${TOTAL_DURATION}s"
+            
+            # 番組構成情報を出力
+            echo "📻 Show Composition:"
+            echo "  - Opening: ${OPENING_DURATION}s"
+            echo "  - Transition: 0.5s"
+            echo "  - Main Content: ${MAIN_DURATION}s"
+            echo "  - Fade Out: 2s"
+            echo "  - Total: ${TOTAL_DURATION}s"
+            
+          else
+            echo "❌ Full radio show composition failed"
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+
+      - name: Commit and push results
+        run: |
+          git add .
+          git commit -m "Add full radio show: ${{ inputs.show_title }}" || echo "No changes to commit"
+          git push origin ${{ needs.setup-branch.outputs.branch-name }}
+
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Add full AI-generated radio show: ${{ inputs.show_title }}" \
+            --body "## 完成したラジオ番組
+
+          **番組タイトル**: ${{ inputs.show_title }}
+
+          ### 📻 番組構成
+          - **オープニング**: ${{ inputs.opening_audio_path }} (${{ needs.validate-audio-files.outputs.opening-duration }}秒)
+          - **メインコンテンツ**: ${{ inputs.main_audio_path }} (${{ needs.validate-audio-files.outputs.main-duration }}秒)
+
+          ### 📁 出力ファイル
+          \`\`\`
+          ${{ needs.setup-branch.outputs.folder-name }}/
+          └── final/
+              ├── full-radio-show.wav     # 完成したラジオ番組
+              └── show-metadata.txt       # 番組メタデータ
+          \`\`\`
+
+          ### 🎵 制作フロー
+          1. オープニング音声とメインコンテンツ音声の検証
+          2. FFmpegを使用した高品質な音声結合
+          3. 自然な間（0.5秒）とフェードアウト（2秒）の追加
+          4. 音量レベルの統一と品質チェック
+
+          🤖 Generated with [Claude Code](https://claude.ai/code) & [kamuicode MCP](https://www.kamui.ai/ja)
+
+          Co-Authored-By: Claude <noreply@anthropic.com>" \
+            --head ${{ needs.setup-branch.outputs.branch-name }} \
+            --base main
