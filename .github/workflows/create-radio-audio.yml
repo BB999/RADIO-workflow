@@ -235,10 +235,13 @@ jobs:
 
           **タスク**:
           1. 台本ファイルとvoice-style.jsonファイルを読み込む（Readツール使用）
-          2. aivis-api（https://api.aivis-project.com/v1/tts/synthesize）を使って音声生成
-          3. 高音質WAV形式で出力
-          4. 生成した音声ファイルを「$AUDIO_DIR/radio-voice.wav」に保存
-          5. 音声ファイルのURLを出力
+          2. 台本の内容を確認・表示してデバッグ
+          3. aivis-api（https://api.aivis-project.com/v1/tts/synthesize）を使って音声生成
+          4. APIレスポンスを確認してエラーがないかチェック
+          5. 高音質WAV形式で出力
+          6. 生成した音声ファイルを「$AUDIO_DIR/radio-voice.wav」に保存
+          7. ファイルサイズを確認（0バイトでないことを確認）
+          8. 音声ファイルのURLを出力
 
           aivis-apiの使用方法:
           - エンドポイント: POST https://api.aivis-project.com/v1/tts/synthesize
