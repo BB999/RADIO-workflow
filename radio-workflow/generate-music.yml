@@ -1,0 +1,89 @@
+name: Generate Background Music
+
+on:
+  workflow_call:
+    inputs:
+      branch_name:
+        required: true
+        type: string
+      folder_name:
+        required: true
+        type: string
+      music_prompt:
+        required: true
+        type: string
+    outputs:
+      music_url:
+        description: "Generated music file URL"
+        value: ${{ jobs.generate-music.outputs.music-url }}
+
+jobs:
+  generate-music:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      music-url: ${{ steps.music-generation.outputs.music-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: 音楽生成エージェント
+        id: music-generation
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "::group::🎵 Music Generation Agent Execution"
+          
+          FOLDER_NAME="${{ inputs.folder_name }}"
+          MUSIC_DIR="$FOLDER_NAME/music"
+          
+          # 音楽フォルダ作成
+          mkdir -p "$MUSIC_DIR"
+          
+          MUSIC_PROMPT="${{ inputs.music_prompt }}"
+          
+          PROMPT="kamuicode MCPを使用して背景音楽を生成してください。
+
+          **音楽プロンプト**: $MUSIC_PROMPT
+          **出力長さ**: 約60-90秒（音声の1分間＋余裕）
+
+          **タスク**:
+          1. Google Lyriaを使って背景音楽を生成
+          2. 音声に適したボリューム・テンポで生成
+          3. 生成した音楽ファイルを「$MUSIC_DIR/background-music.wav」に保存
+          4. 音楽ファイルのURLを出力
+
+          kamuicode MCPの音楽生成機能を使用して、ラジオ番組に適した背景音楽を生成してください。"
+
+          npx claude-code --prompt "$PROMPT"
+          
+          # 音楽ファイルの確認
+          if [ -f "$MUSIC_DIR/background-music.wav" ]; then
+            echo "✅ Music generated successfully"
+            echo "music-url=$MUSIC_DIR/background-music.wav" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Music generation failed"
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+
+      - name: Commit music file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Add generated music file" || echo "No changes to commit"
+          git push origin ${{ inputs.branch_name }}

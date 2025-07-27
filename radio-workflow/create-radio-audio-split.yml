@@ -1,0 +1,318 @@
+name: Create Radio Audio (Split Jobs)
+
+on:
+  workflow_dispatch:
+    inputs:
+      script_content:
+        description: 'ラジオの原稿（テキスト形式）'
+        required: true
+        type: string
+      music_mood:
+        description: '音楽の雰囲気（例：リラックス、エネルギッシュ、ジャズ風）'
+        required: true
+        type: string
+
+jobs:
+  setup-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      branch-name: ${{ steps.create-branch.outputs.branch-name }}
+      folder-name: ${{ steps.create-branch.outputs.folder-name }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Create branch for radio audio generation
+        id: create-branch
+        run: |
+          BRANCH_NAME="radio-audio/$(date +%Y%m%d)-${{ github.run_id }}"
+          FOLDER_NAME="radio-audio-$(date +%Y%m%d)-${{ github.run_id }}"
+          git checkout -b $BRANCH_NAME
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git push origin $BRANCH_NAME
+          echo "branch-name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "folder-name=$FOLDER_NAME" >> $GITHUB_OUTPUT
+          echo "Created branch: $BRANCH_NAME"
+          echo "Folder name: $FOLDER_NAME"
+
+  script-planning:
+    runs-on: ubuntu-latest
+    needs: [setup-branch]
+    permissions:
+      contents: write
+    outputs:
+      planning-completed: ${{ steps.planning.outputs.completed }}
+      radio-script: ${{ steps.planning.outputs.radio-script }}
+      voice-style: ${{ steps.planning.outputs.voice-style }}
+      music-prompt: ${{ steps.planning.outputs.music-prompt }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: ラジオ台本作成エージェント
+        id: planning
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "::group::🎙️ Radio Script Planning Agent Execution"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # 設定
+          SCRIPT_CONTENT="${{ inputs.script_content }}"
+          MUSIC_MOOD="${{ inputs.music_mood }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          PLANNING_DIR="$FOLDER_NAME/planning"
+          
+          echo "Script content: $SCRIPT_CONTENT"
+          echo "Music mood: $MUSIC_MOOD"
+          echo "Planning folder: $PLANNING_DIR"
+          
+          # 計画フォルダを事前に作成
+          if [ ! -d "$PLANNING_DIR" ]; then
+            mkdir -p "$PLANNING_DIR"
+            echo "📁 Created planning folder: $PLANNING_DIR"
+          fi
+          
+          # プロンプトの構築
+          PROMPT="あなたはラジオ番組制作の専門家です。原稿から1分程度のラジオ台本を作成し、音楽と合成するための戦略を立ててください。
+
+          **原稿内容**: $SCRIPT_CONTENT
+          **音楽の雰囲気**: $MUSIC_MOOD
+
+          **タスク**:
+          1. 原稿を分析し、1分程度（約150-200文字）のラジオ台本にまとめる
+          2. カムイ日報の話者の口調・特徴を反映した台本に調整
+          3. 音楽の雰囲気に合わせた話し方・トーンを設定
+          4. aivis-api用の音声生成設定を計画
+          5. 音楽生成用のプロンプトを作成
+          6. 音声と音楽の合成戦略を策定
+          7. ラジオ台本を「$PLANNING_DIR/radio-script.txt」に保存
+          8. 音声スタイル設定を「$PLANNING_DIR/voice-style.json」に保存
+          9. 音楽生成プロンプトを「$PLANNING_DIR/music-prompt.txt」に保存
+          10. 制作戦略書を「$PLANNING_DIR/radio-strategy.md」に保存
+
+          **カムイ日報話者の特徴**（voice_analysis.txtから）:
+          - 「えっと」「ですね」「ちょっと」を多用
+          - 「〜みたいな感じ」「〜っていう感じ」で説明
+          - 技術的な内容を親しみやすく解説
+          - 「すごい」「やばい」などの感嘆詞を使用
+          - カジュアルだが丁寧な語調
+
+          **音声生成設定例**:
+          - model_uuid: a59cb814-0083-4369-8542-f51a29e72af7
+          - speaking_rate: 1.0-1.2（テンポに応じて調整）
+          - emotional_intensity: 音楽の雰囲気に合わせて調整
+          - output_format: wav（高音質合成用）
+
+          ファイルを作成し、戦略を計画してください。"
+
+          # Claude Codeを実行
+          npx claude-code --prompt "$PROMPT"
+          
+          # 出力の確認
+          if [ -f "$PLANNING_DIR/radio-script.txt" ]; then
+            echo "✅ Radio script created"
+            RADIO_SCRIPT=$(cat "$PLANNING_DIR/radio-script.txt")
+            echo "radio-script<<EOF" >> $GITHUB_OUTPUT
+            echo "$RADIO_SCRIPT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Radio script not found"
+            exit 1
+          fi
+
+          if [ -f "$PLANNING_DIR/voice-style.json" ]; then
+            echo "✅ Voice style settings created"
+            VOICE_STYLE=$(cat "$PLANNING_DIR/voice-style.json")
+            echo "voice-style<<EOF" >> $GITHUB_OUTPUT
+            echo "$VOICE_STYLE" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Voice style not found"
+            exit 1
+          fi
+
+          if [ -f "$PLANNING_DIR/music-prompt.txt" ]; then
+            echo "✅ Music prompt created"
+            MUSIC_PROMPT=$(cat "$PLANNING_DIR/music-prompt.txt")
+            echo "music-prompt<<EOF" >> $GITHUB_OUTPUT
+            echo "$MUSIC_PROMPT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Music prompt not found"
+            exit 1
+          fi
+
+          echo "completed=true" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+
+      - name: Commit planning files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Add planning files" || echo "No changes to commit"
+          git push origin ${{ needs.setup-branch.outputs.branch-name }}
+
+  # 音声生成（独立ワークフロー呼び出し）
+  call-voice-generation:
+    needs: [setup-branch, script-planning]
+    uses: ./.github/workflows/generate-voice.yml
+    with:
+      branch_name: ${{ needs.setup-branch.outputs.branch-name }}
+      folder_name: ${{ needs.setup-branch.outputs.folder-name }}
+      radio_script: ${{ needs.script-planning.outputs.radio-script }}
+      voice_style: ${{ needs.script-planning.outputs.voice-style }}
+    secrets: inherit
+
+  # 音楽生成（独立ワークフロー呼び出し）
+  call-music-generation:
+    needs: [setup-branch, script-planning]
+    uses: ./.github/workflows/generate-music.yml
+    with:
+      branch_name: ${{ needs.setup-branch.outputs.branch-name }}
+      folder_name: ${{ needs.setup-branch.outputs.folder-name }}
+      music_prompt: ${{ needs.script-planning.outputs.music-prompt }}
+    secrets: inherit
+
+  # 最終合成
+  compose-final-audio:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, call-voice-generation, call-music-generation]
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+      
+      - name: 音声合成エージェント
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "::group::🎚️ Audio Composition Agent Execution"
+          
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          FINAL_DIR="$FOLDER_NAME/final"
+          
+          # 最終出力フォルダ作成
+          mkdir -p "$FINAL_DIR"
+          
+          VOICE_FILE="${{ needs.call-voice-generation.outputs.voice_url }}"
+          MUSIC_FILE="${{ needs.call-music-generation.outputs.music_url }}"
+          
+          PROMPT="FFmpegを使用して音声と音楽を合成し、最終的なラジオ音声を作成してください。
+
+          **音声ファイル**: $VOICE_FILE
+          **音楽ファイル**: $MUSIC_FILE
+          **出力先**: $FINAL_DIR/final-radio-audio.wav
+
+          **合成要件**:
+          1. 背景音楽のボリュームを音声の60%に調整（聴き取りやすくする）
+          2. 音声をメインに、音楽を背景として配置
+          3. フェードイン・フェードアウトを適用
+          4. 音声の長さに合わせて音楽をループまたはトリミング
+          5. 最終的な音質は高品質を維持
+
+          **FFmpegコマンド例**:
+          - 音楽ボリューム調整: -filter:a \"volume=0.6\"
+          - 音声と音楽の合成: -filter_complex \"[1:a]volume=0.6[bg];[0:a][bg]amix=inputs=2[out]\"
+          - フェード効果: afade=in:st=0:d=2,afade=out:st=(duration-2):d=2
+
+          音声と音楽を合成し、高品質なラジオ音声を完成させてください。"
+
+          npx claude-code --prompt "$PROMPT"
+          
+          # 最終ファイルの確認
+          if [ -f "$FINAL_DIR/final-radio-audio.wav" ]; then
+            echo "✅ Final radio audio created successfully"
+            
+            # ファイル情報を表示
+            echo "📊 File information:"
+            ls -lh "$FINAL_DIR/final-radio-audio.wav"
+            
+            # 音声時間を表示
+            DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$FINAL_DIR/final-radio-audio.wav" 2>/dev/null || echo "Unknown")
+            echo "⏱️ Duration: ${DURATION}s"
+          else
+            echo "❌ Final audio composition failed"
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+
+      - name: Commit and push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Add generated radio audio: ${{ inputs.script_content }}" || echo "No changes to commit"
+          git push origin ${{ needs.setup-branch.outputs.branch-name }}
+
+      - name: Create Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh pr create \
+            --title "Add new AI-generated radio audio: $(echo '${{ inputs.script_content }}' | head -c 50)..." \
+            --body "## 生成されたラジオ音声
+
+          **原稿**: ${{ inputs.script_content }}
+          **音楽の雰囲気**: ${{ inputs.music_mood }}
+
+          ### 📁 出力ファイル
+          \`\`\`
+          ${{ needs.setup-branch.outputs.folder-name }}/
+          ├── planning/
+          │   ├── radio-script.txt        # 生成された台本
+          │   ├── voice-style.json        # 音声スタイル設定
+          │   ├── music-prompt.txt        # 音楽生成プロンプト
+          │   └── radio-strategy.md       # 制作戦略
+          ├── audio/
+          │   └── radio-voice.wav         # 生成された音声
+          ├── music/
+          │   └── background-music.wav    # 生成された音楽
+          └── final/
+              └── final-radio-audio.wav   # 最終合成音声
+          \`\`\`
+
+          ### 🚀 アーキテクチャ改善
+          - **完全分離**: 音声と音楽の生成を別ワークフローに分割
+          - **並列実行**: 独立したジョブによる効率的な処理
+          - **再利用性**: 各生成機能を独立して利用可能
+
+          🤖 Generated with [Claude Code](https://claude.ai/code) & [kamuicode MCP](https://www.kamui.ai/ja)
+
+          Co-Authored-By: Claude <noreply@anthropic.com>" \
+            --head ${{ needs.setup-branch.outputs.branch-name }} \
+            --base main

@@ -1,0 +1,102 @@
+name: Generate Voice Audio
+
+on:
+  workflow_call:
+    inputs:
+      branch_name:
+        required: true
+        type: string
+      folder_name:
+        required: true
+        type: string
+      radio_script:
+        required: true
+        type: string
+      voice_style:
+        required: true
+        type: string
+    outputs:
+      voice_url:
+        description: "Generated voice file URL"
+        value: ${{ jobs.generate-voice.outputs.voice-url }}
+
+jobs:
+  generate-voice:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      voice-url: ${{ steps.voice-generation.outputs.voice-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: 音声生成エージェント
+        id: voice-generation
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AIVIS_API_KEY: ${{ secrets.AIVIS_API_KEY }}
+        run: |
+          echo "::group::🎤 Voice Generation Agent Execution"
+          
+          FOLDER_NAME="${{ inputs.folder_name }}"
+          AUDIO_DIR="$FOLDER_NAME/audio"
+          
+          # 音声フォルダ作成
+          mkdir -p "$AUDIO_DIR"
+          
+          RADIO_SCRIPT="${{ inputs.radio_script }}"
+          VOICE_STYLE="${{ inputs.voice_style }}"
+          
+          PROMPT="aivis-apiを使用してラジオ音声を生成してください。
+
+          **台本**: $RADIO_SCRIPT
+          **音声設定**: $VOICE_STYLE
+          **API Key**: 環境変数AIVIS_API_KEYから取得
+
+          **タスク**:
+          1. aivis-api（https://api.aivis-project.com/v1/tts/synthesize）を使って音声生成
+          2. 高音質WAV形式で出力
+          3. 生成した音声ファイルを「$AUDIO_DIR/radio-voice.wav」に保存
+          4. 音声ファイルのURLを出力
+
+          aivis-apiの使用方法:
+          - エンドポイント: POST https://api.aivis-project.com/v1/tts/synthesize
+          - Authorization: Bearer \$AIVIS_API_KEY
+          - model_uuid: a59cb814-0083-4369-8542-f51a29e72af7
+          - output_format: wav
+          - 台本テキストとスタイル設定を使用
+
+          音声を生成し、ファイルを保存してください。"
+
+          npx claude-code --prompt "$PROMPT"
+          
+          # 音声ファイルの確認
+          if [ -f "$AUDIO_DIR/radio-voice.wav" ]; then
+            echo "✅ Voice generated successfully"
+            echo "voice-url=$AUDIO_DIR/radio-voice.wav" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Voice generation failed"
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+
+      - name: Commit voice file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Add generated voice file" || echo "No changes to commit"
+          git push origin ${{ inputs.branch_name }}
