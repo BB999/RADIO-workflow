@@ -1,0 +1,38 @@
+{
+  "voice_generation_settings": {
+    "api": "aivis-api",
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.1,
+    "emotional_intensity": 0.6,
+    "output_format": "wav",
+    "sample_rate": 44100,
+    "bit_depth": 16
+  },
+  "speaker_characteristics": {
+    "name": "カムイ日報話者",
+    "tone": "カジュアルだが丁寧",
+    "style": "親しみやすい技術解説",
+    "tempo": "リラックスした適度なペース",
+    "emotional_range": "穏やかで安定した"
+  },
+  "speech_patterns": {
+    "filler_words": ["えっと", "ですね", "ちょっと"],
+    "connecting_phrases": ["〜みたいな感じ", "〜っていう感じ"],
+    "exclamations": ["すごい", "やばい", "画期的"],
+    "politeness_level": "丁寧語中心",
+    "technical_explanation_style": "専門用語を親しみやすく解説"
+  },
+  "radio_specific_settings": {
+    "background_music_compatibility": "リラックス系BGMとの調和",
+    "volume_level": "標準レベル（-3dB〜-6dB）",
+    "clarity_priority": "高（音楽に負けない明瞭性）",
+    "pause_timing": "自然な間を重視",
+    "emphasis_points": ["新機能紹介", "技術的なポイント"]
+  },
+  "quality_settings": {
+    "noise_reduction": true,
+    "auto_gain_control": true,
+    "dynamic_range_compression": "軽微",
+    "eq_preset": "ラジオ音声用"
+  }
+}
