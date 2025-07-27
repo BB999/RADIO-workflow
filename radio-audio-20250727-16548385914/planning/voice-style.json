@@ -1,0 +1,43 @@
+{
+  "voice_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.05,
+    "emotional_intensity": 0.65,
+    "output_format": "wav",
+    "audio_quality": "high",
+    "sample_rate": 44100
+  },
+  "style_description": {
+    "tone": "親しみやすく落ち着いた技術解説者",
+    "characteristics": [
+      "カジュアルだが丁寧な語調",
+      "技術的内容を分かりやすく説明",
+      "「えっと」「ですね」「ちょっと」を自然に使用",
+      "穏やかで聞きやすい話し方",
+      "明るく落ち着いた雰囲気"
+    ],
+    "target_audience": "技術に興味のあるリスナー"
+  },
+  "radio_specific_settings": {
+    "background_music_aware": true,
+    "music_volume_ratio": 0.4,
+    "voice_prominence": true,
+    "natural_pauses": true,
+    "clear_articulation": true
+  },
+  "kamuicode_speaker_traits": {
+    "frequent_expressions": [
+      "えっと",
+      "ですね",
+      "ちょっと",
+      "みたいな感じ",
+      "というところで"
+    ],
+    "emotional_expressions": [
+      "すごい",
+      "いい感じ",
+      "素晴らしい"
+    ],
+    "speaking_style": "カムイ日報配信者の自然な話し方"
+  }
+}
