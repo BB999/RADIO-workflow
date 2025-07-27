@@ -36,14 +36,15 @@ jobs:
           
           # 1. aivis-api チェック
           echo "📡 Checking aivis-api status..."
-          if curl -s -f -H "Authorization: Bearer $AIVIS_API_KEY" \
+          HTTP_CODE=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $AIVIS_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST "https://api.aivis-project.com/v1/tts/synthesize" \
              -d '{"text":"test","model_uuid":"a59cb814-0083-4369-8542-f51a29e72af7","output_format":"wav"}' \
-             --max-time 10 > /dev/null 2>&1; then
-            echo "✅ aivis-api: Healthy"
+             --max-time 10 -o /dev/null)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ aivis-api: Healthy (HTTP $HTTP_CODE)"
           else
-            echo "❌ aivis-api: Unhealthy or unreachable"
+            echo "❌ aivis-api: Unhealthy (HTTP $HTTP_CODE)"
             ALL_HEALTHY=false
           fi
           
