@@ -1,0 +1,44 @@
+{
+  "voice_generation_config": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.1,
+    "emotional_intensity": 0.75,
+    "output_format": "wav",
+    "voice_characteristics": {
+      "tone": "friendly_casual",
+      "energy_level": "moderate_bright",
+      "style": "explanatory_conversational"
+    }
+  },
+  "speaker_profile": {
+    "personality": "tech_enthusiast_educator",
+    "speaking_style": "カムイ日報風",
+    "key_characteristics": [
+      "親しみやすい解説スタイル",
+      "技術的内容をカジュアルに説明",
+      "適度な感嘆詞の使用",
+      "丁寧だがリラックスした語調"
+    ],
+    "speech_patterns": {
+      "filler_words": ["えっと", "ですね", "ちょっと"],
+      "connectors": ["というところで", "みたいな感じ"],
+      "emphasis": ["すごい", "ぜひぜひ"]
+    }
+  },
+  "radio_adaptation": {
+    "background_music": "落ち着いた明るい音楽",
+    "volume_balance": {
+      "voice_level": 0.8,
+      "music_level": 0.3
+    },
+    "pacing": "ラジオ番組向けの適度なペース",
+    "breathing_pauses": "自然な間を保持"
+  },
+  "technical_settings": {
+    "sample_rate": 44100,
+    "bit_depth": 16,
+    "channels": "mono",
+    "noise_reduction": true,
+    "dynamic_range_compression": "light"
+  }
+}
