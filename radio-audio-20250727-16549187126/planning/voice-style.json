@@ -1,0 +1,48 @@
+{
+  "aivis_api_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "use_ssml": true,
+    "output_format": "wav",
+    "style_id": 0,
+    "emotional_intensity": 1.2,
+    "speaking_rate": 1.1,
+    "pitch": 0.1,
+    "volume": 1.0,
+    "tempo_dynamics": 1.1,
+    "leading_silence_seconds": 0.2,
+    "trailing_silence_seconds": 0.3,
+    "line_break_silence_seconds": 0.5,
+    "output_sampling_rate": 44100,
+    "output_audio_channels": "mono",
+    "output_bitrate": 320
+  },
+  "voice_characteristics": {
+    "tone": "明るく親しみやすい",
+    "energy_level": "中程度から高め",
+    "speaking_style": "カジュアルだが丁寧",
+    "personality": "技術解説者、興奮しやすい",
+    "target_audience": "技術に興味がある一般リスナー"
+  },
+  "ssml_adjustments": {
+    "emphasis_words": [
+      "すごい",
+      "やばい", 
+      "めちゃくちゃ",
+      "びっくり"
+    ],
+    "pause_after": [
+      "えっと",
+      "というところで",
+      "ですね"
+    ],
+    "speed_up_phrases": [
+      "グリグリやってくれる"
+    ]
+  },
+  "radio_format_settings": {
+    "intro_tone": "明るく歓迎的",
+    "news_delivery": "興奮気味だが聞き取りやすく",
+    "outro_tone": "親しみやすく締めくくり",
+    "background_music_compatibility": "明るい落ち着いた音楽に合わせて少し控えめに"
+  }
+}
