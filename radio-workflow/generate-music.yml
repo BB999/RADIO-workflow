@@ -1,7 +1,7 @@
 name: Generate Background Music
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       branch_name:
         required: true
@@ -12,10 +12,6 @@ on:
       music_prompt:
         required: true
         type: string
-    outputs:
-      music_url:
-        description: "Generated music file URL"
-        value: ${{ jobs.generate-music.outputs.music-url }}
 
 jobs:
   generate-music:

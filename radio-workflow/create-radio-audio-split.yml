@@ -169,31 +169,103 @@ jobs:
           git commit -m "Add planning files" || echo "No changes to commit"
           git push origin ${{ needs.setup-branch.outputs.branch-name }}
 
-  # 音声生成（独立ワークフロー呼び出し）
-  call-voice-generation:
+  # 音声生成（独立ワークフロー起動）
+  trigger-voice-generation:
+    runs-on: ubuntu-latest
     needs: [setup-branch, script-planning]
-    uses: ./.github/workflows/generate-voice.yml
-    with:
-      branch_name: ${{ needs.setup-branch.outputs.branch-name }}
-      folder_name: ${{ needs.setup-branch.outputs.folder-name }}
-      radio_script: ${{ needs.script-planning.outputs.radio-script }}
-      voice_style: ${{ needs.script-planning.outputs.voice-style }}
-    secrets: inherit
+    steps:
+      - name: Trigger Voice Generation Workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh workflow run generate-voice.yml \
+            -f branch_name="${{ needs.setup-branch.outputs.branch-name }}" \
+            -f folder_name="${{ needs.setup-branch.outputs.folder-name }}" \
+            -f radio_script="${{ needs.script-planning.outputs.radio-script }}" \
+            -f voice_style="${{ needs.script-planning.outputs.voice-style }}"
 
-  # 音楽生成（独立ワークフロー呼び出し）
-  call-music-generation:
+  # 音楽生成（独立ワークフロー起動）
+  trigger-music-generation:
+    runs-on: ubuntu-latest
     needs: [setup-branch, script-planning]
-    uses: ./.github/workflows/generate-music.yml
-    with:
-      branch_name: ${{ needs.setup-branch.outputs.branch-name }}
-      folder_name: ${{ needs.setup-branch.outputs.folder-name }}
-      music_prompt: ${{ needs.script-planning.outputs.music-prompt }}
-    secrets: inherit
+    steps:
+      - name: Trigger Music Generation Workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh workflow run generate-music.yml \
+            -f branch_name="${{ needs.setup-branch.outputs.branch-name }}" \
+            -f folder_name="${{ needs.setup-branch.outputs.folder-name }}" \
+            -f music_prompt="${{ needs.script-planning.outputs.music-prompt }}"
+
+  # 完了待機とファイル確認
+  wait-for-generations:
+    runs-on: ubuntu-latest
+    needs: [setup-branch, trigger-voice-generation, trigger-music-generation]
+    outputs:
+      voice-file: ${{ steps.check-files.outputs.voice-file }}
+      music-file: ${{ steps.check-files.outputs.music-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup-branch.outputs.branch-name }}
+      
+      - name: Wait for generation completion and check files
+        id: check-files
+        run: |
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          VOICE_FILE="$FOLDER_NAME/audio/radio-voice.wav"
+          MUSIC_FILE="$FOLDER_NAME/music/background-music.wav"
+          
+          echo "Waiting for generation workflows to complete..."
+          
+          # 最大10分間待機（30秒間隔でチェック）
+          for i in {1..20}; do
+            echo "Check attempt $i/20..."
+            
+            # ファイルの存在確認
+            git pull origin ${{ needs.setup-branch.outputs.branch-name }}
+            
+            VOICE_EXISTS=false
+            MUSIC_EXISTS=false
+            
+            if [ -f "$VOICE_FILE" ]; then
+              VOICE_EXISTS=true
+              echo "✅ Voice file found: $VOICE_FILE"
+            else
+              echo "⏳ Voice file not found yet: $VOICE_FILE"
+            fi
+            
+            if [ -f "$MUSIC_FILE" ]; then
+              MUSIC_EXISTS=true
+              echo "✅ Music file found: $MUSIC_FILE"
+            else
+              echo "⏳ Music file not found yet: $MUSIC_FILE"
+            fi
+            
+            # 両方のファイルが存在する場合は完了
+            if [ "$VOICE_EXISTS" = true ] && [ "$MUSIC_EXISTS" = true ]; then
+              echo "🎉 Both files are ready!"
+              echo "voice-file=$VOICE_FILE" >> $GITHUB_OUTPUT
+              echo "music-file=$MUSIC_FILE" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            # 30秒待機
+            if [ $i -lt 20 ]; then
+              echo "Waiting 30 seconds before next check..."
+              sleep 30
+            fi
+          done
+          
+          echo "❌ Timeout waiting for generation workflows"
+          exit 1
 
   # 最終合成
   compose-final-audio:
     runs-on: ubuntu-latest
-    needs: [setup-branch, call-voice-generation, call-music-generation]
+    needs: [setup-branch, wait-for-generations]
     permissions:
       contents: write
     
@@ -228,8 +300,8 @@ jobs:
           # 最終出力フォルダ作成
           mkdir -p "$FINAL_DIR"
           
-          VOICE_FILE="${{ needs.call-voice-generation.outputs.voice_url }}"
-          MUSIC_FILE="${{ needs.call-music-generation.outputs.music_url }}"
+          VOICE_FILE="${{ needs.wait-for-generations.outputs.voice-file }}"
+          MUSIC_FILE="${{ needs.wait-for-generations.outputs.music-file }}"
           
           PROMPT="FFmpegを使用して音声と音楽を合成し、最終的なラジオ音声を作成してください。
 

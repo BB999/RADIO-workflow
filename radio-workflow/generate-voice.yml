@@ -1,7 +1,7 @@
 name: Generate Voice Audio
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       branch_name:
         required: true
@@ -15,10 +15,6 @@ on:
       voice_style:
         required: true
         type: string
-    outputs:
-      voice_url:
-        description: "Generated voice file URL"
-        value: ${{ jobs.generate-voice.outputs.voice-url }}
 
 jobs:
   generate-voice:
