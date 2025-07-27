@@ -1,0 +1,36 @@
+{
+  "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+  "speaking_rate": 1.1,
+  "emotional_intensity": 0.7,
+  "output_format": "wav",
+  "voice_characteristics": {
+    "tone": "friendly_professional",
+    "energy_level": "medium_high",
+    "pace": "natural_conversational",
+    "enthusiasm": "moderate",
+    "clarity": "high"
+  },
+  "audio_settings": {
+    "sample_rate": 44100,
+    "bit_depth": 16,
+    "channels": "mono",
+    "normalize": true
+  },
+  "speaking_style": {
+    "pauses": {
+      "after_comma": 0.3,
+      "after_period": 0.6,
+      "between_sentences": 0.4
+    },
+    "emphasis": {
+      "technical_terms": "slight",
+      "exclamations": "moderate",
+      "key_points": "natural"
+    }
+  },
+  "background_music_consideration": {
+    "voice_prominence": "foreground",
+    "music_balance": "subtle_background",
+    "crossfade_points": ["intro", "outro"]
+  }
+}
