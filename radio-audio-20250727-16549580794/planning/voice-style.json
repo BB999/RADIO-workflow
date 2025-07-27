@@ -1,0 +1,35 @@
+{
+  "voice_generation_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.05,
+    "emotional_intensity": 0.7,
+    "output_format": "wav",
+    "sample_rate": 44100,
+    "bit_depth": 16
+  },
+  "tone_settings": {
+    "atmosphere": "落ち着いた明るい",
+    "speaking_style": "親しみやすく穏やか",
+    "tempo": "ゆったりとしたペース",
+    "emotion_level": "穏やかで温かみのある",
+    "pause_timing": "自然な間を重視"
+  },
+  "voice_characteristics": {
+    "pitch_variation": "適度な抑揚",
+    "volume_consistency": "安定した音量",
+    "clarity": "明瞭な発音",
+    "warmth": "温かみのある声質"
+  },
+  "background_music_compatibility": {
+    "music_genre": "落ち着いた明るい音楽",
+    "voice_to_music_ratio": "70:30",
+    "frequency_separation": "音声は中高域、音楽は低中域",
+    "timing_coordination": "音楽のビートに自然に合わせる"
+  },
+  "speech_adjustments": {
+    "sentence_endings": "自然な語尾処理",
+    "breathing_sounds": "自然で控えめ",
+    "filler_words": "「えっと」「ですね」を適度に残す",
+    "intonation": "カムイ日報の特徴的な話し方を維持"
+  }
+}
