@@ -198,7 +198,7 @@ jobs:
   # 音声生成（独立ジョブ）
   voice-generation:
     runs-on: ubuntu-latest
-    needs: [voice-prep]
+    # 完全独立実行のためneedsを削除
     permissions:
       contents: write
     outputs:
@@ -280,7 +280,7 @@ jobs:
   # 音楽生成（独立ジョブ）
   music-generation:
     runs-on: ubuntu-latest
-    needs: [music-prep]
+    # 完全独立実行のためneedsを削除
     permissions:
       contents: write
     outputs:
