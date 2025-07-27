@@ -58,42 +58,65 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.setup-branch.outputs.branch-name }}
+          fetch-depth: 0
       
       - name: Install FFmpeg
         run: |
           sudo apt update
           sudo apt install -y ffmpeg
       
-      - name: 音声ファイル検証
+      - name: 音声ファイル検証とコピー
         id: validate
         run: |
           echo "::group::🔍 Audio Files Validation"
           
           OPENING_PATH="${{ inputs.opening_audio_path }}"
           MAIN_PATH="${{ inputs.main_audio_path }}"
+          FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
+          INPUT_DIR="$FOLDER_NAME/input"
+          
+          # 入力ファイル用のディレクトリを作成
+          mkdir -p "$INPUT_DIR"
           
           echo "Checking opening audio: $OPENING_PATH"
           echo "Checking main audio: $MAIN_PATH"
           
-          # オープニング音声ファイルの確認
+          # mainブランチから最新のファイルを取得
+          git fetch origin main
+          
+          # オープニング音声ファイルの確認とコピー
+          git checkout origin/main -- "$OPENING_PATH" 2>/dev/null || {
+            echo "❌ Opening audio file not found in repository: $OPENING_PATH"
+            echo "Note: Make sure the opening workflow has been merged to main branch"
+            exit 1
+          }
+          
           if [ -f "$OPENING_PATH" ]; then
             echo "✅ Opening audio file found"
+            cp "$OPENING_PATH" "$INPUT_DIR/opening-audio.wav"
             OPENING_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$OPENING_PATH" 2>/dev/null || echo "0")
             echo "🎵 Opening duration: ${OPENING_DURATION}s"
             echo "opening-duration=$OPENING_DURATION" >> $GITHUB_OUTPUT
           else
-            echo "❌ Opening audio file not found: $OPENING_PATH"
+            echo "❌ Opening audio file not found after checkout: $OPENING_PATH"
             exit 1
           fi
           
-          # メイン音声ファイルの確認
+          # メイン音声ファイルの確認とコピー
+          git checkout origin/main -- "$MAIN_PATH" 2>/dev/null || {
+            echo "❌ Main audio file not found in repository: $MAIN_PATH"
+            echo "Note: Make sure the main content workflow has been merged to main branch"
+            exit 1
+          }
+          
           if [ -f "$MAIN_PATH" ]; then
             echo "✅ Main audio file found"
+            cp "$MAIN_PATH" "$INPUT_DIR/main-audio.wav"
             MAIN_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$MAIN_PATH" 2>/dev/null || echo "0")
             echo "📻 Main duration: ${MAIN_DURATION}s"
             echo "main-duration=$MAIN_DURATION" >> $GITHUB_OUTPUT
           else
-            echo "❌ Main audio file not found: $MAIN_PATH"
+            echo "❌ Main audio file not found after checkout: $MAIN_PATH"
             exit 1
           fi
           
@@ -137,8 +160,9 @@ jobs:
           # 最終出力フォルダ作成
           mkdir -p "$FINAL_DIR"
           
-          OPENING_FILE="${{ inputs.opening_audio_path }}"
-          MAIN_FILE="${{ inputs.main_audio_path }}"
+          INPUT_DIR="$FOLDER_NAME/input"
+          OPENING_FILE="$INPUT_DIR/opening-audio.wav"
+          MAIN_FILE="$INPUT_DIR/main-audio.wav"
           SHOW_TITLE="${{ inputs.show_title }}"
           OPENING_DURATION="${{ needs.validate-audio-files.outputs.opening-duration }}"
           MAIN_DURATION="${{ needs.validate-audio-files.outputs.main-duration }}"
