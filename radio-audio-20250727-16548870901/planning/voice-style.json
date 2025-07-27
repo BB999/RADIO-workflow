@@ -1,0 +1,27 @@
+{
+  "aivis_api_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 0.95,
+    "emotional_intensity": "medium",
+    "output_format": "wav",
+    "sample_rate": 44100,
+    "bit_depth": 16
+  },
+  "voice_characteristics": {
+    "tone": "親しみやすく、リラックスした",
+    "pace": "やや落ち着いたペース",
+    "style": "カジュアルだが丁寧",
+    "emphasis": "自然で、重要な部分は強調するが過度にならない"
+  },
+  "speaker_traits": {
+    "filler_words": ["えっと", "ですね", "ちょっと"],
+    "expressions": ["〜みたいな感じ", "〜っていう感じ"],
+    "exclamations": ["すごい", "やばい"],
+    "explanation_style": "技術的な内容を親しみやすく解説"
+  },
+  "music_compatibility": {
+    "music_style": "落ち着いた明るい雰囲気",
+    "voice_prominence": "音楽に邪魔されない明瞭さを保つ",
+    "timing": "適度な間を置いて、聞きやすさを重視"
+  }
+}
