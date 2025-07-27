@@ -164,7 +164,7 @@ jobs:
   # 音声生成専用ジョブ（独立実行）
   generate-voice:
     runs-on: ubuntu-latest
-    needs: [setup-branch, script-planning]
+    needs: [script-planning]
     permissions:
       contents: write
     outputs:
@@ -245,7 +245,7 @@ jobs:
   # 音楽生成専用ジョブ（独立実行）
   generate-music:
     runs-on: ubuntu-latest
-    needs: [setup-branch, script-planning]
+    needs: [script-planning]
     permissions:
       contents: write
     outputs:
@@ -315,7 +315,7 @@ jobs:
   # 最終合成ジョブ（両ジョブの完了を待つ）
   compose-final-audio:
     runs-on: ubuntu-latest
-    needs: [setup-branch, script-planning, generate-voice, generate-music]
+    needs: [setup-branch, generate-voice, generate-music]
     permissions:
       contents: write
     
