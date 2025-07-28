@@ -82,59 +82,66 @@ jobs:
           fi
           
           # プロンプトの構築
-          PROMPT="あなたは画像制作の専門プランナーです。ユーザーの指示から、異なるシチュエーションで3枚の魅力的な画像を生成するための詳細な計画を立ててください。
+          PROMPT=$(cat <<'EOF'
+あなたは画像制作の専門プランナーです。ユーザーの指示から、異なるシチュエーションで3枚の魅力的な画像を生成するための詳細な計画を立ててください。
 
-          **ユーザーの指示**: $USER_PROMPT
+**ユーザーの指示**: USER_PROMPT_PLACEHOLDER
 
-          **タスク**:
-          1. ユーザーの指示を分析し、3つの異なるシチュエーション/バリエーションを考案
-          2. 各バリエーションに対して高品質な画像生成用のプロンプトを作成
-          3. 3枚の画像が一貫性を保ちながらも、それぞれ独自の魅力を持つように計画
-          4. 計画書を「$PLANNING_DIR/image-plan.md」に保存
-          5. 3つの画像生成用プロンプトを「$PLANNING_DIR/image-prompts.json」に保存
-          6. バリエーションのコンセプトを「$PLANNING_DIR/variation-concepts.md」に保存
+**タスク**:
+1. ユーザーの指示を分析し、3つの異なるシチュエーション/バリエーションを考案
+2. 各バリエーションに対して高品質な画像生成用のプロンプトを作成
+3. 3枚の画像が一貫性を保ちながらも、それぞれ独自の魅力を持つように計画
+4. 計画書を「PLANNING_DIR_PLACEHOLDER/image-plan.md」に保存
+5. 3つの画像生成用プロンプトを「PLANNING_DIR_PLACEHOLDER/image-prompts.json」に保存
+6. バリエーションのコンセプトを「PLANNING_DIR_PLACEHOLDER/variation-concepts.md」に保存
 
-          **計画のポイント**:
-          - ユーザーの意図を正確に理解
-          - 3つの異なるシチュエーション（時間帯、天候、視点、スタイル等）を設定
-          - 各画像が独自性を持ちながら、全体として統一感のあるセット
-          - 魅力的で視覚的に美しい画像の構想
-          - 技術的制約を考慮した現実的な計画
+**計画のポイント**:
+- ユーザーの意図を正確に理解
+- 3つの異なるシチュエーション（時間帯、天候、視点、スタイル等）を設定
+- 各画像が独自性を持ちながら、全体として統一感のあるセット
+- 魅力的で視覚的に美しい画像の構想
+- 技術的制約を考慮した現実的な計画
 
-          **画像生成プロンプトの要件**:
-          - Imagen4 Ultraに最適化された詳細なプロンプト
-          - 各プロンプトは50-100語程度
-          - 視覚的要素（色彩、構図、スタイル）を明確に指定
-          - 高解像度・高品質を意識した記述
+**画像生成プロンプトの要件**:
+- Imagen4 Ultraに最適化された詳細なプロンプト
+- 各プロンプトは50-100語程度
+- 視覚的要素（色彩、構図、スタイル）を明確に指定
+- 高解像度・高品質を意識した記述
 
-          **JSONファイルのフォーマット**:
-          {
-            \"prompts\": [
-              {
-                \"id\": 1,
-                \"concept\": \"朝の光景\",
-                \"prompt\": \"詳細なプロンプト...\"
-              },
-              {
-                \"id\": 2,
-                \"concept\": \"昼の光景\",
-                \"prompt\": \"詳細なプロンプト...\"
-              },
-              {
-                \"id\": 3,
-                \"concept\": \"夜の光景\",
-                \"prompt\": \"詳細なプロンプト...\"
-              }
-            ]
-          }
+**JSONファイルのフォーマット**:
+{
+  "prompts": [
+    {
+      "id": 1,
+      "concept": "朝の光景",
+      "prompt": "詳細なプロンプト..."
+    },
+    {
+      "id": 2,
+      "concept": "昼の光景",
+      "prompt": "詳細なプロンプト..."
+    },
+    {
+      "id": 3,
+      "concept": "夜の光景",
+      "prompt": "詳細なプロンプト..."
+    }
+  ]
+}
 
-          **重要**: 
-          1. 必ず以下の3つのファイルを作成してください：
-             - $PLANNING_DIR/image-plan.md（全体計画書）
-             - $PLANNING_DIR/image-prompts.json（機械処理用プロンプト）
-             - $PLANNING_DIR/variation-concepts.md（バリエーション説明）
-          2. 各ファイルの内容は具体的で詳細に記述してください
-          3. 3つのプロンプトは必ず異なるシチュエーションに基づいて作成してください"
+**重要**: 
+1. 必ず以下の3つのファイルを作成してください：
+   - PLANNING_DIR_PLACEHOLDER/image-plan.md（全体計画書）
+   - PLANNING_DIR_PLACEHOLDER/image-prompts.json（機械処理用プロンプト）
+   - PLANNING_DIR_PLACEHOLDER/variation-concepts.md（バリエーション説明）
+2. 各ファイルの内容は具体的で詳細に記述してください
+3. 3つのプロンプトは必ず異なるシチュエーションに基づいて作成してください
+EOF
+)
+          
+          # プレースホルダーを実際の値に置換
+          PROMPT="${PROMPT//USER_PROMPT_PLACEHOLDER/$USER_PROMPT}"
+          PROMPT="${PROMPT//PLANNING_DIR_PLACEHOLDER/$PLANNING_DIR}"
           
           echo "🚀 Starting Planning Agent Claude Code CLI..."
           echo "📝 Prompt length: ${#PROMPT}"
@@ -235,7 +242,7 @@ jobs:
           
           # 設定
           USER_PROMPT="${{ inputs.prompt }}"
-          IMAGE_PROMPTS='${{ needs.planning.outputs.image-prompts }}'
+          IMAGE_PROMPTS=$(echo '${{ needs.planning.outputs.image-prompts }}' | jq -r '.' || echo '{}')
           FOLDER_NAME="${{ needs.setup-branch.outputs.folder-name }}"
           IMAGES_DIR="$FOLDER_NAME/images"
           
@@ -270,49 +277,57 @@ jobs:
           fi
           
           # プロンプトの構築
-          PROMPT="以下のプロンプトリストを使用してImagen4 Ultraで3枚の高品質な画像を生成してください。
+          PROMPT=$(cat <<'EOF'
+以下のプロンプトリストを使用してImagen4 Ultraで3枚の高品質な画像を生成してください。
 
-          **元のユーザー指示**: $USER_PROMPT
-          **生成する画像プロンプト**: $IMAGE_PROMPTS
+**元のユーザー指示**: USER_PROMPT_PLACEHOLDER
+**生成する画像プロンプト**: IMAGE_PROMPTS_PLACEHOLDER
 
-          **実行手順**:
-          1. 提供されたJSONデータから3つのプロンプトを抽出
-          2. 各プロンプトに対してImagen4 Ultraで画像生成を実行
-          3. \`mcp__t2i-fal-imagen4-ultra__imagen4_ultra_submit\`ツールで各画像生成を開始
-          4. \`mcp__t2i-fal-imagen4-ultra__imagen4_ultra_status\`でステータス確認
-          5. \`mcp__t2i-fal-imagen4-ultra__imagen4_ultra_result\`で結果取得してGoogle URLを取得
-          6. 各画像を以下の名前で保存：
-             - 1枚目: $IMAGES_DIR/image-variation-1.png
-             - 2枚目: $IMAGES_DIR/image-variation-2.png
-             - 3枚目: $IMAGES_DIR/image-variation-3.png
-          7. 各画像のGoogle URLも「$IMAGES_DIR/image-urls.json」に保存
+**実行手順**:
+1. 提供されたJSONデータから3つのプロンプトを抽出
+2. 各プロンプトに対してImagen4 Ultraで画像生成を実行
+3. `mcp__t2i-fal-imagen4-ultra__imagen4_ultra_submit`ツールで各画像生成を開始
+4. `mcp__t2i-fal-imagen4-ultra__imagen4_ultra_status`でステータス確認
+5. `mcp__t2i-fal-imagen4-ultra__imagen4_ultra_result`で結果取得してGoogle URLを取得
+6. 各画像を以下の名前で保存：
+   - 1枚目: IMAGES_DIR_PLACEHOLDER/image-variation-1.png
+   - 2枚目: IMAGES_DIR_PLACEHOLDER/image-variation-2.png
+   - 3枚目: IMAGES_DIR_PLACEHOLDER/image-variation-3.png
+7. 各画像のGoogle URLも「IMAGES_DIR_PLACEHOLDER/image-urls.json」に保存
 
-          **URLファイルのフォーマット**:
-          {
-            \"urls\": [
-              {
-                \"id\": 1,
-                \"concept\": \"コンセプト名\",
-                \"url\": \"Google URL\",
-                \"filename\": \"image-variation-1.png\"
-              },
-              ...
-            ]
-          }
+**URLファイルのフォーマット**:
+{
+  "urls": [
+    {
+      "id": 1,
+      "concept": "コンセプト名",
+      "url": "Google URL",
+      "filename": "image-variation-1.png"
+    },
+    ...
+  ]
+}
 
-          **重要な注意点**:
-          - 必ず3枚の画像を生成してください
-          - 各画像は提供されたプロンプトに従って生成
-          - Google URLの有効期限は約1時間のため、生成後すぐにダウンロード
-          - ファイル名は指定された形式（image-variation-N.png）を使用
-          - 画像は必ず「$IMAGES_DIR」ディレクトリに保存
-          - URLの記録も忘れずに実行
+**重要な注意点**:
+- 必ず3枚の画像を生成してください
+- 各画像は提供されたプロンプトに従って生成
+- Google URLの有効期限は約1時間のため、生成後すぐにダウンロード
+- ファイル名は指定された形式（image-variation-N.png）を使用
+- 画像は必ず「IMAGES_DIR_PLACEHOLDER」ディレクトリに保存
+- URLの記録も忘れずに実行
 
-          **処理の流れ**:
-          1. 1枚目の画像生成 → ダウンロード保存
-          2. 2枚目の画像生成 → ダウンロード保存
-          3. 3枚目の画像生成 → ダウンロード保存
-          4. すべてのURLを記録してJSONファイルに保存"
+**処理の流れ**:
+1. 1枚目の画像生成 → ダウンロード保存
+2. 2枚目の画像生成 → ダウンロード保存
+3. 3枚目の画像生成 → ダウンロード保存
+4. すべてのURLを記録してJSONファイルに保存
+EOF
+)
+          
+          # プレースホルダーを実際の値に置換
+          PROMPT="${PROMPT//USER_PROMPT_PLACEHOLDER/$USER_PROMPT}"
+          PROMPT="${PROMPT//IMAGE_PROMPTS_PLACEHOLDER/$IMAGE_PROMPTS}"
+          PROMPT="${PROMPT//IMAGES_DIR_PLACEHOLDER/$IMAGES_DIR}"
           
           echo "🚀 Starting Image Generation Agent Claude Code CLI..."
           echo "📝 Prompt length: ${#PROMPT}"
