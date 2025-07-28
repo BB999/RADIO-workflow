@@ -1,0 +1,32 @@
+音楽生成プロンプト - カムイ日報BGM（リラックス版）
+
+基本コンセプト：
+昼の技術系ラジオ番組にふさわしい、落ち着いたアンビエント系のBGM
+
+音楽スタイル：
+- ジャンル: Ambient, Lo-fi, Minimal Electronic
+- テンポ: 80-90 BPM (ゆったりとしたテンポ)
+- キー: C major または A minor (落ち着いた響き)
+- 雰囲気: 集中できる、リラックス、知的
+
+楽器構成：
+- メイン: ソフトなシンセパッド、アンビエントテクスチャー
+- リズム: 軽やかなドラムループ、控えめなベース
+- アクセント: 温かいピアノの単音、エレクトリックピアノ
+- エフェクト: リバーブ、ディレイで空間的な広がり
+
+音響特性：
+- ダイナミクス: 一定レベルを保ち、話者の声を邪魔しない
+- 周波数バランス: 中高域を控えめに、低域は温かく
+- 音量レベル: -12dB to -18dB (音声とのバランス調整用)
+
+展開構造：
+0-15秒: イントロ（フェードイン）
+15-45秒: メインループ（安定したBGM）
+45-60秒: アウトロ（自然なフェードアウト）
+
+プロンプト例：
+"Create a relaxing ambient background music for a tech radio show. 60 seconds duration, 85 BPM, soft synthesizer pads, minimal percussion, warm electric piano accents, spacious reverb, perfect for podcast background, C major key, lo-fi aesthetic, non-intrusive, professional broadcast quality"
+
+補完プロンプト：
+"Calm technological ambience, morning radio vibes, subtle digital textures, warm and inviting, educational content friendly, Japanese tech podcast style, clean production, seamless loop capability"

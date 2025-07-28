@@ -1,0 +1,37 @@
+{
+  "voice_settings": {
+    "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+    "speaking_rate": 1.0,
+    "emotional_intensity": 0.6,
+    "output_format": "wav",
+    "language": "ja",
+    "pitch_adjustment": 0.0,
+    "volume_adjustment": 1.0
+  },
+  "voice_characteristics": {
+    "tone": "relaxed_informative",
+    "energy_level": "medium_low",
+    "tempo_preference": "moderate",
+    "pause_handling": "natural",
+    "emphasis_style": "subtle"
+  },
+  "content_adaptation": {
+    "filler_words": ["えっと", "はい", "ですね", "ちょっと"],
+    "ending_patterns": ["〜っていうところだったりします", "〜かなという風に思います", "というところで"],
+    "casual_expressions": ["〜みたいな感じ", "〜っていう感じ", "いい感じ"],
+    "technical_explanation_style": "親しみやすく丁寧"
+  },
+  "background_music_sync": {
+    "music_type": "relaxed",
+    "voice_music_balance": 0.7,
+    "fade_in_duration": 2.0,
+    "fade_out_duration": 3.0,
+    "cross_fade_points": ["話題転換時", "強調ポイント"]
+  },
+  "estimated_duration": {
+    "target_seconds": 60,
+    "character_count": 190,
+    "words_per_minute": 180,
+    "pause_factor": 1.2
+  }
+}
