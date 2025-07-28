@@ -47,6 +47,9 @@ GitHub ActionsでClaude Code SDKとkamuicode MCPを使用してAIコンテンツ
 ### 🔍 [Gemini I2V Analysis](./gemini-i2v-workflow/)
 Gemini APIと連携した画像から動画生成の分析ワークフロー。
 
+### 🎨 [Image Workflow](./image-workflow/) 🆕
+プロンプトから3つの異なるシチュエーションの画像を自動生成。Imagen4 Ultraによる高品質画像制作。
+
 ## 🚀 クイックスタート
 
 1. **用途に合うワークフローを選択**
@@ -60,6 +63,7 @@ Gemini APIと連携した画像から動画生成の分析ワークフロー。
 |------|------------------|------|
 | 🆕 ニュース番組制作 | Module Workflow (News Video) | AIアナウンサー、音声、字幕、タイトル統合 |
 | 🆕 マルチモデル動画生成 | Module Workflow (Multi-Model) | 任意のAIモデル選択、t2v/i2v/r2v対応 |
+| 🆕 画像セット生成 | Image Workflow | 3つの異なるシチュエーション画像を一括生成 |
 | 高品質・大規模生成 | Module Workflow | モジュール化、マルチエージェント |
 | バナー広告作成 | Module Workflow (Banner) | コンセプトから最大4枚まで自動生成 |
 | 音楽動画作成 | Music Video | 音楽+動画統合 |

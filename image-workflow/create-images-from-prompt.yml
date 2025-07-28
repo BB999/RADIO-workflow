@@ -1,0 +1,22 @@
+name: Create Images from Prompt (Template)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: '画像生成用のプロンプト'
+        required: true
+        type: string
+
+jobs:
+  generate-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Image Workflow
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Triggering image generation workflow..."
+          gh workflow run image-workflow.yml \
+            --repo ${{ github.repository }} \
+            --field prompt="${{ inputs.prompt }}"
