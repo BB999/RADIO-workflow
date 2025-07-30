@@ -1,0 +1,23 @@
+# 夜のお話タイム - 30秒×3セクション版
+
+## オープニング（30秒：約180文字）
+<prosody rate="85%" pitch="-5%">こんばんは。</prosody><break time="1s"/>
+「夜のお話タイム」へようこそ。<break time="0.5s"/>
+<aivis:emotion style="Calm" intensity="1.0">語り手の田中みちこです。</aivis:emotion>
+今夜は、<prosody volume="soft">星空の下で聞く</prosody>特別な物語をお届けします。<break time="0.5s"/>
+窓の外を見上げてみてください。きっと素敵な星が見えるはずです。
+
+## メイン（30秒：約180文字）
+<aivis:emotion style="Mysterious" intensity="1.1">昔々、ある小さな村に</aivis:emotion>、
+星と話ができる少女がいました。<break time="0.5s"/>
+<prosody rate="90%">毎晩、彼女は屋根に登り、</prosody>
+北極星に今日あった出来事を話していました。<break time="0.3s"/>
+ある夜、<prosody pitch="+10%">星が答えました。</prosody>
+「君の優しい心が、村に幸せを運ぶだろう」と。
+
+## エンディング（30秒：約180文字）
+<prosody rate="80%">今夜のお話はここまでです。</prosody><break time="1s"/>
+<aivis:emotion style="Gentle" intensity="1.2">皆さん、良い夢を。</aivis:emotion><break time="0.5s"/>
+星たちも、あなたの眠りを見守っています。<break time="0.3s"/>
+また明日の夜9時に、<prosody volume="soft">新しい物語を持って</prosody>お待ちしています。
+<prosody rate="70%">おやすみなさい。</prosody>

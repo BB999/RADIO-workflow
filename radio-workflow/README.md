@@ -1,219 +1,162 @@
-# AI Radio Audio Generator Workflow
+# ラジオ局ワークフローシステム
 
-音楽付きAIラジオ音声生成ワークフロー
+AI技術を活用して、台本から完全なラジオ番組を自動生成するGitHub Actionsワークフローです。
 
-## 🎙️ 概要
+## 概要
 
-このGitHub Actionsワークフローは、**原稿と音楽の雰囲気**から完全なラジオ音声（音楽付き）を**2つの異なるバージョン**で自動生成します。
+このワークフローは、ユーザーが提供する台本を基に、以下のプロセスを自動化します：
 
-### 🎯 生成フロー
+1. **台本分析**: 台本を「オープニング」「メイン」「エンディング」の3セクションに分割
+2. **音声生成**: Aivis Cloud APIを使用して各セクションの音声を生成
+3. **BGM生成**: MCPツールを使用して各セクションに適したBGMを生成
+4. **音声合成**: ffmpegで音声とBGMを結合し、最終的なラジオ番組を作成
 
-1. **📝 台本作成** - 原稿から2種類のアプローチで台本を生成（A：カジュアル / B：プロフェッショナル）
-2. **🎤 音声生成** - aivis-apiでカムイ日報風の音声を2バージョン生成（並列）
-3. **🎵 音楽生成** - Google Lyriaで背景音楽を2バージョン生成（並列）
-4. **🎚️ 音声合成** - FFmpegで音声と音楽を合成して2つの完成版を出力
+## 使用方法
 
-### 🔄 2バージョンシステム
+### 1. 必要な設定
 
-- **バージョンA（カジュアル）**: 親しみやすい口調、リラックスした音楽、背景音楽60%
-- **バージョンB（プロフェッショナル）**: 技術的表現重視、集中できる音楽、背景音楽60%
+#### APIキーの設定
+GitHub リポジトリの Settings → Secrets and variables → Actions で以下のシークレットを設定：
 
-### 🔧 技術スタック
+- `CLAUDE_CODE_OAUTH_TOKEN`: Claude APIキー（ANTHROPIC_API_KEYの代替として使用）
+- `AIVIS_API_KEY`: Aivis Cloud APIキー（[ダッシュボード](https://api.aivis-project.com/dashboard)から取得）
+- `PAT_TOKEN`: （オプション）GitHub Personal Access Token
 
-- **台本生成**: Claude Code SDK（原稿要約・口調調整）
-- **音声生成**: aivis-api（高品質音声合成）
-- **音楽生成**: Google Lyria（kamuicode MCP経由）
-- **音声合成**: FFmpeg（音声・音楽ミキシング）
-- **AI統合**: Claude Code SDK + kamuicode MCP
+#### MCPツールの設定
+`.claude/mcp-kamuicode.json` にBGM生成用のMCPツール設定が必要です。
 
-## 🚀 使用方法
+### 2. ワークフローの実行
 
-### 手動実行
+1. GitHub リポジトリの Actions タブに移動
+2. "Create Radio from Script" ワークフローを選択
+3. "Run workflow" をクリック
+4. 台本を入力して実行
 
-1. リポジトリの**Actions**タブに移動
-2. **Create Radio Audio with Music**ワークフローを選択
-3. **Run workflow**ボタンをクリック
-4. 入力項目を設定：
-   - **原稿内容**: ラジオで話したい内容のテキスト
-   - **音楽の雰囲気**: 背景音楽の雰囲気（例：リラックス、エネルギッシュ、ジャズ風）
-5. **Run workflow**を実行
-
-### 入力例
-
-#### 原稿例
-```
-今日はClaudeCodeの新機能について話したいと思います。
-MCPサーバーとの連携がさらに強化されて、kamuicodeを使った
-画像生成や音楽生成がワンクリックでできるようになりました。
-特に音楽生成の品質が向上していて、Google Lyriaを使った
-高品質な楽曲が簡単に作れるのが素晴らしいですね。
-```
-
-#### 音楽の雰囲気例
-```
-リラックス、アンビエント、夜の落ち着いた雰囲気
-```
-
-## 📁 出力構造
+### 3. 入力例
 
 ```
-radio-audio-[タイムスタンプ]/
-├── planning/
-│   ├── version-a/              # バージョンA計画ファイル
-│   │   ├── radio-script.txt        # 台本（カジュアル）
-│   │   ├── voice-style.json        # 音声スタイル設定
-│   │   ├── music-prompt.txt        # 音楽生成プロンプト
-│   │   └── radio-strategy.md       # 制作戦略
-│   └── version-b/              # バージョンB計画ファイル
-│       ├── radio-script.txt        # 台本（プロフェッショナル）
-│       ├── voice-style.json        # 音声スタイル設定
-│       ├── music-prompt.txt        # 音楽生成プロンプト
-│       └── radio-strategy.md       # 制作戦略
-├── audio/
-│   ├── version-a/
-│   │   └── radio-voice.wav         # 音声A（カジュアル口調）
-│   └── version-b/
-│       └── radio-voice.wav         # 音声B（プロフェッショナル口調）
-├── music/
-│   ├── version-a/
-│   │   └── background-music.wav    # 音楽A（親しみやすい）
-│   └── version-b/
-│       └── background-music.wav    # 音楽B（技術的・集中向け）
+こんにちは、リスナーの皆さん！今日は AI技術の最新動向についてお話しします。
+
+最近のAI技術の進歩は目覚ましく、特に音声合成技術は人間と区別がつかないレベルに達しています。
+今日のゲストは、AI研究の第一人者である田中博士です。
+
+それでは、田中博士、よろしくお願いします。
+「こんにちは、皆さん。今日はAIの未来についてお話しできることを楽しみにしています。」
+
+まず、最近のAI技術の中で特に注目されている分野について教えてください。
+「はい、特に注目されているのは、自然言語処理と音声合成の分野ですね。」
+
+なるほど、興味深いですね。具体的にはどのような応用が考えられますか？
+「例えば、このようなラジオ番組も、将来的には完全にAIが制作できるようになるでしょう。」
+
+それは驚きですね！リスナーの皆さん、いかがでしたか？
+今日はAI技術の最新動向について、田中博士にお話を伺いました。
+
+次回もお楽しみに！さようなら！
+```
+
+## 出力構造
+
+生成されるファイルは以下の構造で保存されます：
+
+```
+radio-YYYYMMDD-{run_id}/
+├── analysis/
+│   ├── opening-script.txt      # オープニング台本
+│   ├── main-script.txt          # メイン台本
+│   ├── ending-script.txt        # エンディング台本
+│   ├── script-analysis.md       # 分析レポート
+│   └── script-structure.json    # 構成情報
+├── voice/
+│   ├── opening-voice.mp3        # オープニング音声
+│   ├── main-voice.mp3           # メイン音声
+│   ├── ending-voice.mp3         # エンディング音声
+│   └── voice-durations.json     # 音声長情報
+├── bgm/
+│   ├── opening-bgm.mp3          # オープニングBGM
+│   ├── main-bgm.mp3             # メインBGM
+│   └── ending-bgm.mp3           # エンディングBGM
 └── final/
-    ├── version-a/
-    │   └── final-radio-audio.wav   # 最終合成音声A（音楽60%）
-    └── version-b/
-        └── final-radio-audio.wav   # 最終合成音声B（音楽20%）
+    ├── radio-program.mp3        # 最終ラジオ番組
+    └── radio-metadata.json      # メタデータ
 ```
 
-## 🔧 セットアップ要件
+## 技術仕様
 
-### 必要なSecrets
+### 使用技術
 
-```yaml
-ANTHROPIC_API_KEY: # Claude API Key
-AIVIS_API_KEY: # aivis-api Key（音声生成用）
-PAT_TOKEN: # GitHub Personal Access Token
+- **音声生成**: Aivis Cloud API
+  - モデル: a59cb814-0083-4369-8542-f51a29e72af7
+  - SSML対応で細かな音声制御が可能
+  - 高速生成（15文字を0.3秒以下）
+
+- **BGM生成**: MCPツール（musicgen-large等）
+  - 各セクションの長さに合わせた生成
+  - ラジオ番組に適した控えめな音楽
+
+- **音声処理**: ffmpeg
+  - BGM音量を60%に調整
+  - セクション間に0.5秒の無音挿入
+  - 最終出力: MP3 192kbps
+
+### ワークフローのジョブ構成
+
+1. **setup-branch**: 作業ブランチの作成
+2. **script-analysis**: 台本を分析してセクションに分割
+3. **voice-generation**: 各セクションの音声生成
+4. **bgm-generation**: 各セクションのBGM生成
+5. **audio-mixing**: 音声とBGMの結合
+6. **create-pr**: プルリクエスト作成
+
+## カスタマイズ
+
+### 音声パラメータの調整
+
+`voice-generation` ジョブ内で以下のパラメータを調整可能：
+
+```json
+{
+  "emotional_intensity": 1.0,    // 感情表現の強さ (0.0-2.0)
+  "speaking_rate": 1.0,          // 話速 (0.5-2.0)
+  "pitch": 0.0,                  // ピッチ (-1.0-1.0)
+  "volume": 1.0                  // 音量 (0.0-2.0)
+}
 ```
 
-### 必要なファイル
+### BGMスタイルの変更
 
-```
-.claude/
-└── mcp-kamuicode.json    # kamuicode MCP設定
-```
+`bgm-generation` ジョブ内のプロンプトを編集して、BGMのスタイルを変更できます。
 
-### 権限設定
+### セクション分割の調整
 
-```yaml
-permissions:
-  contents: write
-  pull-requests: write
-  actions: read
-```
+`script-analysis` ジョブ内の分割ガイドラインを編集して、セクションの配分を変更できます。
 
-## 🎤 音声の特徴
+## トラブルシューティング
 
-### バージョンA（カジュアル）
-- **話し方**: 「えっと」「ですね」「ちょっと」を多用、親しみやすい口調
-- **特徴**: 「〜みたいな感じ」「〜っていう感じ」での説明重視
-- **aivis-api設定**: 話速1.0、感情強度0.5（標準的な表現）
+### よくある問題
 
-### バージョンB（プロフェッショナル）
-- **話し方**: 技術的表現重視、詳細な説明アプローチ
-- **特徴**: 専門用語の丁寧な解説、効率性・正確性重視
-- **aivis-api設定**: 話速1.2、感情強度0.3（控えめな表現）
+1. **音声生成エラー**
+   - Aivis Cloud APIキーが正しく設定されているか確認
+   - 台本に不正な文字が含まれていないか確認
 
-### 共通設定
-- **モデル**: a59cb814-0083-4369-8542-f51a29e72af7（高品質音声）
-- **形式**: WAV（高音質合成用）
+2. **BGM生成エラー**
+   - MCPツールの設定を確認
+   - 生成時間が長い場合はタイムアウトを延長
 
-## 🎵 音楽の雰囲気例
+3. **音声結合エラー**
+   - ffmpegが正しくインストールされているか確認
+   - 各音声ファイルが正常に生成されているか確認
 
-### 🌃 リラックス系
-```
-"リラックス、アンビエント、夜の落ち着いた雰囲気"
-"ジャズ、ピアノ、カフェのような穏やかな音楽"
-```
+## ライセンス
 
-### ⚡ エネルギッシュ系
-```
-"エネルギッシュ、ポップ、明るいアップテンポ"
-"エレクトロニック、テクノ、活動的な雰囲気"
-```
+このプロジェクトはMITライセンスの下で公開されています。
 
-### 🎯 技術・プロフェッショナル系
-```
-"ミニマル、集中、作業に適した背景音楽"
-"コーポレート、プレゼンテーション向け、上品"
-```
+## 貢献
 
-## 🤖 技術的詳細
+プルリクエストや問題報告を歓迎します。大きな変更を行う場合は、まずissueを作成して議論してください。
 
-### AI Agent構成
-- **台本計画Agent**: 原稿分析と2バージョンの台本作成（A：カジュアル / B：プロフェッショナル）
-- **音声生成AgentA**: aivis-api実行（カジュアル口調）
-- **音声生成AgentB**: aivis-api実行（プロフェッショナル口調）
-- **音楽生成AgentA**: Google Lyria実行（親しみやすい音楽）
-- **音楽生成AgentB**: Google Lyria実行（技術的・集中向け音楽）
-- **音声合成AgentA**: FFmpeg実行（音楽60%ボリューム）
-- **音声合成AgentB**: FFmpeg実行（音楽20%ボリューム）
+## 関連リンク
 
-### 並列処理最適化
-- 音声生成と音楽生成: 並列実行
-- 依存関係: 台本→（音声・音楽並列）→合成
-
-### FFmpeg合成設定
-
-#### バージョンA（カジュアル）
-- 背景音楽ボリューム: 音声の60%（音楽を楽しむ）
-- フェードイン・アウト: 2秒（柔らかい印象）
-- 高品質WAV出力
-- 音声長に合わせた音楽調整
-
-#### バージョンB（プロフェッショナル）
-- 背景音楽ボリューム: 音声の60%（プロフェッショナルでも音楽を楽しむ）
-- フェードイン・アウト: 1.5秒（精密な印象）
-- 高品質WAV出力
-- 音声長に合わせた音楽調整
-
-## 📊 品質管理
-
-### 音声品質
-- サンプリングレート: 44.1kHz
-- 音声チャンネル: モノラル
-- ビットレート: 高品質設定
-
-### 音楽品質
-- Google Lyria: 高品質音楽生成
-- 音声に適したボリュームバランス
-- フェード処理による自然な合成
-
-## 🎯 使用例・活用シーン
-
-### 📡 ポッドキャスト制作
-- 技術解説番組
-- 製品紹介・レビュー
-- 学習コンテンツ
-
-### 🏢 企業・プレゼンテーション
-- 製品デモ音声
-- 会社紹介ナレーション
-- トレーニング用音声
-
-### 🎓 教育・学習
-- 技術チュートリアル
-- 知識共有コンテンツ
-- オンライン講座
-
-## 📄 ライセンス
-
-MIT License
-
-## 👥 貢献
-
-Issues、Pull Requests大歓迎です！
-
----
-
-🎙️ **AI-generated Radio Audio Workflow** - Powered by [Claude Code SDK](https://github.com/anthropics/claude-code), [aivis-api](https://aivis-project.com) & [kamuicode MCP](https://www.kamui.ai/ja)
+- [Aivis Cloud API ドキュメント](https://api.aivis-project.com/docs)
+- [Claude Code SDK](https://github.com/anthropic-ai/claude-code)
+- [kamuicode MCP](https://github.com/AI-Summoner/ai-summoner)
