@@ -118,23 +118,8 @@ jobs:
           - txtファイルは音声生成用（改行やSSMLタグ含む）
 
           **JSONファイルの形式**:
-          {
-            \"total_characters\": 全体の文字数,
-            \"sections\": {
-              \"opening\": {
-                \"characters\": 文字数,
-                \"estimated_duration\": \"30秒\"
-              },
-              \"main\": {
-                \"characters\": 文字数,
-                \"estimated_duration\": \"30秒\"
-              },
-              \"ending\": {
-                \"characters\": 文字数,
-                \"estimated_duration\": \"30秒\"
-              }
-            }
-          }"
+          全体の文字数とセクションごとの情報をJSON形式で記録してください。
+          各セクションの推定時間は30秒で統一してください。"
           
           echo "🚀 Starting Script Analysis Agent Claude Code CLI..."
           echo "📝 Prompt length: ${#PROMPT}"
@@ -809,7 +794,7 @@ jobs:
           echo "# 📻 AIラジオ番組生成完了" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 生成情報" >> $GITHUB_STEP_SUMMARY
-          echo "- **台本（冒頭）**: ${{{ inputs.script }}:0:100}..." >> $GITHUB_STEP_SUMMARY
+          echo "- **台本（冒頭）**: ${{ inputs.script }}:0:100}..." >> $GITHUB_STEP_SUMMARY
           echo "- **生成日時**: $(date -u +%Y-%m-%d\ %H:%M:%S)\ UTC" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -834,7 +819,7 @@ jobs:
           
           # プルリクエスト用のボディを作成
           PR_BODY="🤖 Claude Code SDK & kamuicode MCPを使用して自動生成されたラジオ番組です."
-          PR_BODY="$PR_BODY"$'\n\n'"台本（冒頭）: ${{{ inputs.script }}:0:200}..."
+          PR_BODY="$PR_BODY"$'\n\n'"台本（冒頭）: ${{ inputs.script }}:0:200}..."
           PR_BODY="$PR_BODY"$'\n\n'"生成フロー:"
           PR_BODY="$PR_BODY"$'\n'"1. 📋 台本を3つのセクションに分析・分割"
           PR_BODY="$PR_BODY"$'\n'"2. 🎙️ Aivis Cloud APIで各セクションの音声生成"
@@ -864,7 +849,7 @@ jobs:
           
           # PR作成
           gh pr create \
-            --title "新しいAI生成ラジオ番組: ${{{ inputs.script }}:0:50}..." \
+            --title "新しいAI生成ラジオ番組: ${{ inputs.script }}:0:50}..." \
             --body "$PR_BODY" \
             --base main \
             --head $BRANCH_NAME
