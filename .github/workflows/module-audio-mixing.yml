@@ -187,8 +187,46 @@ jobs:
             fi
           done
           
-          # オープニング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
+          # 各音声の長さを取得して、必要なBGMの長さを計算
+          echo "📏 音声ファイルの長さを測定中..."
           VOICE_OPENING_DURATION=$(get_duration voice-opening.wav)
+          VOICE_MAIN_DURATION=$(get_duration voice-main.wav)
+          VOICE_ENDING_DURATION=$(get_duration voice-ending.wav)
+          
+          echo "  オープニング音声: ${VOICE_OPENING_DURATION}秒"
+          echo "  メイン音声: ${VOICE_MAIN_DURATION}秒"
+          echo "  エンディング音声: ${VOICE_ENDING_DURATION}秒"
+          
+          # 必要なBGMの長さを計算（音声の長さ + 10秒の余裕）
+          BGM_OPENING_NEEDED=$(awk "BEGIN {print int($VOICE_OPENING_DURATION + 10)}")
+          BGM_MAIN_NEEDED=$(awk "BEGIN {print int($VOICE_MAIN_DURATION + 10)}")
+          BGM_ENDING_NEEDED=$(awk "BEGIN {print int($VOICE_ENDING_DURATION + 10)}")
+          
+          echo "🎵 必要なBGMの長さ:"
+          echo "  オープニング: ${BGM_OPENING_NEEDED}秒"
+          echo "  メイン: ${BGM_MAIN_NEEDED}秒"
+          echo "  エンディング: ${BGM_ENDING_NEEDED}秒"
+          
+          # BGMを必要な長さにループ拡張
+          if [ $BGM_OPENING_NEEDED -gt 30 ]; then
+            echo "🔄 オープニングBGMを${BGM_OPENING_NEEDED}秒に拡張"
+            safe_ffmpeg -stream_loop -1 -i bgm-opening-30s.wav -t $BGM_OPENING_NEEDED -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-extended.wav -y || exit 1
+            mv bgm-opening-extended.wav bgm-opening-30s.wav
+          fi
+          
+          if [ $BGM_MAIN_NEEDED -gt 30 ]; then
+            echo "🔄 メインBGMを${BGM_MAIN_NEEDED}秒に拡張"
+            safe_ffmpeg -stream_loop -1 -i bgm-main-30s.wav -t $BGM_MAIN_NEEDED -ar 44100 -ac 2 -c:a pcm_s16le bgm-main-extended.wav -y || exit 1
+            mv bgm-main-extended.wav bgm-main-30s.wav
+          fi
+          
+          if [ $BGM_ENDING_NEEDED -gt 30 ]; then
+            echo "🔄 エンディングBGMを${BGM_ENDING_NEEDED}秒に拡張"
+            safe_ffmpeg -stream_loop -1 -i bgm-ending-30s.wav -t $BGM_ENDING_NEEDED -ar 44100 -ac 2 -c:a pcm_s16le bgm-ending-extended.wav -y || exit 1
+            mv bgm-ending-extended.wav bgm-ending-30s.wav
+          fi
+          
+          # オープニング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
           FADE_START_OPENING=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 4}")
           TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")
           
@@ -211,7 +249,6 @@ jobs:
           fi
           
           # メイン: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
-          VOICE_MAIN_DURATION=$(get_duration voice-main.wav)
           FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
           TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 6}")
           
@@ -219,7 +256,7 @@ jobs:
           safe_ffmpeg -i voice-main.wav \
                       -i bgm-main-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume=0.2,afade=t=out:st=${FADE_START_MAIN}:d=2[bgm2];
+                                      [1]volume=0.4,afade=t=out:st=${FADE_START_MAIN}:d=2[bgm2];
                                       [voice_delayed][bgm2]amix=inputs=2[main]" \
                       -map "[main]" \
                       -t $TOTAL_MAIN_DURATION \
@@ -234,9 +271,8 @@ jobs:
           fi
           
           # エンディング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（3秒）
-          VOICE_ENDING_DURATION=$(get_duration voice-ending.wav)
-          FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4.5}")
-          TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 7.5}")
+          FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
+          TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 7}")
           
           echo "🎵 エンディングセクションのミキシング開始"
           safe_ffmpeg -i voice-ending.wav \
@@ -282,7 +318,7 @@ jobs:
             \"duration\": \"90s\",
             \"sections\": [
               {\"name\": \"opening\", \"duration\": \"4s intro + voice + 2s fade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
-              {\"name\": \"main\", \"duration\": \"4s intro + voice + 2s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"20%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
+              {\"name\": \"main\", \"duration\": \"4s intro + voice + 2s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"40%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
               {\"name\": \"ending\", \"duration\": \"4s intro + voice + 3.5s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"3s\"}
             ],
             \"audio_standard\": \"-23 LUFS\",
