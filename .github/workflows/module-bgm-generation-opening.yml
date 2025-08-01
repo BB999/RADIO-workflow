@@ -106,15 +106,38 @@ jobs:
           echo "$BGM_RESULT" | head -c 500
           echo ""
           
-          # 結果からURLを抽出
-          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP 'https://[^\s]+\.(wav|mp3|m4a)' | head -1)
+          # 結果からURLまたはファイル名を抽出
+          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(wav|mp3|m4a)' | head -1)
           MUSIC_FILE="bgm-opening.wav"
           
-          echo "🔍 URL抽出結果: '$MUSIC_URL'"
+          # 直接ダウンロードされたファイルを検索
+          DOWNLOADED_FILE=$(ls lyria_output_*.wav 2>/dev/null | head -1)
           
-          # URLからファイルをダウンロード
-          if [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
-            echo "✅ 有効なBGM URLが見つかりました: $MUSIC_URL"
+          echo "🔍 URL抽出結果: '$MUSIC_URL'"
+          echo "📁 ダウンロードされたファイル: '$DOWNLOADED_FILE'"
+          
+          # ファイル処理（ダウンロード済みファイルを優先）
+          if [ ! -z "$DOWNLOADED_FILE" ] && [ -s "$DOWNLOADED_FILE" ]; then
+            echo "✅ 既にダウンロードされたファイルを使用: $DOWNLOADED_FILE"
+            
+            FILE_SIZE=$(stat -c%s "$DOWNLOADED_FILE")
+            echo "📊 ファイルサイズ: ${FILE_SIZE} bytes"
+            
+            # 音声ファイルの簡易検証
+            file "$DOWNLOADED_FILE"
+            
+            # ffmpegでループ拡張
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+            if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-opening-30s.wav" -y; then
+              echo "✅ BGMループ拡張成功"
+              echo "music-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
+              echo "music-file=bgm-opening-30s.wav" >> $GITHUB_OUTPUT
+            else
+              echo "::error::❌ ffmpeg処理失敗"
+              exit 1
+            fi
+          elif [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
+            echo "✅ HTTPS URLからダウンロード: $MUSIC_URL"
             
             # ダウンロードとファイルチェック
             if curl -L "$MUSIC_URL" -o "$MUSIC_FILE" --max-time 60; then
@@ -132,7 +155,8 @@ jobs:
                   echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
                   echo "music-file=bgm-opening-30s.wav" >> $GITHUB_OUTPUT
                 else
-                  echo "::error::❌ ffmpeg処理失敗、フォールバックを使用"
+                  echo "::error::❌ ffmpeg処理失敗"
+                  exit 1
                 fi
               else
                 echo "::warning::⚠️ ダウンロードされたファイルが空です"
@@ -140,6 +164,8 @@ jobs:
             else
               echo "::warning::⚠️ BGMファイルのダウンロードに失敗しました"
             fi
+          else
+            echo "::warning::⚠️ 有効なURLまたはファイルが見つかりません"
           fi
           
           # BGM生成失敗時はワークフローを停止
