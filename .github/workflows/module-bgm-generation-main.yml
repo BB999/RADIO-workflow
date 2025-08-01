@@ -24,30 +24,8 @@ jobs:
       
       - name: Install Claude Code SDK
         run: |
-          echo "📦 Claude Code SDKインストール開始"
-          echo "📊 システム情報:"
-          echo "OS: $(uname -a)"
-          echo "Node.js: $(node --version)"
-          echo "npm: $(npm --version)"
-          echo ""
-          
-          # 複数のインストール方法を試す
-          echo "🚀 インストール試行1: --no-optional"
-          if ! npm install @anthropic-ai/claude-code --no-optional 2>&1; then
-            echo "⚠️ 試行1失敗、試行2を実行: --ignore-scripts"
-            if ! npm install @anthropic-ai/claude-code --ignore-scripts 2>&1; then
-              echo "⚠️ 試行2失敗、試行3を実行: --force"
-              echo "⚠️ 試行3も失敗、fseventsエラーを無視してClaude Code CLIを試行"
-              npm install @anthropic-ai/claude-code --force 2>/dev/null || echo "⚠️ インストールエラーを無視して続行"
-            else
-              echo "✅ 試行2成功: --ignore-scripts"
-            fi
-          else
-            echo "✅ 試行1成功: --no-optional"
-          fi
-          
-          echo "📊 インストール結果:"
-          ls -la node_modules/@anthropic-ai/ 2>/dev/null || echo "@anthropic-aiディレクトリが見つかりません"
+          echo "📦 Claude Code SDKインストール"
+          npm install @anthropic-ai/claude-code --force 2>/dev/null || echo "⚠️ インストールエラーを無視して続行"
       
       - name: Generate Main BGM with Google Lyria
         id: bgm
@@ -89,6 +67,8 @@ jobs:
             # Claude Codeの実行とエラーハンドリング
             BGM_RESULT=$(timeout 300 npx @anthropic-ai/claude-code \
               --mcp-config="$MCP_CONFIG_ABS_PATH" \
+              --allowedTools "mcp__t2m-google-lyria__lyria_generate,Bash" \
+              --max-turns 10 \
               --print \
               --verbose \
               "$PROMPT" 2>&1) || {
