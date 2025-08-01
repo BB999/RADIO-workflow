@@ -114,10 +114,16 @@ jobs:
           
           # エラーハンドリング付きFFmpeg実行
           safe_ffmpeg() {
-            if ! ffmpeg "$@" 2>/dev/null; then
+            local TEMP_LOG="ffmpeg_$(date +%s).log"
+            if ! ffmpeg "$@" 2>"$TEMP_LOG"; then
               echo "::error::FFmpeg処理に失敗しました: $*"
+              echo "::error::FFmpegエラー出力:"
+              cat "$TEMP_LOG" | head -20
+              rm -f "$TEMP_LOG"
               return 1
             fi
+            rm -f "$TEMP_LOG"
+            return 0
           }
           
           # アーティファクトからファイルをコピー（パスを明確に指定）
@@ -186,6 +192,7 @@ jobs:
           FADE_START_OPENING=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 4.5}")
           TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6.5}")
           
+          echo "🎵 オープニングセクションのミキシング開始"
           safe_ffmpeg -i voice-opening.wav \
                       -i bgm-opening-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
@@ -196,11 +203,19 @@ jobs:
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       opening-mixed.wav || exit 1
           
+          if [ -f "opening-mixed.wav" ]; then
+            echo "✅ opening-mixed.wav 生成成功 ($(stat -c%s opening-mixed.wav) bytes)"
+          else
+            echo "::error::❌ opening-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
           # メイン: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
           VOICE_MAIN_DURATION=$(get_duration voice-main.wav)
           FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4.5}")
           TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 6.5}")
           
+          echo "🎵 メインセクションのミキシング開始"
           safe_ffmpeg -i voice-main.wav \
                       -i bgm-main-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
@@ -211,11 +226,19 @@ jobs:
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       main-mixed.wav || exit 1
           
+          if [ -f "main-mixed.wav" ]; then
+            echo "✅ main-mixed.wav 生成成功 ($(stat -c%s main-mixed.wav) bytes)"
+          else
+            echo "::error::❌ main-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
           # エンディング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（3秒）
           VOICE_ENDING_DURATION=$(get_duration voice-ending.wav)
           FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4.5}")
           TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 7.5}")
           
+          echo "🎵 エンディングセクションのミキシング開始"
           safe_ffmpeg -i voice-ending.wav \
                       -i bgm-ending-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
@@ -226,7 +249,18 @@ jobs:
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       ending-mixed.wav || exit 1
           
+          if [ -f "ending-mixed.wav" ]; then
+            echo "✅ ending-mixed.wav 生成成功 ($(stat -c%s ending-mixed.wav) bytes)"
+          else
+            echo "::error::❌ ending-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
           # 3つのセクションを連結し、最終調整（エラーハンドリング付き）
+          echo "🎵 最終ミックス開始"
+          echo "📁 連結するファイル:"
+          ls -la opening-mixed.wav main-mixed.wav ending-mixed.wav
+          
           safe_ffmpeg -i opening-mixed.wav \
                       -i main-mixed.wav \
                       -i ending-mixed.wav \
@@ -236,6 +270,13 @@ jobs:
                       -c:a mp3 \
                       -b:a 320k \
                       final-radio.mp3 || exit 1
+          
+          if [ -f "final-radio.mp3" ]; then
+            echo "✅ final-radio.mp3 生成成功 ($(stat -c%s final-radio.mp3) bytes)"
+          else
+            echo "::error::❌ final-radio.mp3 の生成に失敗"
+            exit 1
+          fi
           
           # メタデータ生成
           echo "{
