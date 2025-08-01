@@ -64,7 +64,7 @@ jobs:
 
   audio-mixing:
     needs: [voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending]
-    if: always()  # 音声・BGM生成が部分的に失敗してもミキシング実行
+    if: success()  # 全ての音声・BGM生成が成功した場合のみミキシング実行
     uses: ./.github/workflows/module-audio-mixing.yml
     with:
       voice-opening: ${{ needs.voice-opening.outputs.audio-file }}

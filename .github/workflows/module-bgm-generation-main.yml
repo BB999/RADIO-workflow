@@ -120,13 +120,22 @@ jobs:
             fi
           fi
           
-          # フォールバック: BGMが生成できなかった場合
+          # BGM生成失敗時はワークフローを停止
           if [ ! -f "bgm-main-30s.wav" ] || [ ! -s "bgm-main-30s.wav" ]; then
-            echo "::warning::⚠️ BGM生成に失敗、シンプルなフォールバック音を生成"
-            sudo apt-get update && sudo apt-get install -y ffmpeg
-            ffmpeg -f lavfi -i "sine=frequency=330:duration=30" -ar 44100 -ac 2 -c:a pcm_s16le bgm-main-30s.wav -y
-            echo "music-url=file://$(pwd)/bgm-main-30s.wav" >> $GITHUB_OUTPUT
-            echo "music-file=bgm-main-30s.wav" >> $GITHUB_OUTPUT
+            echo "::error::❌ BGM生成に失敗しました"
+            echo "::error::詳細なエラーログ:"
+            echo "::error::Claude Code実行結果: $BGM_RESULT"
+            echo "::error::抽出されたURL: '$MUSIC_URL'"
+            echo "::error::現在のディレクトリ内容:"
+            ls -la || true
+            echo "::error::MCP設定ファイル確認:"
+            if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
+              echo "::error::MCP設定ファイルが存在します: $MCP_CONFIG_ABS_PATH"
+              head -20 "$MCP_CONFIG_ABS_PATH" || true
+            else
+              echo "::error::MCP設定ファイルが見つかりません: $MCP_CONFIG_ABS_PATH"
+            fi
+            exit 1
           fi
           
           # 最終ファイルチェック

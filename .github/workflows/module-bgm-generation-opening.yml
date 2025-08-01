@@ -78,11 +78,14 @@ jobs:
               --verbose \
               "$PROMPT" 2>&1) || {
                 CLAUDE_EXIT_CODE=$?
-                echo "::warning::⚠️ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
+                echo "::error::❌ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
                 if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
-                  echo "::warning::⚠️ タイムアウトしました (5分)"
+                  echo "::error::❌ タイムアウトしました (5分)"
                 fi
-                echo "::warning::エラー出力: $BGM_RESULT"
+                echo "::error::詳細なエラー出力:"
+                echo "$BGM_RESULT" | head -50
+                echo "::error::環境変数確認:"
+                echo "CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:0:20}..."
                 BGM_RESULT=""
               }
           else
@@ -132,13 +135,22 @@ jobs:
             fi
           fi
           
-          # フォールバック: BGMが生成できなかった場合
+          # BGM生成失敗時はワークフローを停止
           if [ ! -f "bgm-opening-30s.wav" ] || [ ! -s "bgm-opening-30s.wav" ]; then
-            echo "::warning::⚠️ BGM生成に失敗、シンプルなフォールバック音を生成"
-            sudo apt-get update && sudo apt-get install -y ffmpeg
-            ffmpeg -f lavfi -i "sine=frequency=440:duration=30" -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-30s.wav -y
-            echo "music-url=file://$(pwd)/bgm-opening-30s.wav" >> $GITHUB_OUTPUT
-            echo "music-file=bgm-opening-30s.wav" >> $GITHUB_OUTPUT
+            echo "::error::❌ BGM生成に失敗しました"
+            echo "::error::詳細なエラーログ:"
+            echo "::error::Claude Code実行結果: $BGM_RESULT"
+            echo "::error::抽出されたURL: '$MUSIC_URL'"
+            echo "::error::現在のディレクトリ内容:"
+            ls -la || true
+            echo "::error::MCP設定ファイル確認:"
+            if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
+              echo "::error::MCP設定ファイルが存在します: $MCP_CONFIG_ABS_PATH"
+              head -20 "$MCP_CONFIG_ABS_PATH" || true
+            else
+              echo "::error::MCP設定ファイルが見つかりません: $MCP_CONFIG_ABS_PATH"
+            fi
+            exit 1
           fi
           
           # 最終ファイルチェック
