@@ -77,17 +77,18 @@ jobs:
             echo "✅ MCP設定ファイルが見つかりました"
             
             # Claude Codeの実行とエラーハンドリング
-            BGM_RESULT=$(timeout 300 npx @anthropic-ai/claude-code \
+            echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
+            BGM_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
               --mcp-config="$MCP_CONFIG_ABS_PATH" \
               --allowedTools "mcp__t2m-google-lyria__lyria_generate,Bash" \
-              --max-turns 10 \
+              --max-turns 5 \
               --print \
               --verbose \
               "$PROMPT" 2>&1) || {
                 CLAUDE_EXIT_CODE=$?
                 echo "::error::❌ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
                 if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
-                  echo "::error::❌ タイムアウトしました (5分)"
+                  echo "::error::❌ タイムアウトしました (2分)"
                 fi
                 echo "::error::詳細なエラー出力:"
                 echo "$BGM_RESULT" | head -50
