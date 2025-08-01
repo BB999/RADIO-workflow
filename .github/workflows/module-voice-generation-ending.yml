@@ -26,14 +26,16 @@ jobs:
         run: |
           # aivis-cloud-api呼び出し（リトライ付き）
           for i in {1..3}; do
-            RESPONSE=$(curl -X POST https://api.aivis-project.com/v1/tts/synthesize \
+            curl -X POST https://api.aivis-project.com/v1/tts/synthesize \
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
               -H "Content-Type: application/json" \
               -d '{
                 "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
                 "text": "${{ inputs.script-text }}",
                 "output_format": "wav"
-              }' --fail --show-error --silent)
+              }' \
+              --fail --show-error --silent \
+              --output voice-ending.wav
             
             if [ $? -eq 0 ]; then
               break
@@ -45,9 +47,6 @@ jobs:
               sleep 30
             fi
           done
-          
-          # Aivis Cloud APIは音声ファイルを直接返すため、レスポンスをファイルに保存
-          echo "$RESPONSE" > voice-ending.wav
           
           # ファイルサイズをチェック
           if [ ! -s voice-ending.wav ]; then
