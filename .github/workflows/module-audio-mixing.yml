@@ -264,9 +264,8 @@ jobs:
           safe_ffmpeg -i opening-mixed.wav \
                       -i main-mixed.wav \
                       -i ending-mixed.wav \
-                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined]" \
-                      -map "[combined]" \
-                      -af "loudnorm=I=-23:LRA=7:TP=-1" \
+                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
+                      -map "[normalized]" \
                       -c:a mp3 \
                       -b:a 320k \
                       final-radio.mp3 || exit 1
