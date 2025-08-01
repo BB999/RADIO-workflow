@@ -52,7 +52,7 @@ jobs:
           fi
           
           # プロンプトの構築
-          PROMPT="kamuicodeを使って以下のオープニングBGMを生成してください：
+          PROMPT="以下のオープニングBGMを生成してください：
 
           【BGM要件】
           - 長さ: 15秒（ループ用ベース音楽）
@@ -61,12 +61,12 @@ jobs:
           - 楽器: シンセサイザー、軽快なドラム、ベース
           - 特徴: ループしやすい構成、始まりと終わりが自然に繋がる
 
-          【生成設定】
-          - モデル: Google Lyria (msc-google-lyria)
-          - 品質: 高品質
-          - フォーマット: WAV
+          **重要**: 
+          1. \`mcp__t2m-google-lyria__lyria_generate\` ツールを使用してください
+          2. 生成されたファイルを自動ダウンロードし、ファイル名を出力してください
+          3. auto_download: true, auto_open: false を設定してください
 
-          生成されたBGMのURLを出力してください。"
+          **必須**: 必ず正しいツール名 \`mcp__t2m-google-lyria__lyria_generate\` を使用してください。"
           
           echo "🚀 Starting Opening BGM Generation..."
           echo "📝 Prompt length: ${#PROMPT}"
