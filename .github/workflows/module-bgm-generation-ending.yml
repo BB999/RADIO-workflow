@@ -55,43 +55,87 @@ jobs:
           echo "📝 Prompt length: ${#PROMPT}"
           
           # Claude Code CLIの実行
+          echo "🤖 Claude Code CLI実行開始"
           if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
-            BGM_RESULT=$(npx @anthropic-ai/claude-code \
+            echo "✅ MCP設定ファイルが見つかりました"
+            
+            # Claude Codeの実行とエラーハンドリング
+            BGM_RESULT=$(timeout 300 npx @anthropic-ai/claude-code \
               --mcp-config="$MCP_CONFIG_ABS_PATH" \
               --print \
               --verbose \
               "$PROMPT" 2>&1) || {
-                echo "::warning::⚠️ Claude Code with MCP execution failed, using fallback"
+                CLAUDE_EXIT_CODE=$?
+                echo "::warning::⚠️ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
+                if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
+                  echo "::warning::⚠️ タイムアウトしました (5分)"
+                fi
+                echo "::warning::エラー出力: $BGM_RESULT"
                 BGM_RESULT=""
               }
           else
-            echo "::warning::⚠️ MCP config not available, skipping kamuicode BGM generation"
+            echo "::warning::⚠️ MCP設定ファイルが見つかりません: $MCP_CONFIG_ABS_PATH"
+            echo "::warning::現在のディレクトリ内容:"
+            ls -la || true
             BGM_RESULT=""
           fi
           
-          echo "🎵 BGM generation result:"
-          echo "$BGM_RESULT"
+          echo "🎵 BGM生成結果 (最初の500文字):"
+          echo "$BGM_RESULT" | head -c 500
+          echo ""
           
           # 結果からURLを抽出
-          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP 'https://[^\s]+\.wav' | head -1)
+          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP 'https://[^\s]+\.(wav|mp3|m4a)' | head -1)
           MUSIC_FILE="bgm-ending.wav"
           
+          echo "🔍 URL抽出結果: '$MUSIC_URL'"
+          
           # URLからファイルをダウンロード
-          if [ ! -z "$MUSIC_URL" ]; then
-            echo "✅ BGM URL found: $MUSIC_URL"
-            curl -L "$MUSIC_URL" -o "$MUSIC_FILE"
-            # 30秒までループ拡張
+          if [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
+            echo "✅ 有効なBGM URLが見つかりました: $MUSIC_URL"
+            
+            # ダウンロードとファイルチェック
+            if curl -L "$MUSIC_URL" -o "$MUSIC_FILE" --max-time 60; then
+              if [ -s "$MUSIC_FILE" ]; then
+                FILE_SIZE=$(stat -c%s "$MUSIC_FILE")
+                echo "✅ BGMファイルダウンロード成功 (${FILE_SIZE} bytes)"
+                
+                # 音声ファイルの簡易検証
+                file "$MUSIC_FILE"
+                
+                # ffmpegでループ拡張
+                sudo apt-get update && sudo apt-get install -y ffmpeg
+                if ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-ending-30s.wav" -y; then
+                  echo "✅ BGMループ拡張成功"
+                  echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
+                  echo "music-file=bgm-ending-30s.wav" >> $GITHUB_OUTPUT
+                else
+                  echo "::error::❌ ffmpeg処理失敗、フォールバックを使用"
+                fi
+              else
+                echo "::warning::⚠️ ダウンロードされたファイルが空です"
+              fi
+            else
+              echo "::warning::⚠️ BGMファイルのダウンロードに失敗しました"
+            fi
+          fi
+          
+          # フォールバック: BGMが生成できなかった場合
+          if [ ! -f "bgm-ending-30s.wav" ] || [ ! -s "bgm-ending-30s.wav" ]; then
+            echo "::warning::⚠️ BGM生成に失敗、シンプルなフォールバック音を生成"
             sudo apt-get update && sudo apt-get install -y ffmpeg
-            ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-ending-30s.wav"
-            echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
-            echo "music-file=bgm-ending-30s.wav" >> $GITHUB_OUTPUT
-          else
-            echo "::warning::BGM生成に失敗、デフォルトBGMを使用"
-            # フォールバック: シンプルなBGM生成
-            sudo apt-get update && sudo apt-get install -y ffmpeg
-            ffmpeg -f lavfi -i "sine=frequency=550:duration=30" -ar 44100 -ac 2 -c:a pcm_s16le bgm-ending-30s.wav
+            ffmpeg -f lavfi -i "sine=frequency=550:duration=30" -ar 44100 -ac 2 -c:a pcm_s16le bgm-ending-30s.wav -y
             echo "music-url=file://$(pwd)/bgm-ending-30s.wav" >> $GITHUB_OUTPUT
             echo "music-file=bgm-ending-30s.wav" >> $GITHUB_OUTPUT
+          fi
+          
+          # 最終ファイルチェック
+          if [ -f "bgm-ending-30s.wav" ]; then
+            FINAL_SIZE=$(stat -c%s "bgm-ending-30s.wav")
+            echo "✅ 最終BGMファイル生成完了 (${FINAL_SIZE} bytes)"
+          else
+            echo "::error::❌ 最終BGMファイルの生成に失敗しました"
+            exit 1
           fi
           
           echo "::endgroup::"
