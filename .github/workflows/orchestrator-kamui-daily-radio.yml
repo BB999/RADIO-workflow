@@ -80,6 +80,18 @@ jobs:
     if: success()
     runs-on: ubuntu-latest
     steps:
+      - name: Download final audio artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: final-audio
+          path: release-files
+      
+      - name: List release files
+        run: |
+          echo "::group::📁 リリースファイル"
+          ls -la release-files/
+          echo "::endgroup::"
+      
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
@@ -105,8 +117,8 @@ jobs:
             
             🎵 Generated with [Claude Code](https://claude.ai/code)
           files: |
-            ${{ needs.audio-mixing.outputs.final-audio }}
-            ${{ needs.audio-mixing.outputs.metadata }}
+            release-files/final-radio.mp3
+            release-files/metadata.json
 
   summary:
     needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, publish]

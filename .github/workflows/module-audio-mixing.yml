@@ -33,6 +33,18 @@ jobs:
       url: ${{ steps.mixing.outputs.final-file }}
       metadata: ${{ steps.mixing.outputs.metadata }}
     steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: List downloaded artifacts
+        run: |
+          echo "::group::📁 ダウンロードされたアーティファクト"
+          ls -la artifacts/
+          ls -la artifacts/*/ || true
+          echo "::endgroup::"
+      
       - name: Install FFmpeg
         run: |
           sudo apt-get update
@@ -68,8 +80,16 @@ jobs:
             fi
           }
           
+          # アーティファクトからファイルをコピー
+          cp artifacts/voice-opening/voice-opening.wav . || echo "::warning::voice-opening.wavが見つかりません"
+          cp artifacts/voice-main/voice-main.wav . || echo "::warning::voice-main.wavが見つかりません"
+          cp artifacts/voice-ending/voice-ending.wav . || echo "::warning::voice-ending.wavが見つかりません"
+          cp artifacts/bgm-opening/bgm-opening-30s.wav . || echo "::warning::bgm-opening-30s.wavが見つかりません"
+          cp artifacts/bgm-main/bgm-main-30s.wav . || echo "::warning::bgm-main-30s.wavが見つかりません"
+          cp artifacts/bgm-ending/bgm-ending-30s.wav . || echo "::warning::bgm-ending-30s.wavが見つかりません"
+          
           # 音声ファイルの存在確認とダミー作成
-          for voice_file in ${{ inputs.voice-opening }} ${{ inputs.voice-main }} ${{ inputs.voice-ending }}; do
+          for voice_file in voice-opening.wav voice-main.wav voice-ending.wav; do
             if [ ! -f "$voice_file" ]; then
               echo "::warning::音声ファイル $voice_file が見つかりません、無音で代替"
               safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -c:a pcm_s16le "$voice_file" || exit 1
@@ -77,7 +97,7 @@ jobs:
           done
           
           # BGMファイルの存在確認とダミー作成
-          for bgm_file in ${{ inputs.bgm-opening }} ${{ inputs.bgm-main }} ${{ inputs.bgm-ending }}; do
+          for bgm_file in bgm-opening-30s.wav bgm-main-30s.wav bgm-ending-30s.wav; do
             if [ ! -f "$bgm_file" ]; then
               echo "::warning::BGMファイル $bgm_file が見つかりません、無音で代替"
               safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -c:a pcm_s16le "$bgm_file" || exit 1
@@ -85,12 +105,12 @@ jobs:
           done
           
           # オープニング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
-          VOICE_OPENING_DURATION=$(get_duration ${{ inputs.voice-opening }})
+          VOICE_OPENING_DURATION=$(get_duration voice-opening.wav)
           FADE_START_OPENING=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 4.5}")
           TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6.5}")
           
-          safe_ffmpeg -i ${{ inputs.voice-opening }} \
-                      -i ${{ inputs.bgm-opening }} \
+          safe_ffmpeg -i voice-opening.wav \
+                      -i bgm-opening-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
                                       [1]volume=0.5,afade=t=out:st=${FADE_START_OPENING}:d=2[bgm1];
                                       [voice_delayed][bgm1]amix=inputs=2[opening]" \
@@ -100,12 +120,12 @@ jobs:
                       opening-mixed.wav || exit 1
           
           # メイン: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
-          VOICE_MAIN_DURATION=$(get_duration ${{ inputs.voice-main }})
+          VOICE_MAIN_DURATION=$(get_duration voice-main.wav)
           FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4.5}")
           TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 6.5}")
           
-          safe_ffmpeg -i ${{ inputs.voice-main }} \
-                      -i ${{ inputs.bgm-main }} \
+          safe_ffmpeg -i voice-main.wav \
+                      -i bgm-main-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
                                       [1]volume=0.5,afade=t=out:st=${FADE_START_MAIN}:d=2[bgm2];
                                       [voice_delayed][bgm2]amix=inputs=2[main]" \
@@ -115,12 +135,12 @@ jobs:
                       main-mixed.wav || exit 1
           
           # エンディング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（3秒）
-          VOICE_ENDING_DURATION=$(get_duration ${{ inputs.voice-ending }})
+          VOICE_ENDING_DURATION=$(get_duration voice-ending.wav)
           FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4.5}")
           TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 7.5}")
           
-          safe_ffmpeg -i ${{ inputs.voice-ending }} \
-                      -i ${{ inputs.bgm-ending }} \
+          safe_ffmpeg -i voice-ending.wav \
+                      -i bgm-ending-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
                                       [1]volume=0.5,afade=t=out:st=${FADE_START_ENDING}:d=3[bgm3];
                                       [voice_delayed][bgm3]amix=inputs=2[ending]" \
@@ -154,3 +174,12 @@ jobs:
           
           echo "final-file=final-radio.mp3" >> $GITHUB_OUTPUT
           echo "metadata=metadata.json" >> $GITHUB_OUTPUT
+      
+      - name: Upload final audio artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-audio
+          path: |
+            final-radio.mp3
+            metadata.json
+          retention-days: 7

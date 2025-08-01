@@ -151,3 +151,10 @@ jobs:
           fi
           
           echo "::endgroup::"
+      
+      - name: Upload BGM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgm-opening
+          path: bgm-opening-30s.wav
+          retention-days: 1

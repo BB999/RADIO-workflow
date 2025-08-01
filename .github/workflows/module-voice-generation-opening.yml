@@ -96,3 +96,10 @@ jobs:
           echo "audio-url=file://$(pwd)/voice-opening.wav" >> $GITHUB_OUTPUT
           echo "audio-file=voice-opening.wav" >> $GITHUB_OUTPUT
           echo "::endgroup::"
+      
+      - name: Upload voice artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-opening
+          path: voice-opening.wav
+          retention-days: 1
