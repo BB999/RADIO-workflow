@@ -1,0 +1,10 @@
+{
+  "duration": "90s",
+  "sections": [
+    {"name": "opening", "duration": "4s intro + voice + 2.5s fade", "bgm": "upbeat", "bgm_volume": "50%", "intro": "4s", "fade_out": "2s"},
+    {"name": "main", "duration": "4s intro + voice + 2.5s fade", "bgm": "talk-friendly", "bgm_volume": "50%", "intro": "4s", "fade_out": "2s"},
+    {"name": "ending", "duration": "4s intro + voice + 3.5s fade", "bgm": "warm-outro", "bgm_volume": "50%", "intro": "4s", "fade_out": "3s"}
+  ],
+  "audio_standard": "-23 LUFS",
+  "format": "MP3 320kbps"
+}
