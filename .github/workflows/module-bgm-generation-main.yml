@@ -23,7 +23,37 @@ jobs:
           node-version: '20'
       
       - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code --ignore-scripts
+        run: |
+          echo "📦 Claude Code SDKインストール開始"
+          echo "📊 システム情報:"
+          echo "OS: $(uname -a)"
+          echo "Node.js: $(node --version)"
+          echo "npm: $(npm --version)"
+          echo ""
+          
+          # 複数のインストール方法を試す
+          echo "🚀 インストール試行1: --no-optional"
+          if ! npm install @anthropic-ai/claude-code --no-optional 2>&1; then
+            echo "⚠️ 試行1失敗、試行2を実行: --ignore-scripts"
+            if ! npm install @anthropic-ai/claude-code --ignore-scripts 2>&1; then
+              echo "⚠️ 試行2失敗、試行3を実行: --force"
+              if ! npm install @anthropic-ai/claude-code --force 2>&1; then
+                echo "::error::❌ 全てのインストール方法が失敗しました"
+                echo "::error::詳細なnpmログ:"
+                cat /home/runner/.npm/_logs/*-debug*.log | tail -50 2>/dev/null || echo "ログファイルが見つかりません"
+                exit 1
+              else
+                echo "✅ 試行3成功: --force"
+              fi
+            else
+              echo "✅ 試行2成功: --ignore-scripts"
+            fi
+          else
+            echo "✅ 試行1成功: --no-optional"
+          fi
+          
+          echo "📊 インストール結果:"
+          ls -la node_modules/@anthropic-ai/ 2>/dev/null || echo "@anthropic-aiディレクトリが見つかりません"
       
       - name: Generate Main BGM with Google Lyria
         id: bgm
