@@ -111,8 +111,11 @@ jobs:
           MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(wav|mp3|m4a)' | head -1)
           MUSIC_FILE="bgm-ending.wav"
           
-          # 直接ダウンロードされたファイルを検索
-          DOWNLOADED_FILE=$(ls lyria_output_*.wav 2>/dev/null | head -1)
+          # 直接ダウンロードされたファイルを検索（より包括的に）
+          DOWNLOADED_FILE=$(ls *.wav 2>/dev/null | grep -E "(lyria_output_|music)" | head -1)
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(ls lyria_output_*.wav 2>/dev/null | head -1)
+          fi
           
           echo "🔍 URL抽出結果: '$MUSIC_URL'"
           echo "📁 ダウンロードされたファイル: '$DOWNLOADED_FILE'"
