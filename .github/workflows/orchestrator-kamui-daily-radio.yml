@@ -120,8 +120,95 @@ jobs:
             release-files/final-radio.mp3
             release-files/metadata.json
 
+  create-pr:
+    needs: [planning, audio-mixing, publish]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download final audio artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: final-audio
+          path: radio-output
+      
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      
+      - name: Create feature branch
+        run: |
+          BRANCH_NAME="radio/daily-radio-${{ steps.date.outputs.date }}-${{ github.run_id }}"
+          git checkout -b "$BRANCH_NAME"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+        id: branch
+      
+      - name: Commit generated files
+        run: |
+          # 生成されたファイルをradio-outputディレクトリに配置
+          mkdir -p radio-output
+          
+          # Gitに追加
+          git add radio-output/
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git commit -m "$(cat <<'EOF'
+          神威日報ラジオ生成 - ${{ steps.date.outputs.date }}
+          
+          - 音声ファイル: final-radio.mp3 (90秒、-23 LUFS)
+          - メタデータ: metadata.json
+          - 開発進捗: ${{ inputs.development-report }}
+          - 強調ポイント: ${{ inputs.topic-focus || 'なし' }}
+          
+          🤖 Generated with [Claude Code](https://claude.ai/code)
+          
+          Co-Authored-By: Claude <noreply@anthropic.com>
+          EOF
+          )"
+      
+      - name: Push branch
+        run: |
+          git push origin "${{ steps.branch.outputs.branch_name }}"
+      
+      - name: Create Pull Request
+        run: |
+          gh pr create --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" --body "$(cat <<'EOF'
+          ## 🎙️ 神威日報ラジオ生成完了
+          
+          ### 📊 番組情報
+          - **放送日**: ${{ steps.date.outputs.date }}
+          - **時間**: 90秒
+          - **音声品質**: -23 LUFS (放送基準)
+          - **MC**: AI生成（20代女性）
+          
+          ### 📝 内容
+          **開発進捗**: ${{ inputs.development-report }}
+          **強調ポイント**: ${{ inputs.topic-focus || 'なし' }}
+          
+          ### 📁 生成ファイル
+          - `radio-output/final-radio.mp3` - 完成したラジオ番組音声
+          - `radio-output/metadata.json` - 番組メタデータ
+          
+          ### 🔗 関連リンク
+          - [リリース](https://github.com/${{ github.repository }}/releases/tag/radio-${{ github.run_id }})
+          - [ワークフロー実行](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### ✅ テストプラン
+          - [ ] 音声ファイルの再生確認
+          - [ ] 音声品質の確認 (-23 LUFS)
+          - [ ] メタデータの内容確認
+          
+          🤖 Generated with [Claude Code](https://claude.ai/code)
+          EOF
+          )"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   summary:
-    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, publish]
+    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, publish, create-pr]
     if: always()
     runs-on: ubuntu-latest
     steps:
