@@ -40,7 +40,7 @@ jobs:
           MCP_CONFIG_ABS_PATH="$(pwd)/$MCP_CONFIG_PATH"
           
           # プロンプトの構築
-          PROMPT="kamuicodeを使って以下のメインBGMを生成してください：
+          PROMPT="以下のメインBGMを生成してください：
 
           【BGM要件】
           - 長さ: 15秒（ループ用ベース音楽）
@@ -49,15 +49,27 @@ jobs:
           - 楽器: アコースティックギター、軽いピアノ、ソフトシンセ
           - 特徴: 話し声を邪魔しない音量レベル、癒し系
 
-          【生成設定】
-          - モデル: Google Lyria (msc-google-lyria)
-          - 品質: 高品質
-          - フォーマット: WAV
+          **重要**: 
+          1. \`mcp__t2m-google-lyria__lyria_generate\` ツールを使用してください
+          2. 生成されたファイルを自動ダウンロードし、ファイル名を出力してください
+          3. auto_download: true, auto_open: false を設定してください
 
-          生成されたBGMのURLを出力してください。"
+          **必須**: 必ず正しいツール名 \`mcp__t2m-google-lyria__lyria_generate\` を使用してください。"
           
           echo "🚀 Starting Main BGM Generation..."
           echo "📝 Prompt length: ${#PROMPT}"
+          
+          echo "📋 MCP Configuration Check:"
+          echo "Working directory: $(pwd)"
+          echo "MCP config path: $MCP_CONFIG_PATH"
+          echo "MCP config absolute path: $MCP_CONFIG_ABS_PATH"
+          
+          # MCP設定ファイルの存在確認
+          if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
+            echo "✅ MCP config file exists"
+          else
+            echo "::warning::⚠️ MCP config file not found, proceeding without kamuicode"
+          fi
           
           # Claude Code CLIの実行
           echo "🤖 Claude Code CLI実行開始"
@@ -65,19 +77,23 @@ jobs:
             echo "✅ MCP設定ファイルが見つかりました"
             
             # Claude Codeの実行とエラーハンドリング
-            BGM_RESULT=$(timeout 300 npx @anthropic-ai/claude-code \
+            echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
+            BGM_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
               --mcp-config="$MCP_CONFIG_ABS_PATH" \
               --allowedTools "mcp__t2m-google-lyria__lyria_generate,Bash" \
-              --max-turns 10 \
+              --max-turns 5 \
               --print \
               --verbose \
               "$PROMPT" 2>&1) || {
                 CLAUDE_EXIT_CODE=$?
-                echo "::warning::⚠️ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
+                echo "::error::❌ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
                 if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
-                  echo "::warning::⚠️ タイムアウトしました (5分)"
+                  echo "::error::❌ タイムアウトしました (2分)"
                 fi
-                echo "::warning::エラー出力: $BGM_RESULT"
+                echo "::error::詳細なエラー出力:"
+                echo "$BGM_RESULT" | head -50
+                echo "::error::環境変数確認:"
+                echo "CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:0:20}..."
                 BGM_RESULT=""
               }
           else
@@ -91,15 +107,38 @@ jobs:
           echo "$BGM_RESULT" | head -c 500
           echo ""
           
-          # 結果からURLを抽出
-          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP 'https://[^\s]+\.(wav|mp3|m4a)' | head -1)
+          # 結果からURLまたはファイル名を抽出
+          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(wav|mp3|m4a)' | head -1)
           MUSIC_FILE="bgm-main.wav"
           
-          echo "🔍 URL抽出結果: '$MUSIC_URL'"
+          # 直接ダウンロードされたファイルを検索
+          DOWNLOADED_FILE=$(ls lyria_output_*.wav 2>/dev/null | head -1)
           
-          # URLからファイルをダウンロード
-          if [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
-            echo "✅ 有効なBGM URLが見つかりました: $MUSIC_URL"
+          echo "🔍 URL抽出結果: '$MUSIC_URL'"
+          echo "📁 ダウンロードされたファイル: '$DOWNLOADED_FILE'"
+          
+          # ファイル処理（ダウンロード済みファイルを優先）
+          if [ ! -z "$DOWNLOADED_FILE" ] && [ -s "$DOWNLOADED_FILE" ]; then
+            echo "✅ 既にダウンロードされたファイルを使用: $DOWNLOADED_FILE"
+            
+            FILE_SIZE=$(stat -c%s "$DOWNLOADED_FILE")
+            echo "📊 ファイルサイズ: ${FILE_SIZE} bytes"
+            
+            # 音声ファイルの簡易検証
+            file "$DOWNLOADED_FILE"
+            
+            # ffmpegでループ拡張
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+            if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-30s.wav" -y; then
+              echo "✅ BGMループ拡張成功"
+              echo "music-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
+              echo "music-file=bgm-main-30s.wav" >> $GITHUB_OUTPUT
+            else
+              echo "::error::❌ ffmpeg処理失敗"
+              exit 1
+            fi
+          elif [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
+            echo "✅ HTTPS URLからダウンロード: $MUSIC_URL"
             
             # ダウンロードとファイルチェック
             if curl -L "$MUSIC_URL" -o "$MUSIC_FILE" --max-time 60; then
@@ -110,6 +149,19 @@ jobs:
                 # 音声ファイルの簡易検証
                 file "$MUSIC_FILE"
                 
+                # ファイル内容をチェック（XMLエラーかどうか）
+                echo "📄 ファイル内容（最初の200文字）:"
+                head -c 200 "$MUSIC_FILE" || true
+                echo ""
+                
+                # XMLファイルの場合はエラーとして扱う
+                if file "$MUSIC_FILE" | grep -q "XML"; then
+                  echo "::error::❌ ダウンロードしたファイルがXMLエラーレスポンスです"
+                  echo "::error::ファイル全体の内容:"
+                  cat "$MUSIC_FILE"
+                  exit 1
+                fi
+                
                 # ffmpegでループ拡張
                 sudo apt-get update && sudo apt-get install -y ffmpeg
                 if ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-30s.wav" -y; then
@@ -117,7 +169,8 @@ jobs:
                   echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
                   echo "music-file=bgm-main-30s.wav" >> $GITHUB_OUTPUT
                 else
-                  echo "::error::❌ ffmpeg処理失敗、フォールバックを使用"
+                  echo "::error::❌ ffmpeg処理失敗"
+                  exit 1
                 fi
               else
                 echo "::warning::⚠️ ダウンロードされたファイルが空です"
@@ -125,6 +178,8 @@ jobs:
             else
               echo "::warning::⚠️ BGMファイルのダウンロードに失敗しました"
             fi
+          else
+            echo "::warning::⚠️ 有効なURLまたはファイルが見つかりません"
           fi
           
           # BGM生成失敗時はワークフローを停止
