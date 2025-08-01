@@ -33,40 +33,66 @@ jobs:
           node-version: '20'
       
       - name: Install Claude Code SDK
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install @anthropic-ai/claude-code
       
       - name: Generate radio scripts with Claude
         id: planning
         env:
           ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          # Claude Codeを使った台本生成
-          SCRIPT_RESULT=$(npx @anthropic-ai/claude-code -c "
-          以下の内容で90秒のラジオ番組台本を生成してください：
+          echo "::group::📋 Radio Script Generation"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
           
+          # プロンプトの構築
+          PROMPT="以下の内容で90秒のラジオ番組台本を生成してください：
+
           【開発進捗・最新情報】
           ${{ inputs.development-report }}
-          
+
           【強調ポイント】
           ${{ inputs.topic-focus || 'なし' }}
-          
+
           【要件】
           - オープニング: 30秒（明るい挨拶と今日のトピック紹介）
           - メイン: 30秒（内容を分かりやすく解説）
           - エンディング: 30秒（まとめと次回予告）
           - MC: 20代女性、明るく親しみやすい口調
           - ターゲット: 20-30代の技術に興味がある層
-          
+
           JSON形式で以下のように出力してください：
           {
             \"opening\": \"オープニング台本\",
             \"main\": \"メイン台本\", 
             \"ending\": \"エンディング台本\"
-          }
-          ")
+          }"
           
-          # JSONから各セクションを抽出
-          echo "$SCRIPT_RESULT" | jq -r '.opening' | sed 's/^/script-opening=/' >> $GITHUB_OUTPUT
-          echo "$SCRIPT_RESULT" | jq -r '.main' | sed 's/^/script-main=/' >> $GITHUB_OUTPUT
-          echo "$SCRIPT_RESULT" | jq -r '.ending' | sed 's/^/script-ending=/' >> $GITHUB_OUTPUT
+          echo "🚀 Starting Radio Script Generation..."
+          echo "📝 Prompt length: ${#PROMPT}"
+          
+          # Claude Code CLIの実行
+          SCRIPT_RESULT=$(npx @anthropic-ai/claude-code \
+            --max-turns 10 \
+            --verbose \
+            -c "$PROMPT") || {
+              echo "::error::❌ Claude Code CLI execution failed"
+              exit 1
+            }
+          
+          echo "📝 Script generation result:"
+          echo "$SCRIPT_RESULT"
+          
+          # JSONから各セクションを抽出（エラーハンドリング付き）
+          if echo "$SCRIPT_RESULT" | jq empty 2>/dev/null; then
+            echo "✅ Valid JSON response received"
+            echo "$SCRIPT_RESULT" | jq -r '.opening' | sed 's/^/script-opening=/' >> $GITHUB_OUTPUT
+            echo "$SCRIPT_RESULT" | jq -r '.main' | sed 's/^/script-main=/' >> $GITHUB_OUTPUT  
+            echo "$SCRIPT_RESULT" | jq -r '.ending' | sed 's/^/script-ending=/' >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Claude Codeの出力がJSONではないため、フォールバック台本を使用"
+            echo "script-opening=こんにちは、神威日報ラジオです。本日は${{ inputs.development-report }}についてお伝えします。" >> $GITHUB_OUTPUT
+            echo "script-main=${{ inputs.development-report }}の詳細について解説します。${{ inputs.topic-focus || '' }}" >> $GITHUB_OUTPUT
+            echo "script-ending=以上、神威日報ラジオでした。また明日お会いしましょう。" >> $GITHUB_OUTPUT
+          fi
+          
           echo 'voice-config={"gender":"female","age":"20s"}' >> $GITHUB_OUTPUT
+          echo "::endgroup::"
