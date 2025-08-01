@@ -71,9 +71,9 @@ jobs:
           
           # Claude Code CLIの実行
           SCRIPT_RESULT=$(npx @anthropic-ai/claude-code \
-            --max-turns 10 \
+            --print \
             --verbose \
-            -c "$PROMPT") || {
+            "$PROMPT") || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
             }

@@ -20,33 +20,57 @@ jobs:
           node-version: '20'
       
       - name: Install Claude Code SDK
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install @anthropic-ai/claude-code
       
       - name: Generate Ending BGM with Google Lyria
         id: bgm
         env:
           ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          # エンディングBGM生成（30秒、締めくくり系）
-          BGM_RESULT=$(npx @anthropic-ai/claude-code \
-            --mcp .claude/mcp-kamuicode.json \
-            -c "
-            kamuicodeを使って以下のエンディングBGMを生成してください：
-            
-            【BGM要件】
-            - 長さ: 15秒（ループ用ベース音楽）
-            - スタイル: 温かい締めくくり系、感謝を込めた
-            - 雰囲気: 安らぎ、次回への期待感、感謝の気持ち
-            - 楽器: ストリングス、暖かいピアノ、優しいシンセパッド
-            - 特徴: フェードアウトしやすい構成、余韻が残る
-            
-            【生成設定】
-            - モデル: Google Lyria (msc-google-lyria)
-            - 品質: 高品質
-            - フォーマット: WAV
-            
-            生成されたBGMのURLを出力してください。
-            " 2>&1)
+          echo "::group::🎵 Ending BGM Generation with Google Lyria"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # MCP設定の確認
+          MCP_CONFIG_PATH=".claude/mcp-kamuicode.json"
+          MCP_CONFIG_ABS_PATH="$(pwd)/$MCP_CONFIG_PATH"
+          
+          # プロンプトの構築
+          PROMPT="kamuicodeを使って以下のエンディングBGMを生成してください：
+
+          【BGM要件】
+          - 長さ: 15秒（ループ用ベース音楽）
+          - スタイル: 温かい締めくくり系、感謝を込めた
+          - 雰囲気: 安らぎ、次回への期待感、感謝の気持ち
+          - 楽器: ストリングス、暖かいピアノ、優しいシンセパッド
+          - 特徴: フェードアウトしやすい構成、余韻が残る
+
+          【生成設定】
+          - モデル: Google Lyria (msc-google-lyria)
+          - 品質: 高品質
+          - フォーマット: WAV
+
+          生成されたBGMのURLを出力してください。"
+          
+          echo "🚀 Starting Ending BGM Generation..."
+          echo "📝 Prompt length: ${#PROMPT}"
+          
+          # Claude Code CLIの実行
+          if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
+            BGM_RESULT=$(npx @anthropic-ai/claude-code \
+              --mcp-config="$MCP_CONFIG_ABS_PATH" \
+              --print \
+              --verbose \
+              "$PROMPT" 2>&1) || {
+                echo "::warning::⚠️ Claude Code with MCP execution failed, using fallback"
+                BGM_RESULT=""
+              }
+          else
+            echo "::warning::⚠️ MCP config not available, skipping kamuicode BGM generation"
+            BGM_RESULT=""
+          fi
+          
+          echo "🎵 BGM generation result:"
+          echo "$BGM_RESULT"
           
           # 結果からURLを抽出
           MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP 'https://[^\s]+\.wav' | head -1)
@@ -54,6 +78,7 @@ jobs:
           
           # URLからファイルをダウンロード
           if [ ! -z "$MUSIC_URL" ]; then
+            echo "✅ BGM URL found: $MUSIC_URL"
             curl -L "$MUSIC_URL" -o "$MUSIC_FILE"
             # 30秒までループ拡張
             sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -68,3 +93,5 @@ jobs:
             echo "music-url=file://$(pwd)/bgm-ending-30s.wav" >> $GITHUB_OUTPUT
             echo "music-file=bgm-ending-30s.wav" >> $GITHUB_OUTPUT
           fi
+          
+          echo "::endgroup::"

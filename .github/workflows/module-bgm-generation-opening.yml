@@ -70,9 +70,9 @@ jobs:
           if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
             BGM_RESULT=$(npx @anthropic-ai/claude-code \
               --mcp-config="$MCP_CONFIG_ABS_PATH" \
-              --max-turns 15 \
+              --print \
               --verbose \
-              -c "$PROMPT" 2>&1) || {
+              "$PROMPT" 2>&1) || {
                 echo "::warning::⚠️ Claude Code with MCP execution failed, using fallback"
                 BGM_RESULT=""
               }
