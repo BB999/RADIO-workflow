@@ -33,16 +33,56 @@ jobs:
       url: ${{ steps.mixing.outputs.final-file }}
       metadata: ${{ steps.mixing.outputs.metadata }}
     steps:
-      - name: Download all artifacts
+      - name: Download voice-opening artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: voice-opening
+          path: artifacts/voice-opening
+      
+      - name: Download voice-main artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-main
+          path: artifacts/voice-main
+      
+      - name: Download voice-ending artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-ending
+          path: artifacts/voice-ending
+      
+      - name: Download bgm-opening artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bgm-opening
+          path: artifacts/bgm-opening
+      
+      - name: Download bgm-main artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bgm-main
+          path: artifacts/bgm-main
+      
+      - name: Download bgm-ending artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bgm-ending
+          path: artifacts/bgm-ending
       
       - name: List downloaded artifacts
         run: |
           echo "::group::📁 ダウンロードされたアーティファクト"
-          ls -la artifacts/
-          ls -la artifacts/*/ || true
+          echo "=== artifacts/ ==="
+          ls -la artifacts/ || echo "artifactsディレクトリが見つかりません"
+          echo ""
+          echo "=== 各アーティファクトの内容 ==="
+          for dir in artifacts/*/; do
+            if [ -d "$dir" ]; then
+              echo "--- $dir ---"
+              ls -la "$dir" || echo "ディレクトリが空です"
+              echo ""
+            fi
+          done
           echo "::endgroup::"
       
       - name: Install FFmpeg
@@ -80,13 +120,50 @@ jobs:
             fi
           }
           
-          # アーティファクトからファイルをコピー
-          cp artifacts/voice-opening/voice-opening.wav . || echo "::warning::voice-opening.wavが見つかりません"
-          cp artifacts/voice-main/voice-main.wav . || echo "::warning::voice-main.wavが見つかりません"
-          cp artifacts/voice-ending/voice-ending.wav . || echo "::warning::voice-ending.wavが見つかりません"
-          cp artifacts/bgm-opening/bgm-opening-30s.wav . || echo "::warning::bgm-opening-30s.wavが見つかりません"
-          cp artifacts/bgm-main/bgm-main-30s.wav . || echo "::warning::bgm-main-30s.wavが見つかりません"
-          cp artifacts/bgm-ending/bgm-ending-30s.wav . || echo "::warning::bgm-ending-30s.wavが見つかりません"
+          # アーティファクトからファイルをコピー（パスを明確に指定）
+          echo "📂 音声ファイルのコピー"
+          if [ -f "artifacts/voice-opening/${{ inputs.voice-opening }}" ]; then
+            cp "artifacts/voice-opening/${{ inputs.voice-opening }}" voice-opening.wav
+            echo "✅ voice-opening.wav をコピーしました"
+          else
+            echo "::warning::音声ファイルが見つかりません: artifacts/voice-opening/${{ inputs.voice-opening }}"
+          fi
+          
+          if [ -f "artifacts/voice-main/${{ inputs.voice-main }}" ]; then
+            cp "artifacts/voice-main/${{ inputs.voice-main }}" voice-main.wav
+            echo "✅ voice-main.wav をコピーしました"
+          else
+            echo "::warning::音声ファイルが見つかりません: artifacts/voice-main/${{ inputs.voice-main }}"
+          fi
+          
+          if [ -f "artifacts/voice-ending/${{ inputs.voice-ending }}" ]; then
+            cp "artifacts/voice-ending/${{ inputs.voice-ending }}" voice-ending.wav
+            echo "✅ voice-ending.wav をコピーしました"
+          else
+            echo "::warning::音声ファイルが見つかりません: artifacts/voice-ending/${{ inputs.voice-ending }}"
+          fi
+          
+          echo "📂 BGMファイルのコピー"
+          if [ -f "artifacts/bgm-opening/${{ inputs.bgm-opening }}" ]; then
+            cp "artifacts/bgm-opening/${{ inputs.bgm-opening }}" bgm-opening-30s.wav
+            echo "✅ bgm-opening-30s.wav をコピーしました"
+          else
+            echo "::warning::BGMファイルが見つかりません: artifacts/bgm-opening/${{ inputs.bgm-opening }}"
+          fi
+          
+          if [ -f "artifacts/bgm-main/${{ inputs.bgm-main }}" ]; then
+            cp "artifacts/bgm-main/${{ inputs.bgm-main }}" bgm-main-30s.wav
+            echo "✅ bgm-main-30s.wav をコピーしました"
+          else
+            echo "::warning::BGMファイルが見つかりません: artifacts/bgm-main/${{ inputs.bgm-main }}"
+          fi
+          
+          if [ -f "artifacts/bgm-ending/${{ inputs.bgm-ending }}" ]; then
+            cp "artifacts/bgm-ending/${{ inputs.bgm-ending }}" bgm-ending-30s.wav
+            echo "✅ bgm-ending-30s.wav をコピーしました"
+          else
+            echo "::warning::BGMファイルが見つかりません: artifacts/bgm-ending/${{ inputs.bgm-ending }}"
+          fi
           
           # 音声ファイルの存在確認とダミー作成
           for voice_file in voice-opening.wav voice-main.wav voice-ending.wav; do
