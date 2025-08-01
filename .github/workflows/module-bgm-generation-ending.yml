@@ -23,7 +23,7 @@ jobs:
           node-version: '20'
       
       - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code
+        run: npm install @anthropic-ai/claude-code --ignore-scripts
       
       - name: Generate Ending BGM with Google Lyria
         id: bgm
