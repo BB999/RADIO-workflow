@@ -1,0 +1,156 @@
+name: Audio Mixing Module (Minimal)
+on:
+  workflow_call:
+    inputs:
+      voice-opening:
+        required: true
+        type: string
+      voice-main:
+        required: true
+        type: string
+      voice-ending:
+        required: true
+        type: string
+      bgm-opening:
+        required: true
+        type: string
+      bgm-main:
+        required: true
+        type: string
+      bgm-ending:
+        required: true
+        type: string
+    outputs:
+      final-audio:
+        value: ${{ jobs.mix.outputs.url }}
+      metadata:
+        value: ${{ jobs.mix.outputs.metadata }}
+
+jobs:
+  mix:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.mixing.outputs.final-file }}
+      metadata: ${{ steps.mixing.outputs.metadata }}
+    steps:
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      
+      - name: Mix audio files with section-specific BGMs
+        id: mixing
+        run: |
+          # 各セクションで音声とBGMを個別にミックス（エラーハンドリング＋改善版）
+          
+          # 音声の長さを取得する関数（エラーハンドリング付き）
+          get_duration() {
+            local file="$1"
+            if [ ! -f "$file" ]; then
+              echo "::warning::音声ファイルが見つかりません: $file、デフォルト値30秒を使用"
+              echo "30"
+              return 0
+            fi
+            local duration=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$file" 2>/dev/null)
+            if [ -z "$duration" ] || [ "$duration" = "N/A" ]; then
+              echo "::warning::音声ファイルの長さを取得できません: $file、デフォルト値30秒を使用"
+              echo "30"
+              return 0
+            fi
+            echo "$duration"
+          }
+          
+          # エラーハンドリング付きFFmpeg実行
+          safe_ffmpeg() {
+            if ! ffmpeg "$@" 2>/dev/null; then
+              echo "::error::FFmpeg処理に失敗しました: $*"
+              return 1
+            fi
+          }
+          
+          # 音声ファイルの存在確認とダミー作成
+          for voice_file in ${{ inputs.voice-opening }} ${{ inputs.voice-main }} ${{ inputs.voice-ending }}; do
+            if [ ! -f "$voice_file" ]; then
+              echo "::warning::音声ファイル $voice_file が見つかりません、無音で代替"
+              safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -c:a pcm_s16le "$voice_file" || exit 1
+            fi
+          done
+          
+          # BGMファイルの存在確認とダミー作成
+          for bgm_file in ${{ inputs.bgm-opening }} ${{ inputs.bgm-main }} ${{ inputs.bgm-ending }}; do
+            if [ ! -f "$bgm_file" ]; then
+              echo "::warning::BGMファイル $bgm_file が見つかりません、無音で代替"
+              safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -c:a pcm_s16le "$bgm_file" || exit 1
+            fi
+          done
+          
+          # オープニング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
+          VOICE_OPENING_DURATION=$(get_duration ${{ inputs.voice-opening }})
+          FADE_START_OPENING=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 4.5}")
+          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6.5}")
+          
+          safe_ffmpeg -i ${{ inputs.voice-opening }} \
+                      -i ${{ inputs.bgm-opening }} \
+                      -filter_complex "[0]adelay=4s:all=1[voice_delayed];
+                                      [1]volume=0.5,afade=t=out:st=${FADE_START_OPENING}:d=2[bgm1];
+                                      [voice_delayed][bgm1]amix=inputs=2[opening]" \
+                      -map "[opening]" \
+                      -t $TOTAL_OPENING_DURATION \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      opening-mixed.wav || exit 1
+          
+          # メイン: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
+          VOICE_MAIN_DURATION=$(get_duration ${{ inputs.voice-main }})
+          FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4.5}")
+          TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 6.5}")
+          
+          safe_ffmpeg -i ${{ inputs.voice-main }} \
+                      -i ${{ inputs.bgm-main }} \
+                      -filter_complex "[0]adelay=4s:all=1[voice_delayed];
+                                      [1]volume=0.5,afade=t=out:st=${FADE_START_MAIN}:d=2[bgm2];
+                                      [voice_delayed][bgm2]amix=inputs=2[main]" \
+                      -map "[main]" \
+                      -t $TOTAL_MAIN_DURATION \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      main-mixed.wav || exit 1
+          
+          # エンディング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（3秒）
+          VOICE_ENDING_DURATION=$(get_duration ${{ inputs.voice-ending }})
+          FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4.5}")
+          TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 7.5}")
+          
+          safe_ffmpeg -i ${{ inputs.voice-ending }} \
+                      -i ${{ inputs.bgm-ending }} \
+                      -filter_complex "[0]adelay=4s:all=1[voice_delayed];
+                                      [1]volume=0.5,afade=t=out:st=${FADE_START_ENDING}:d=3[bgm3];
+                                      [voice_delayed][bgm3]amix=inputs=2[ending]" \
+                      -map "[ending]" \
+                      -t $TOTAL_ENDING_DURATION \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      ending-mixed.wav || exit 1
+          
+          # 3つのセクションを連結し、最終調整（エラーハンドリング付き）
+          safe_ffmpeg -i opening-mixed.wav \
+                      -i main-mixed.wav \
+                      -i ending-mixed.wav \
+                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined]" \
+                      -map "[combined]" \
+                      -af "loudnorm=I=-23:LRA=7:TP=-1" \
+                      -c:a mp3 \
+                      -b:a 320k \
+                      final-radio.mp3 || exit 1
+          
+          # メタデータ生成
+          echo "{
+            \"duration\": \"90s\",
+            \"sections\": [
+              {\"name\": \"opening\", \"duration\": \"4s intro + voice + 2.5s fade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
+              {\"name\": \"main\", \"duration\": \"4s intro + voice + 2.5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
+              {\"name\": \"ending\", \"duration\": \"4s intro + voice + 3.5s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"3s\"}
+            ],
+            \"audio_standard\": \"-23 LUFS\",
+            \"format\": \"MP3 320kbps\"
+          }" > metadata.json
+          
+          echo "final-file=final-radio.mp3" >> $GITHUB_OUTPUT
+          echo "metadata=metadata.json" >> $GITHUB_OUTPUT

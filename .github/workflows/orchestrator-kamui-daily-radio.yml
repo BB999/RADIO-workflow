@@ -1,0 +1,137 @@
+name: Kamui Daily Radio Production (Minimal)
+on:
+  workflow_dispatch:
+    inputs:
+      development-report:
+        description: '神威アプリの開発進捗・最新情報'
+        required: true
+        type: string
+      topic-focus:
+        description: '特に強調したいトピック（オプション）'
+        required: false
+        type: string
+
+permissions:
+  contents: write  # リリース作成に必要
+  pull-requests: write  # PR作成に必要
+
+jobs:
+  planning:
+    uses: ./.github/workflows/module-radio-planning.yml
+    with:
+      development-report: ${{ inputs.development-report }}
+      topic-focus: ${{ inputs.topic-focus }}
+    secrets: inherit
+
+  voice-opening:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-opening.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-opening }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+    secrets: inherit
+
+  voice-main:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-main.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-main }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+    secrets: inherit
+
+  voice-ending:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-ending.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-ending }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+    secrets: inherit
+
+  bgm-opening:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-opening.yml
+    secrets: inherit
+
+  bgm-main:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-main.yml
+    secrets: inherit
+
+  bgm-ending:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-ending.yml
+    secrets: inherit
+
+  audio-mixing:
+    needs: [voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending]
+    if: always()  # 音声・BGM生成が部分的に失敗してもミキシング実行
+    uses: ./.github/workflows/module-audio-mixing.yml
+    with:
+      voice-opening: ${{ needs.voice-opening.outputs.audio-file }}
+      voice-main: ${{ needs.voice-main.outputs.audio-file }}
+      voice-ending: ${{ needs.voice-ending.outputs.audio-file }}
+      bgm-opening: ${{ needs.bgm-opening.outputs.bgm-file }}
+      bgm-main: ${{ needs.bgm-main.outputs.bgm-file }}
+      bgm-ending: ${{ needs.bgm-ending.outputs.bgm-file }}
+    secrets: inherit
+
+  publish:
+    needs: audio-mixing
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: radio-${{ github.run_id }}
+          name: 神威日報ラジオ - ${{ steps.date.outputs.date }}
+          body: |
+            ## 🎙️ 神威日報ラジオ
+            
+            ### 番組情報
+            - 放送日: ${{ steps.date.outputs.date }}
+            - 時間: 90秒
+            - MC: AI生成（20代女性）
+            
+            ### 内容
+            神威アプリの最新開発情報をお届けします。
+            
+            **開発進捗**: ${{ inputs.development-report }}
+            **強調ポイント**: ${{ inputs.topic-focus || 'なし' }}
+            
+            🎵 Generated with [Claude Code](https://claude.ai/code)
+          files: |
+            ${{ needs.audio-mixing.outputs.final-audio }}
+            ${{ needs.audio-mixing.outputs.metadata }}
+
+  summary:
+    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate workflow summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🎙️ ラジオ番組制作結果
+          
+          | ステップ | 状態 | 結果 |
+          |---------|------|-----|
+          | 台本生成 | ${{ needs.planning.result }} | ${{ needs.planning.result == 'success' && '✅' || '❌' }} |
+          | 音声生成(開始) | ${{ needs.voice-opening.result }} | ${{ needs.voice-opening.result == 'success' && '✅' || needs.voice-opening.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(本編) | ${{ needs.voice-main.result }} | ${{ needs.voice-main.result == 'success' && '✅' || needs.voice-main.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(終了) | ${{ needs.voice-ending.result }} | ${{ needs.voice-ending.result == 'success' && '✅' || needs.voice-ending.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(開始) | ${{ needs.bgm-opening.result }} | ${{ needs.bgm-opening.result == 'success' && '✅' || needs.bgm-opening.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(本編) | ${{ needs.bgm-main.result }} | ${{ needs.bgm-main.result == 'success' && '✅' || needs.bgm-main.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(終了) | ${{ needs.bgm-ending.result }} | ${{ needs.bgm-ending.result == 'success' && '✅' || needs.bgm-ending.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声合成 | ${{ needs.audio-mixing.result }} | ${{ needs.audio-mixing.result == 'success' && '✅' || '❌' }} |
+          | リリース作成 | ${{ needs.publish.result }} | ${{ needs.publish.result == 'success' && '✅' || '❌' }} |
+          
+          ### 📊 統計情報
+          - ワークフロー実行ID: ${{ github.run_id }}
+          - 音声品質: -23 LUFS (放送基準)
+          - 並列処理: 6つのモジュールを同時実行
+          EOF

@@ -1,0 +1,61 @@
+name: Voice Generation Opening (Minimal)
+on:
+  workflow_call:
+    inputs:
+      script-text:
+        required: true
+        type: string
+      voice-config:
+        required: true
+        type: string
+    outputs:
+      audio-url:
+        value: ${{ jobs.generate.outputs.url }}
+      audio-file:
+        value: ${{ jobs.generate.outputs.file }}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.voice.outputs.audio-url }}
+      file: ${{ steps.voice.outputs.audio-file }}
+    steps:
+      - name: Generate voice with aivis-cloud-api
+        id: voice
+        run: |
+          # aivis-cloud-api呼び出し（リトライ付き）
+          for i in {1..3}; do
+            RESPONSE=$(curl -X POST https://api.aivis.cloud/v1/tts \
+              -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "text": "${{ inputs.script-text }}",
+                "voice": "female_20s_bright",
+                "format": "wav"
+              }' --fail --show-error --silent)
+            
+            if [ $? -eq 0 ]; then
+              break
+            elif [ $i -eq 3 ]; then
+              echo "::error::aivis-cloud-api call failed after 3 attempts"
+              exit 1
+            else
+              echo "::warning::aivis-cloud-api attempt $i failed, retrying..."
+              sleep 30
+            fi
+          done
+          
+          # レスポンスから音声URLを抽出
+          AUDIO_URL=$(echo "$RESPONSE" | jq -r '.audio_url')
+          
+          if [ "$AUDIO_URL" = "null" ] || [ -z "$AUDIO_URL" ]; then
+            echo "::error::No audio URL in response"
+            exit 1
+          fi
+          
+          # 音声ファイルをダウンロード
+          curl -L "$AUDIO_URL" -o voice-opening.wav
+          
+          echo "audio-url=$AUDIO_URL" >> $GITHUB_OUTPUT
+          echo "audio-file=voice-opening.wav" >> $GITHUB_OUTPUT

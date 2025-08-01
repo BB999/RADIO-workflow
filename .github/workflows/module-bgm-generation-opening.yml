@@ -1,0 +1,70 @@
+name: BGM Generation Opening (Minimal)
+on:
+  workflow_call:
+    outputs:
+      bgm-url:
+        value: ${{ jobs.generate.outputs.url }}
+      bgm-file:
+        value: ${{ jobs.generate.outputs.file }}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.bgm.outputs.music-url }}
+      file: ${{ steps.bgm.outputs.music-file }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install -g @anthropic-ai/claude-code
+      
+      - name: Generate Opening BGM with Google Lyria
+        id: bgm
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          # オープニングBGM生成（30秒、アップテンポ）
+          BGM_RESULT=$(npx @anthropic-ai/claude-code \
+            --mcp .claude/mcp-kamuicode.json \
+            -c "
+            kamuicodeを使って以下のオープニングBGMを生成してください：
+            
+            【BGM要件】
+            - 長さ: 15秒（ループ用ベース音楽）
+            - スタイル: 明るいオープニング系、アップテンポ
+            - 雰囲気: エネルギッシュ、番組開始の盛り上がり
+            - 楽器: シンセサイザー、軽快なドラム、ベース
+            - 特徴: ループしやすい構成、始まりと終わりが自然に繋がる
+            
+            【生成設定】
+            - モデル: Google Lyria (msc-google-lyria)
+            - 品質: 高品質
+            - フォーマット: WAV
+            
+            生成されたBGMのURLを出力してください。
+            " 2>&1)
+          
+          # 結果からURLを抽出
+          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP 'https://[^\s]+\.wav' | head -1)
+          MUSIC_FILE="bgm-opening.wav"
+          
+          # URLからファイルをダウンロード
+          if [ ! -z "$MUSIC_URL" ]; then
+            curl -L "$MUSIC_URL" -o "$MUSIC_FILE"
+            # 30秒までループ拡張（音声品質統一）
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+            ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-opening-30s.wav"
+            echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
+            echo "music-file=bgm-opening-30s.wav" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::BGM生成に失敗、デフォルトBGMを使用"
+            # フォールバック: シンプルなBGM生成
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+            ffmpeg -f lavfi -i "sine=frequency=440:duration=30" -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-30s.wav
+            echo "music-url=file://$(pwd)/bgm-opening-30s.wav" >> $GITHUB_OUTPUT
+            echo "music-file=bgm-opening-30s.wav" >> $GITHUB_OUTPUT
+          fi
