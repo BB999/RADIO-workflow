@@ -43,8 +43,12 @@ jobs:
           echo "::group::📋 Radio Script Generation"
           echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
           
+          # 作業ディレクトリ作成
+          WORK_DIR="radio-scripts"
+          mkdir -p "$WORK_DIR"
+          
           # プロンプトの構築
-          PROMPT="以下の内容で90秒のラジオ番組台本を生成してください：
+          PROMPT="以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
 
           【開発進捗・最新情報】
           ${{ inputs.development-report }}
@@ -54,12 +58,12 @@ jobs:
 
           【要件】
           - オープニング: 30秒（明るい挨拶と今日のトピック紹介）
-          - メイン: 30秒（内容を分かりやすく解説）
+          - メイン: 30秒（内容を分かりやすく解説）  
           - エンディング: 30秒（まとめと次回予告）
           - MC: 20代女性、明るく親しみやすい口調
           - ターゲット: 20-30代の技術に興味がある層
 
-          JSON形式で以下のように出力してください：
+          **重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
           {
             \"opening\": \"オープニング台本\",
             \"main\": \"メイン台本\", 
@@ -70,25 +74,35 @@ jobs:
           echo "📝 Prompt length: ${#PROMPT}"
           
           # Claude Code CLIの実行
-          SCRIPT_RESULT=$(npx @anthropic-ai/claude-code \
-            --print \
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Write,Edit" \
+            --max-turns 10 \
             --verbose \
-            "$PROMPT") || {
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT" || {
               echo "::error::❌ Claude Code CLI execution failed"
               exit 1
             }
           
-          echo "📝 Script generation result:"
-          echo "$SCRIPT_RESULT"
-          
-          # JSONから各セクションを抽出（エラーハンドリング付き）
-          if echo "$SCRIPT_RESULT" | jq empty 2>/dev/null; then
-            echo "✅ Valid JSON response received"
-            echo "$SCRIPT_RESULT" | jq -r '.opening' | sed 's/^/script-opening=/' >> $GITHUB_OUTPUT
-            echo "$SCRIPT_RESULT" | jq -r '.main' | sed 's/^/script-main=/' >> $GITHUB_OUTPUT  
-            echo "$SCRIPT_RESULT" | jq -r '.ending' | sed 's/^/script-ending=/' >> $GITHUB_OUTPUT
+          # 生成されたJSONファイルの確認と読み込み
+          if [ -f "$WORK_DIR/scripts.json" ]; then
+            echo "✅ Scripts JSON file generated"
+            cat "$WORK_DIR/scripts.json"
+            
+            # JSONから各セクションを抽出
+            if jq empty "$WORK_DIR/scripts.json" 2>/dev/null; then
+              echo "✅ Valid JSON response received"
+              jq -r '.opening' "$WORK_DIR/scripts.json" | sed 's/^/script-opening=/' >> $GITHUB_OUTPUT
+              jq -r '.main' "$WORK_DIR/scripts.json" | sed 's/^/script-main=/' >> $GITHUB_OUTPUT  
+              jq -r '.ending' "$WORK_DIR/scripts.json" | sed 's/^/script-ending=/' >> $GITHUB_OUTPUT
+            else
+              echo "::warning::Invalid JSON format, using fallback scripts"
+              echo "script-opening=こんにちは、神威日報ラジオです。本日は${{ inputs.development-report }}についてお伝えします。" >> $GITHUB_OUTPUT
+              echo "script-main=${{ inputs.development-report }}の詳細について解説します。${{ inputs.topic-focus || '' }}" >> $GITHUB_OUTPUT
+              echo "script-ending=以上、神威日報ラジオでした。また明日お会いしましょう。" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "::warning::Claude Codeの出力がJSONではないため、フォールバック台本を使用"
+            echo "::warning::Scripts JSON file not found, using fallback scripts"
             echo "script-opening=こんにちは、神威日報ラジオです。本日は${{ inputs.development-report }}についてお伝えします。" >> $GITHUB_OUTPUT
             echo "script-main=${{ inputs.development-report }}の詳細について解説します。${{ inputs.topic-focus || '' }}" >> $GITHUB_OUTPUT
             echo "script-ending=以上、神威日報ラジオでした。また明日お会いしましょう。" >> $GITHUB_OUTPUT
