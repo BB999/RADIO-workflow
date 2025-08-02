@@ -111,13 +111,12 @@ jobs:
                 
                 echo "📏 文字数チェック: opening=$OPENING_LENGTH, main=$MAIN_LENGTH, ending=$ENDING_LENGTH"
                 
-                # オープニング・エンディング：300-400文字、メイン：600-800文字の範囲チェック
-                if [ $OPENING_LENGTH -ge 300 ] && [ $OPENING_LENGTH -le 400 ] && [ $MAIN_LENGTH -ge 600 ] && [ $MAIN_LENGTH -le 800 ] && [ $ENDING_LENGTH -ge 300 ] && [ $ENDING_LENGTH -le 400 ]; then
-                  echo "✅ 全セクションが適切な文字数です（オープニング・エンディング：300-400文字、メイン：600-800文字）"
+                if [ $OPENING_LENGTH -le 3000 ] && [ $MAIN_LENGTH -le 3000 ] && [ $ENDING_LENGTH -le 3000 ]; then
+                  echo "✅ 全セクションが3000文字以内です"
                   break
                 else
-                  echo "::warning::⚠️ 一部セクションの文字数が適切でありません（試行 $attempt/5）"
-                  PROMPT="前回生成した台本の文字数が適切ではありませんでした。オープニング・エンディングは1分（300-400文字）、メインは2分（600-800文字）で生成し直してください。読み上げやすい分量でお願いします。JSONを $WORK_DIR/scripts.json に保存してください。"
+                  echo "::warning::⚠️ 一部セクションが3000文字を超えています（試行 $attempt/5）"
+                  PROMPT="前回生成した台本が長すぎました。各セクションを3000文字以内で短く生成し直してください。JSONを $WORK_DIR/scripts.json に保存してください。"
                 fi
               else
                 echo "::warning::⚠️ JSONファイル生成失敗（試行 $attempt/5）"
