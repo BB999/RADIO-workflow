@@ -232,20 +232,26 @@ jobs:
           FULL_VOLUME_END=$(awk "BEGIN {print $VOICE_END + 3}")
           TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_END + 8}")
           
+          # FFmpeg用の計算済み値
+          VOICE_END_WITH_DELAY=$(awk "BEGIN {print $VOICE_END + 6}")
+          FULL_VOLUME_END_WITH_DELAY=$(awk "BEGIN {print $FULL_VOLUME_END + 6}")
+          TOTAL_DURATION_WITH_DELAY=$(awk "BEGIN {print $TOTAL_OPENING_DURATION + 6}")
+          FADE_START_TIME=$(awk "BEGIN {print $FULL_VOLUME_END + 6}")
+          
           echo "🎵 オープニングセクションのミキシング開始"
           echo "  音声開始: 6秒後"
-          echo "  音声終了: $(awk "BEGIN {print $VOICE_END + 6}")秒"
-          echo "  フルボリューム終了: $(awk "BEGIN {print $FULL_VOLUME_END + 6}")秒"
-          echo "  総時間: $(awk "BEGIN {print $TOTAL_OPENING_DURATION + 6}")秒"
+          echo "  音声終了: ${VOICE_END_WITH_DELAY}秒"
+          echo "  フルボリューム終了: ${FULL_VOLUME_END_WITH_DELAY}秒"
+          echo "  総時間: ${TOTAL_DURATION_WITH_DELAY}秒"
           
           safe_ffmpeg -i voice-opening.wav \
                       -i bgm-opening-30s.wav \
                       -filter_complex "[0]adelay=6s:all=1[voice_delayed];
-                                      [1]volume='if(lt(t,6),1,if(lt(t,${VOICE_END}+6),0.5,if(lt(t,${FULL_VOLUME_END}+6),1,1)))':eval=frame,
-                                      afade=t=out:st=${FULL_VOLUME_END}+6:d=5[bgm1];
+                                      [1]volume='if(lt(t,6),1,if(lt(t,${VOICE_END_WITH_DELAY}),0.5,if(lt(t,${FULL_VOLUME_END_WITH_DELAY}),1,1)))':eval=frame,
+                                      afade=t=out:st=${FADE_START_TIME}:d=5[bgm1];
                                       [voice_delayed][bgm1]amix=inputs=2[opening]" \
                       -map "[opening]" \
-                      -t $(awk "BEGIN {print $TOTAL_OPENING_DURATION + 6}") \
+                      -t ${TOTAL_DURATION_WITH_DELAY} \
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       opening-mixed.wav || exit 1
           
@@ -259,16 +265,17 @@ jobs:
           # メイン: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後BGMフェードアウト（5秒）
           FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
           TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 9}")
+          VOICE_MAIN_WITH_DELAY=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
           
           echo "🎵 メインセクションのミキシング開始"
           safe_ffmpeg -i voice-main.wav \
                       -i bgm-main-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_MAIN_DURATION}+4),0.5,0.5))':eval=frame,
+                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_MAIN_WITH_DELAY}),0.5,0.5))':eval=frame,
                                       afade=t=out:st=${FADE_START_MAIN}:d=5[bgm2];
                                       [voice_delayed][bgm2]amix=inputs=2[main]" \
                       -map "[main]" \
-                      -t $TOTAL_MAIN_DURATION \
+                      -t ${TOTAL_MAIN_DURATION} \
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       main-mixed.wav || exit 1
           
@@ -282,16 +289,17 @@ jobs:
           # エンディング: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後最大音量→7秒フェードアウト
           FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
           TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 11}")
+          VOICE_ENDING_WITH_DELAY=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
           
           echo "🎵 エンディングセクションのミキシング開始"
           safe_ffmpeg -i voice-ending.wav \
                       -i bgm-ending-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_ENDING_DURATION}+4),0.5,1))':eval=frame,
+                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_ENDING_WITH_DELAY}),0.5,1))':eval=frame,
                                       afade=t=out:st=${FADE_START_ENDING}:d=7[bgm3];
                                       [voice_delayed][bgm3]amix=inputs=2[ending]" \
                       -map "[ending]" \
-                      -t $TOTAL_ENDING_DURATION \
+                      -t ${TOTAL_ENDING_DURATION} \
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       ending-mixed.wav || exit 1
           
