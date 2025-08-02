@@ -21,6 +21,15 @@ jobs:
       url: ${{ steps.voice.outputs.audio-url }}
       file: ${{ steps.voice.outputs.audio-file }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download voice UUID artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-uuid
+          path: radio-workflow/temp
+      
       - name: Generate voice with aivis-cloud-api
         id: voice
         run: |
@@ -28,6 +37,15 @@ jobs:
           echo "📝 入力テキスト: ${{ inputs.script-text }}"
           echo "⚙️ 音声設定: ${{ inputs.voice-config }}"
           echo "🚀 開始時刻: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # USE_UUID.mdから音声IDを読み込む
+          if [ -f "radio-workflow/temp/USE_UUID.md" ]; then
+            SELECTED_VOICE_ID=$(grep "Voice UUID:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f3)
+            echo "✅ USE_UUID.mdから音声IDを読み込みました: $SELECTED_VOICE_ID"
+          else
+            echo "::error::❌ USE_UUID.mdファイルが見つかりません"
+            exit 1
+          fi
           
           # aivis-cloud-api呼び出し（リトライ付き）
           for i in {1..3}; do
@@ -37,7 +55,7 @@ jobs:
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
               -H "Content-Type: application/json" \
               -d '{
-                "model_uuid": "a59cb814-0083-4369-8542-f51a29e72af7",
+                "model_uuid": "'"$SELECTED_VOICE_ID"'",
                 "text": "${{ inputs.script-text }}",
                 "output_format": "wav"
               }' \

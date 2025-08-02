@@ -109,4 +109,38 @@ jobs:
           fi
           
           echo 'voice-config={"gender":"female","age":"20s"}' >> $GITHUB_OUTPUT
+          
+          # 音声ID選択とUSE_UUID.mdファイル作成
+          echo "::group::🎲 音声ID選択"
+          
+          # UUID.mdから音声IDリストを定義
+          VOICE_IDS=(
+            "d1597f96-c12c-4349-9c0e-2342559f30a7"
+            "e756b8e4-b606-4e15-99b1-3f9c6a1b2317"
+            "27dce2b7-b033-4b82-a722-d18ddba66d94"
+            "aa63d66e-92fe-499e-9e0d-15dad4a61d0d"
+          )
+          
+          # ランダムに音声IDを選択
+          RANDOM_INDEX=$((RANDOM % ${#VOICE_IDS[@]}))
+          SELECTED_VOICE_ID="${VOICE_IDS[$RANDOM_INDEX]}"
+          
+          # 現在の日付を取得
+          CURRENT_DATE=$(date +%Y-%m-%d)
+          
+          echo "🎯 選択された音声ID: $SELECTED_VOICE_ID"
+          echo "📅 日付: $CURRENT_DATE"
+          
+          # USE_UUID.mdファイルを作成
+          mkdir -p radio-workflow/temp
+          cat > radio-workflow/temp/USE_UUID.md << EOF
+# Selected Voice ID for Radio Production
+
+Date: $CURRENT_DATE
+Voice UUID: $SELECTED_VOICE_ID
+EOF
+          
+          echo "✅ USE_UUID.mdファイルを作成しました"
+          cat radio-workflow/temp/USE_UUID.md
+          
           echo "::endgroup::"
