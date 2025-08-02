@@ -35,6 +35,9 @@ jobs:
       - name: Install Claude Code SDK
         run: npm install @anthropic-ai/claude-code
       
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
       - name: Generate radio scripts with Claude
         id: planning
         env:
@@ -113,15 +116,25 @@ jobs:
           # 音声ID選択とUSE_UUID.mdファイル作成
           echo "::group::🎲 音声ID選択"
           
-          # UUID.mdから音声IDリストを定義
-          VOICE_IDS=(
-            "d1597f96-c12c-4349-9c0e-2342559f30a7"
-            "e756b8e4-b606-4e15-99b1-3f9c6a1b2317"
-            "27dce2b7-b033-4b82-a722-d18ddba66d94"
-            "aa63d66e-92fe-499e-9e0d-15dad4a61d0d"
-          )
+          # UUID.mdファイルから音声IDリストを読み込み
+          if [ -f "radio-workflow/UUID.md" ]; then
+            echo "✅ UUID.mdファイルから音声IDを読み込みます"
+            # 空行を除いて配列に読み込み
+            readarray -t VOICE_IDS < <(grep -v '^$' radio-workflow/UUID.md)
+            echo "📝 読み込まれた音声ID数: ${#VOICE_IDS[@]}"
+            for i in "${!VOICE_IDS[@]}"; do
+              echo "  [$i] ${VOICE_IDS[$i]}"
+            done
+          else
+            echo "::error::❌ UUID.mdファイルが見つかりません"
+            exit 1
+          fi
           
           # ランダムに音声IDを選択
+          if [ ${#VOICE_IDS[@]} -eq 0 ]; then
+            echo "::error::❌ 音声IDが見つかりません"
+            exit 1
+          fi
           RANDOM_INDEX=$((RANDOM % ${#VOICE_IDS[@]}))
           SELECTED_VOICE_ID="${VOICE_IDS[$RANDOM_INDEX]}"
           
