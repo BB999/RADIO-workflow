@@ -65,27 +65,74 @@ jobs:
           - エンディング: 30秒（まとめと次回予告）
           - MC: 20代女性、明るく親しみやすい口調
           - ターゲット: 20-30代の技術に興味がある層
+          - **重要**: 各セクションは音声生成API制限のため、必ず3000文字以内で生成してください
 
           **重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
           {
-            \"opening\": \"オープニング台本\",
-            \"main\": \"メイン台本\", 
-            \"ending\": \"エンディング台本\"
+            \"opening\": \"オープニング台本（3000文字以内）\",
+            \"main\": \"メイン台本（3000文字以内）\", 
+            \"ending\": \"エンディング台本（3000文字以内）\"
           }"
           
           echo "🚀 Starting Radio Script Generation..."
           echo "📝 Prompt length: ${#PROMPT}"
           
-          # Claude Code CLIの実行
-          npx @anthropic-ai/claude-code \
-            --allowedTools "Write,Edit" \
-            --max-turns 10 \
-            --verbose \
-            --permission-mode "acceptEdits" \
-            -p "$PROMPT" || {
-              echo "::error::❌ Claude Code CLI execution failed"
+          # Claude Code CLIの実行（リトライ付き文字数制限チェック）
+          for attempt in {1..5}; do
+            echo "🎯 Claude Code CLI実行中（試行 $attempt/5）..."
+            
+            if npx @anthropic-ai/claude-code \
+              --allowedTools "Write,Edit" \
+              --max-turns 10 \
+              --verbose \
+              --permission-mode "acceptEdits" \
+              -p "$PROMPT"; then
+              
+              # 生成された台本の文字数チェック
+              if [ -f "$WORK_DIR/scripts.json" ] && jq empty "$WORK_DIR/scripts.json" 2>/dev/null; then
+                echo "✅ JSONファイル生成成功"
+                
+                # 各セクションの文字数チェック
+                OPENING_LENGTH=$(jq -r '.opening' "$WORK_DIR/scripts.json" | wc -c)
+                MAIN_LENGTH=$(jq -r '.main' "$WORK_DIR/scripts.json" | wc -c)
+                ENDING_LENGTH=$(jq -r '.ending' "$WORK_DIR/scripts.json" | wc -c)
+                
+                echo "📏 文字数チェック: opening=$OPENING_LENGTH, main=$MAIN_LENGTH, ending=$ENDING_LENGTH"
+                
+                if [ $OPENING_LENGTH -le 3000 ] && [ $MAIN_LENGTH -le 3000 ] && [ $ENDING_LENGTH -le 3000 ]; then
+                  echo "✅ 全セクションが3000文字以内です"
+                  break
+                else
+                  echo "::warning::⚠️ 一部セクションが3000文字を超えています（試行 $attempt/5）"
+                  PROMPT="前回生成した台本が長すぎました。以下の要件で、より短い台本を生成し直してください：
+
+【要件】
+- オープニング: 30秒分の台本（必ず3000文字以内）
+- メイン: 30秒分の台本（必ず3000文字以内）
+- エンディング: 30秒分の台本（必ず3000文字以内）
+- 各セクションは簡潔で要点をまとめた内容にしてください
+
+**重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
+{
+  \"opening\": \"オープニング台本（3000文字以内）\",
+  \"main\": \"メイン台本（3000文字以内）\", 
+  \"ending\": \"エンディング台本（3000文字以内）\"
+}"
+                fi
+              else
+                echo "::warning::⚠️ JSONファイル生成失敗（試行 $attempt/5）"
+              fi
+            else
+              echo "::warning::⚠️ Claude Code実行失敗（試行 $attempt/5）"
+            fi
+            
+            if [ $attempt -eq 5 ]; then
+              echo "::error::❌ 5回試行しても適切な台本を生成できませんでした"
               exit 1
-            }
+            fi
+            
+            sleep 5
+          done
           
           # 生成されたJSONファイルの確認と読み込み
           if [ -f "$WORK_DIR/scripts.json" ]; then
@@ -100,14 +147,14 @@ jobs:
               jq -r '.ending' "$WORK_DIR/scripts.json" | sed 's/^/script-ending=/' >> $GITHUB_OUTPUT
             else
               echo "::warning::Invalid JSON format, using fallback scripts"
-              echo "script-opening=こんにちは、神威日報ラジオです。本日は${{ inputs.development-report }}についてお伝えします。" >> $GITHUB_OUTPUT
-              echo "script-main=${{ inputs.development-report }}の詳細について解説します。${{ inputs.topic-focus || '' }}" >> $GITHUB_OUTPUT
+              echo "script-opening=こんにちは、神威日報ラジオです。本日は神威アプリの最新開発情報をお届けします。" >> $GITHUB_OUTPUT
+              echo "script-main=今日は神威アプリの開発進捗についてお話します。新機能の実装が順調に進んでおり、ユーザー体験がさらに向上します。" >> $GITHUB_OUTPUT
               echo "script-ending=以上、神威日報ラジオでした。また明日お会いしましょう。" >> $GITHUB_OUTPUT
             fi
           else
             echo "::warning::Scripts JSON file not found, using fallback scripts"
-            echo "script-opening=こんにちは、神威日報ラジオです。本日は${{ inputs.development-report }}についてお伝えします。" >> $GITHUB_OUTPUT
-            echo "script-main=${{ inputs.development-report }}の詳細について解説します。${{ inputs.topic-focus || '' }}" >> $GITHUB_OUTPUT
+            echo "script-opening=こんにちは、神威日報ラジオです。本日は神威アプリの最新開発情報をお届けします。" >> $GITHUB_OUTPUT
+            echo "script-main=今日は神威アプリの開発進捗についてお話します。新機能の実装が順調に進んでおり、ユーザー体験がさらに向上します。" >> $GITHUB_OUTPUT
             echo "script-ending=以上、神威日報ラジオでした。また明日お会いしましょう。" >> $GITHUB_OUTPUT
           fi
           
