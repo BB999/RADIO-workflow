@@ -51,20 +51,28 @@ jobs:
           for i in {1..3}; do
             echo "📞 Aivis API呼び出し (試行 $i/3)"
             
+            # JSONペイロードを一時ファイルで作成（エスケープ問題回避）
+            cat > payload.json <<EOF
+{
+  "model_uuid": "$SELECTED_VOICE_ID",
+  "text": $(echo '${{ inputs.script-text }}' | jq -R .),
+  "output_format": "wav",
+  "speaking_rate": 1.1,
+  "emotional_intensity": 1.5,
+  "pitch": 0.1
+}
+EOF
+            
             HTTP_CODE=$(curl -X POST https://api.aivis-project.com/v1/tts/synthesize \
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
               -H "Content-Type: application/json" \
-              -d '{
-                "model_uuid": "'"$SELECTED_VOICE_ID"'",
-                "text": "${{ inputs.script-text }}",
-                "output_format": "wav",
-                "speaking_rate": 1.1,
-                "emotional_intensity": 1.5,  
-                "pitch": 0.1
-              }' \
+              -d @payload.json \
               --output voice-opening.wav \
               --write-out "%{http_code}" \
               --show-error --silent)
+            
+            # 一時ファイル削除
+            rm -f payload.json
             
             echo "📊 HTTP ステータス: $HTTP_CODE"
             
