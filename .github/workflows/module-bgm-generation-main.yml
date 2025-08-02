@@ -27,11 +27,14 @@ jobs:
           echo "📦 Claude Code SDKインストール"
           npm install @anthropic-ai/claude-code --force 2>/dev/null || echo "⚠️ インストールエラーを無視して続行"
       
-      - name: Generate Main BGM with Google Lyria
+      - name: Generate Main BGM with Google Lyria (with retry)
         id: bgm
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
+          # BGM生成リトライ処理（最大3回）
+          for RETRY_COUNT in {1..3}; do
+            echo "🔄 BGM生成試行 $RETRY_COUNT/3"
           echo "::group::🎵 Main BGM Generation with Google Lyria"
           echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
           
@@ -221,34 +224,27 @@ jobs:
             echo "::warning::⚠️ 有効なURLまたはファイルが見つかりません"
           fi
           
-          # BGM生成失敗時はワークフローを停止
-          if [ ! -f "bgm-main-30s.wav" ] || [ ! -s "bgm-main-30s.wav" ]; then
-            echo "::error::❌ BGM生成に失敗しました"
-            echo "::error::詳細なエラーログ:"
-            echo "::error::Claude Code実行結果: $BGM_RESULT"
-            echo "::error::抽出されたURL: '$MUSIC_URL'"
-            echo "::error::現在のディレクトリ内容:"
-            ls -la || true
-            echo "::error::MCP設定ファイル確認:"
-            if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
-              echo "::error::MCP設定ファイルが存在します: $MCP_CONFIG_ABS_PATH"
-              head -20 "$MCP_CONFIG_ABS_PATH" || true
+          
+            # BGM生成成功チェック
+            if [ -f "bgm-main-30s.wav" ] && [ -s "bgm-main-30s.wav" ]; then
+              FINAL_SIZE=$(stat -c%s "bgm-main-30s.wav")
+              echo "✅ BGMファイル生成成功 (試行 $RETRY_COUNT/3) - ${FINAL_SIZE} bytes"
+              echo "::endgroup::"
+              break
             else
-              echo "::error::MCP設定ファイルが見つかりません: $MCP_CONFIG_ABS_PATH"
+              echo "::warning::⚠️ BGM生成失敗（試行 $RETRY_COUNT/3）"
+              rm -f bgm-main-30s.wav lyria_output_*.wav *.wav 2>/dev/null || true
+              
+              if [ $RETRY_COUNT -eq 3 ]; then
+                echo "::error::❌ BGM生成に3回失敗しました"
+                echo "::endgroup::"
+                exit 1
+              else
+                echo "🔄 30秒後に再試行します..."
+                sleep 30
+              fi
             fi
-            exit 1
-          fi
-          
-          # 最終ファイルチェック
-          if [ -f "bgm-main-30s.wav" ]; then
-            FINAL_SIZE=$(stat -c%s "bgm-main-30s.wav")
-            echo "✅ 最終BGMファイル生成完了 (${FINAL_SIZE} bytes)"
-          else
-            echo "::error::❌ 最終BGMファイルの生成に失敗しました"
-            exit 1
-          fi
-          
-          echo "::endgroup::"
+          done
       
       - name: Upload BGM artifact
         uses: actions/upload-artifact@v4

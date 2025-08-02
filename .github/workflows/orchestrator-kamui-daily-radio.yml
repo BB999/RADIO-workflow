@@ -121,7 +121,7 @@ jobs:
             release-files/metadata.json
 
   create-pr:
-    needs: [planning, audio-mixing, publish]
+    needs: [planning, audio-mixing]
     if: success()
     runs-on: ubuntu-latest
     steps:
@@ -208,7 +208,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   summary:
-    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, publish, create-pr]
+    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, create-pr]
     if: always()
     runs-on: ubuntu-latest
     steps:
