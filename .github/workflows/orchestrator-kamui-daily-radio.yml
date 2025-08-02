@@ -77,7 +77,7 @@ jobs:
 
   publish:
     needs: audio-mixing
-    if: success()
+    if: false  # リリース無効化
     runs-on: ubuntu-latest
     steps:
       - name: Download final audio artifact

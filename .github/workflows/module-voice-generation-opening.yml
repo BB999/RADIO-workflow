@@ -58,9 +58,9 @@ jobs:
                 "model_uuid": "'"$SELECTED_VOICE_ID"'",
                 "text": "${{ inputs.script-text }}",
                 "output_format": "wav",
-                "speaking_rate": 1.2,
-                "emotional_intensity": 1.5,
-                "pitch": 0.2
+                "speaking_rate": 1.1,
+                "emotional_intensity": 1.5,  
+                "pitch": 0.1
               }' \
               --output voice-opening.wav \
               --write-out "%{http_code}" \
