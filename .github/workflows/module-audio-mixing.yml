@@ -175,7 +175,7 @@ jobs:
           for voice_file in voice-opening.wav voice-main.wav voice-ending.wav; do
             if [ ! -f "$voice_file" ]; then
               echo "::warning::音声ファイル $voice_file が見つかりません、無音で代替"
-              safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -c:a pcm_s16le "$voice_file" || exit 1
+              safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "$voice_file" || exit 1
             fi
           done
           
@@ -183,7 +183,7 @@ jobs:
           for bgm_file in bgm-opening-30s.wav bgm-main-30s.wav bgm-ending-30s.wav; do
             if [ ! -f "$bgm_file" ]; then
               echo "::warning::BGMファイル $bgm_file が見つかりません、無音で代替"
-              safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -c:a pcm_s16le "$bgm_file" || exit 1
+              safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "$bgm_file" || exit 1
             fi
           done
           
@@ -244,10 +244,16 @@ jobs:
           echo "  フルボリューム終了: ${FULL_VOLUME_END_WITH_DELAY}秒"
           echo "  総時間: ${TOTAL_DURATION_WITH_DELAY}秒"
           
+          # 緩やかな音量変化のための時間計算
+          FADE_DOWN_START=6
+          FADE_DOWN_END=6.5
+          FADE_UP_START=$(awk "BEGIN {print $VOICE_END_WITH_DELAY}")
+          FADE_UP_END=$(awk "BEGIN {print $VOICE_END_WITH_DELAY + 0.5}")
+          
           safe_ffmpeg -i voice-opening.wav \
                       -i bgm-opening-30s.wav \
-                      -filter_complex "[0]adelay=6s:all=1[voice_delayed];
-                                      [1]volume='if(lt(t,6),1,if(lt(t,${VOICE_END_WITH_DELAY}),0.5,if(lt(t,${FULL_VOLUME_END_WITH_DELAY}),1,1)))':eval=frame,
+                      -filter_complex "[0]aresample=44100,adelay=6s:all=1[voice_delayed];
+                                      [1]aresample=44100,volume='if(lt(t,$FADE_DOWN_START),1,if(lt(t,$FADE_DOWN_END),1-0.5*(t-$FADE_DOWN_START)/0.5,if(lt(t,$FADE_UP_START),0.5,if(lt(t,$FADE_UP_END),0.5+0.5*(t-$FADE_UP_START)/0.5,1))))':eval=frame,
                                       afade=t=out:st=${FADE_START_TIME}:d=5[bgm1];
                                       [voice_delayed][bgm1]amix=inputs=2[opening]" \
                       -map "[opening]" \
@@ -268,10 +274,14 @@ jobs:
           VOICE_MAIN_WITH_DELAY=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
           
           echo "🎵 メインセクションのミキシング開始"
+          # メイン用の緩やかな音量変化
+          MAIN_FADE_DOWN_START=4
+          MAIN_FADE_DOWN_END=4.5
+          
           safe_ffmpeg -i voice-main.wav \
                       -i bgm-main-30s.wav \
-                      -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_MAIN_WITH_DELAY}),0.5,0.5))':eval=frame,
+                      -filter_complex "[0]aresample=44100,adelay=4s:all=1[voice_delayed];
+                                      [1]aresample=44100,volume='if(lt(t,$MAIN_FADE_DOWN_START),1,if(lt(t,$MAIN_FADE_DOWN_END),1-0.5*(t-$MAIN_FADE_DOWN_START)/0.5,0.5))':eval=frame,
                                       afade=t=out:st=${FADE_START_MAIN}:d=5[bgm2];
                                       [voice_delayed][bgm2]amix=inputs=2[main]" \
                       -map "[main]" \
@@ -292,10 +302,16 @@ jobs:
           VOICE_ENDING_WITH_DELAY=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
           
           echo "🎵 エンディングセクションのミキシング開始"
+          # エンディング用の緩やかな音量変化
+          ENDING_FADE_DOWN_START=4
+          ENDING_FADE_DOWN_END=4.5
+          ENDING_FADE_UP_START=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
+          ENDING_FADE_UP_END=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4.5}")
+          
           safe_ffmpeg -i voice-ending.wav \
                       -i bgm-ending-30s.wav \
-                      -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_ENDING_WITH_DELAY}),0.5,1))':eval=frame,
+                      -filter_complex "[0]aresample=44100,adelay=4s:all=1[voice_delayed];
+                                      [1]aresample=44100,volume='if(lt(t,$ENDING_FADE_DOWN_START),1,if(lt(t,$ENDING_FADE_DOWN_END),1-0.5*(t-$ENDING_FADE_DOWN_START)/0.5,if(lt(t,$ENDING_FADE_UP_START),0.5,if(lt(t,$ENDING_FADE_UP_END),0.5+0.5*(t-$ENDING_FADE_UP_START)/0.5,1))))':eval=frame,
                                       afade=t=out:st=${FADE_START_ENDING}:d=7[bgm3];
                                       [voice_delayed][bgm3]amix=inputs=2[ending]" \
                       -map "[ending]" \
@@ -312,7 +328,7 @@ jobs:
           
           # 1秒の無音ファイルを作成
           echo "🔇 無音ファイルを作成"
-          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -c:a pcm_s16le silence-1s.wav || exit 1
+          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -ar 44100 -ac 2 -c:a pcm_s16le silence-1s.wav || exit 1
           
           # 3つのセクションを連結し、最終調整（エラーハンドリング付き）
           echo "🎵 最終ミックス開始（セクション間に1秒の無音を挿入）"
