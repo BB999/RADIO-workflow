@@ -53,15 +53,15 @@ jobs:
             
             # JSONペイロードを一時ファイルで作成（エスケープ問題回避）
             ESCAPED_TEXT=$(echo '${{ inputs.script-text }}' | sed 's/"/\\"/g' | tr '\n' ' ')
-            cat > payload.json <<EOF
+            cat > payload.json << 'JSONEOF'
 {
-  "model_uuid": "$SELECTED_VOICE_ID",
-  "text": "$ESCAPED_TEXT",
+  "model_uuid": "'"$SELECTED_VOICE_ID"'",
+  "text": "'"$ESCAPED_TEXT"'",
   "output_format": "wav",
   "emotional_intensity": 1.5,
   "speaking_rate": 0.9
 }
-EOF
+JSONEOF
             
             HTTP_CODE=$(curl -X POST https://api.aivis-project.com/v1/tts/synthesize \
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
