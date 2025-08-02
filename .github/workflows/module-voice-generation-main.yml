@@ -52,10 +52,11 @@ jobs:
             echo "📞 Aivis API呼び出し (試行 $i/3)"
             
             # JSONペイロードを一時ファイルで作成（エスケープ問題回避）
+            ESCAPED_TEXT=$(echo '${{ inputs.script-text }}' | sed 's/"/\\"/g' | tr '\n' ' ')
             cat > payload.json <<EOF
 {
   "model_uuid": "$SELECTED_VOICE_ID",
-  "text": $(echo '${{ inputs.script-text }}' | jq -R .),
+  "text": "$ESCAPED_TEXT",
   "output_format": "wav",
   "speaking_rate": 1.0,
   "emotional_intensity": 1.5
