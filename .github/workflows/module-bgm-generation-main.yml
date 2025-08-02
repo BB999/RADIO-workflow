@@ -109,6 +109,11 @@ jobs:
           
           # 結果からURLまたはファイル名を抽出
           MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(wav|mp3|m4a)' | head -1)
+          # Claude Codeの出力からファイル名を抽出（バッククォートで囲まれたファイル名を検索）
+          CLAUDE_FILE=$(echo "$BGM_RESULT" | grep -oP '`lyria_output_[^`]+\.wav`' | sed 's/`//g' | head -1)
+          if [ ! -z "$CLAUDE_FILE" ]; then
+            echo "✅ Claude Codeの出力からファイル名を検出: $CLAUDE_FILE"
+          fi
           MUSIC_FILE="bgm-main.wav"
           
           # 直接ダウンロードされたファイルを検索（より包括的に）
@@ -117,6 +122,12 @@ jobs:
           
           # 複数のパターンでファイルを検索
           DOWNLOADED_FILE=""
+          
+          # パターン0: Claude Codeが明示的に出力したファイル名
+          if [ ! -z "$CLAUDE_FILE" ] && [ -f "$CLAUDE_FILE" ]; then
+            DOWNLOADED_FILE="$CLAUDE_FILE"
+            echo "✅ パターン0（Claude出力）で発見: $DOWNLOADED_FILE"
+          fi
           
           # パターン1: lyria_output_で始まるファイル
           if [ -z "$DOWNLOADED_FILE" ]; then
