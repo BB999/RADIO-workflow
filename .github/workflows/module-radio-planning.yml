@@ -133,14 +133,19 @@ jobs:
           
           # USE_UUID.mdファイルを作成
           mkdir -p radio-workflow/temp
-          cat > radio-workflow/temp/USE_UUID.md << EOF
-# Selected Voice ID for Radio Production
-
-Date: $CURRENT_DATE
-Voice UUID: $SELECTED_VOICE_ID
-EOF
+          echo "# Selected Voice ID for Radio Production" > radio-workflow/temp/USE_UUID.md
+          echo "" >> radio-workflow/temp/USE_UUID.md
+          echo "Date: $CURRENT_DATE" >> radio-workflow/temp/USE_UUID.md
+          echo "Voice UUID: $SELECTED_VOICE_ID" >> radio-workflow/temp/USE_UUID.md
           
           echo "✅ USE_UUID.mdファイルを作成しました"
           cat radio-workflow/temp/USE_UUID.md
           
           echo "::endgroup::"
+      
+      - name: Upload voice UUID file
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-uuid
+          path: radio-workflow/temp/USE_UUID.md
+          retention-days: 1
