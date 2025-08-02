@@ -157,27 +157,47 @@ jobs:
               MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/scripts.json")
               ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/scripts.json")
               
-              # Node.jsでSSMLフォーマッターを実行
-              OPENING_SSML=$(node -e "
-                const SSMLFormatter = require('./ssml_formatter.js');
-                const formatter = new SSMLFormatter();
-                const text = process.argv[1];
-                console.log(formatter.formatWithBreaks(text, formatter.getPreset('normal')));
-              " "$OPENING_TEXT")
+              # 各セクションをファイルに保存してから処理（クォート問題を回避）
+              echo "$OPENING_TEXT" > temp_opening.txt
+              echo "$MAIN_TEXT" > temp_main.txt
+              echo "$ENDING_TEXT" > temp_ending.txt
               
-              MAIN_SSML=$(node -e "
+              # Node.jsでSSMLフォーマッターを実行（stdin使用でクォート問題を回避）
+              OPENING_SSML=$(cat temp_opening.txt | node -e "
                 const SSMLFormatter = require('./ssml_formatter.js');
                 const formatter = new SSMLFormatter();
-                const text = process.argv[1];
-                console.log(formatter.formatWithBreaks(text, formatter.getPreset('normal')));
-              " "$MAIN_TEXT")
+                let text = '';
+                process.stdin.on('data', chunk => text += chunk);
+                process.stdin.on('end', () => {
+                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
+                  console.log(result);
+                });
+              ")
               
-              ENDING_SSML=$(node -e "
+              MAIN_SSML=$(cat temp_main.txt | node -e "
                 const SSMLFormatter = require('./ssml_formatter.js');
                 const formatter = new SSMLFormatter();
-                const text = process.argv[1];
-                console.log(formatter.formatWithBreaks(text, formatter.getPreset('normal')));
-              " "$ENDING_TEXT")
+                let text = '';
+                process.stdin.on('data', chunk => text += chunk);
+                process.stdin.on('end', () => {
+                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
+                  console.log(result);
+                });
+              ")
+              
+              ENDING_SSML=$(cat temp_ending.txt | node -e "
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                let text = '';
+                process.stdin.on('data', chunk => text += chunk);
+                process.stdin.on('end', () => {
+                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
+                  console.log(result);
+                });
+              ")
+              
+              # 一時ファイルを削除
+              rm -f temp_opening.txt temp_main.txt temp_ending.txt
               
               echo "✅ SSML formatting completed"
               echo "📏 Opening SSML length: ${#OPENING_SSML}"
@@ -185,10 +205,24 @@ jobs:
               echo "📏 Ending SSML length: ${#ENDING_SSML}"
               echo "::endgroup::"
               
-              # SSML版をGitHub Outputsに設定
-              echo "script-opening=$OPENING_SSML" >> $GITHUB_OUTPUT
-              echo "script-main=$MAIN_SSML" >> $GITHUB_OUTPUT  
-              echo "script-ending=$ENDING_SSML" >> $GITHUB_OUTPUT
+              # SSML版をGitHub Outputsに設定（マルチライン対応）
+              {
+                echo "script-opening<<EOF"
+                echo "$OPENING_SSML"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+              
+              {
+                echo "script-main<<EOF"
+                echo "$MAIN_SSML"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+              
+              {
+                echo "script-ending<<EOF"
+                echo "$ENDING_SSML"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
             else
               echo "::warning::Invalid JSON format, using fallback scripts"
               echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
