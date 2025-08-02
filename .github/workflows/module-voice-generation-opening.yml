@@ -51,18 +51,9 @@ jobs:
           for i in {1..3}; do
             echo "📞 Aivis API呼び出し (試行 $i/3)"
             
-            # JSONペイロードを一時ファイルで作成（エスケープ問題回避）
+            # JSONペイロードを作成（エスケープ問題回避）
             ESCAPED_TEXT=$(echo '${{ inputs.script-text }}' | sed 's/"/\\"/g' | tr '\n' ' ')
-            cat > payload.json << 'JSONEOF'
-{
-  "model_uuid": "'"$SELECTED_VOICE_ID"'",
-  "text": "'"$ESCAPED_TEXT"'",
-  "output_format": "wav",
-  "speaking_rate": 1.1,
-  "emotional_intensity": 1.5,
-  "pitch": 0.1
-}
-JSONEOF
+            echo "{\"model_uuid\":\"$SELECTED_VOICE_ID\",\"text\":\"$ESCAPED_TEXT\",\"output_format\":\"wav\",\"speaking_rate\":1.1,\"emotional_intensity\":1.5,\"pitch\":0.1}" > payload.json
             
             HTTP_CODE=$(curl -X POST https://api.aivis-project.com/v1/tts/synthesize \
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
