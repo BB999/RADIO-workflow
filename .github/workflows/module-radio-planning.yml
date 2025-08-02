@@ -38,6 +38,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Copy SSML formatter
+        run: |
+          # SSMLフォーマッターをワーキングディレクトリにコピー
+          cp radio-workflow/ssml_formatter.js ./ssml_formatter.js
+          echo "✅ SSML formatter copied to working directory"
+      
       - name: Generate radio scripts with Claude
         id: planning
         env:
@@ -141,9 +147,48 @@ jobs:
             # JSONから各セクションを抽出
             if jq empty "$WORK_DIR/scripts.json" 2>/dev/null; then
               echo "✅ Valid JSON response received"
-              jq -r '.opening' "$WORK_DIR/scripts.json" | sed 's/^/script-opening=/' >> $GITHUB_OUTPUT
-              jq -r '.main' "$WORK_DIR/scripts.json" | sed 's/^/script-main=/' >> $GITHUB_OUTPUT  
-              jq -r '.ending' "$WORK_DIR/scripts.json" | sed 's/^/script-ending=/' >> $GITHUB_OUTPUT
+              
+              # SSML処理を追加
+              echo "::group::🎵 SSML Processing"
+              echo "🔄 Applying SSML formatting to all scripts..."
+              
+              # 各セクションにSSMLフォーマットを適用
+              OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/scripts.json")
+              MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/scripts.json")
+              ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/scripts.json")
+              
+              # Node.jsでSSMLフォーマッターを実行
+              OPENING_SSML=$(node -e "
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                const text = process.argv[1];
+                console.log(formatter.formatWithBreaks(text, formatter.getPreset('normal')));
+              " "$OPENING_TEXT")
+              
+              MAIN_SSML=$(node -e "
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                const text = process.argv[1];
+                console.log(formatter.formatWithBreaks(text, formatter.getPreset('normal')));
+              " "$MAIN_TEXT")
+              
+              ENDING_SSML=$(node -e "
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                const text = process.argv[1];
+                console.log(formatter.formatWithBreaks(text, formatter.getPreset('normal')));
+              " "$ENDING_TEXT")
+              
+              echo "✅ SSML formatting completed"
+              echo "📏 Opening SSML length: ${#OPENING_SSML}"
+              echo "📏 Main SSML length: ${#MAIN_SSML}"  
+              echo "📏 Ending SSML length: ${#ENDING_SSML}"
+              echo "::endgroup::"
+              
+              # SSML版をGitHub Outputsに設定
+              echo "script-opening=$OPENING_SSML" >> $GITHUB_OUTPUT
+              echo "script-main=$MAIN_SSML" >> $GITHUB_OUTPUT  
+              echo "script-ending=$ENDING_SSML" >> $GITHUB_OUTPUT
             else
               echo "::warning::Invalid JSON format, using fallback scripts"
               echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT

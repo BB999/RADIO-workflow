@@ -236,7 +236,7 @@ jobs:
           VOICE_END_WITH_DELAY=$(awk "BEGIN {print $VOICE_END + 6}")
           FULL_VOLUME_END_WITH_DELAY=$(awk "BEGIN {print $FULL_VOLUME_END + 6}")
           TOTAL_DURATION_WITH_DELAY=$(awk "BEGIN {print $TOTAL_OPENING_DURATION + 6}")
-          FADE_START_TIME=$(awk "BEGIN {print $FULL_VOLUME_END + 6}")
+          FADE_START_TIME=$(awk "BEGIN {print $FULL_VOLUME_END_WITH_DELAY}")
           
           echo "🎵 オープニングセクションのミキシング開始"
           echo "  音声開始: 6秒後"
@@ -269,14 +269,17 @@ jobs:
           fi
           
           # メイン: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後BGMフェードアウト（5秒）
-          FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
+          VOICE_MAIN_END_WITH_DELAY=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
+          FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_END_WITH_DELAY}")
           TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 9}")
-          VOICE_MAIN_WITH_DELAY=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
           
           echo "🎵 メインセクションのミキシング開始"
           # メイン用の緩やかな音量変化
           MAIN_FADE_DOWN_START=4
           MAIN_FADE_DOWN_END=4.5
+          
+          echo "  音声終了（遅延考慮）: ${VOICE_MAIN_END_WITH_DELAY}秒"
+          echo "  フェードアウト開始: ${FADE_START_MAIN}秒"
           
           safe_ffmpeg -i voice-main.wav \
                       -i bgm-main-30s.wav \
@@ -297,16 +300,19 @@ jobs:
           fi
           
           # エンディング: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後最大音量→7秒フェードアウト
-          FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
+          VOICE_ENDING_END_WITH_DELAY=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
+          FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_END_WITH_DELAY}")
           TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 11}")
-          VOICE_ENDING_WITH_DELAY=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
           
           echo "🎵 エンディングセクションのミキシング開始"
           # エンディング用の緩やかな音量変化
           ENDING_FADE_DOWN_START=4
           ENDING_FADE_DOWN_END=4.5
-          ENDING_FADE_UP_START=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
-          ENDING_FADE_UP_END=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4.5}")
+          ENDING_FADE_UP_START=$(awk "BEGIN {print $VOICE_ENDING_END_WITH_DELAY}")
+          ENDING_FADE_UP_END=$(awk "BEGIN {print $VOICE_ENDING_END_WITH_DELAY + 0.5}")
+          
+          echo "  音声終了（遅延考慮）: ${VOICE_ENDING_END_WITH_DELAY}秒"
+          echo "  フェードアウト開始: ${FADE_START_ENDING}秒"
           
           safe_ffmpeg -i voice-ending.wav \
                       -i bgm-ending-30s.wav \

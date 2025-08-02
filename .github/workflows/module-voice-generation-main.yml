@@ -58,7 +58,7 @@ jobs:
                 "model_uuid": "'"$SELECTED_VOICE_ID"'",
                 "text": "${{ inputs.script-text }}",
                 "output_format": "wav",
-                "speaking_rate": 0.9,
+                "speaking_rate": 1.0,
                 "emotional_intensity": 1.5
               }' \
               --output voice-main.wav \
