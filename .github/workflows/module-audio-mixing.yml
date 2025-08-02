@@ -226,18 +226,26 @@ jobs:
             mv bgm-ending-extended.wav bgm-ending-30s.wav
           fi
           
-          # オープニング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
-          FADE_START_OPENING=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 4}")
-          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")
+          # オープニング: BGM最大音量6秒→音声開始時50%→音声終了後3秒最大→5秒フェードアウト
+          VOICE_START=0
+          VOICE_END=$(awk "BEGIN {print $VOICE_OPENING_DURATION}")
+          FULL_VOLUME_END=$(awk "BEGIN {print $VOICE_END + 3}")
+          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_END + 8}")
           
           echo "🎵 オープニングセクションのミキシング開始"
+          echo "  音声開始: 6秒後"
+          echo "  音声終了: $(awk "BEGIN {print $VOICE_END + 6}")秒"
+          echo "  フルボリューム終了: $(awk "BEGIN {print $FULL_VOLUME_END + 6}")秒"
+          echo "  総時間: $(awk "BEGIN {print $TOTAL_OPENING_DURATION + 6}")秒"
+          
           safe_ffmpeg -i voice-opening.wav \
                       -i bgm-opening-30s.wav \
-                      -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume=0.5,afade=t=out:st=${FADE_START_OPENING}:d=2[bgm1];
+                      -filter_complex "[0]adelay=6s:all=1[voice_delayed];
+                                      [1]volume='if(lt(t,6),1,if(lt(t,${VOICE_END}+6),0.5,if(lt(t,${FULL_VOLUME_END}+6),1,1)))':eval=frame,
+                                      afade=t=out:st=${FULL_VOLUME_END}+6:d=5[bgm1];
                                       [voice_delayed][bgm1]amix=inputs=2[opening]" \
                       -map "[opening]" \
-                      -t $TOTAL_OPENING_DURATION \
+                      -t $(awk "BEGIN {print $TOTAL_OPENING_DURATION + 6}") \
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       opening-mixed.wav || exit 1
           
@@ -248,15 +256,16 @@ jobs:
             exit 1
           fi
           
-          # メイン: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（2秒）
+          # メイン: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後BGMフェードアウト（5秒）
           FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
-          TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 6}")
+          TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 9}")
           
           echo "🎵 メインセクションのミキシング開始"
           safe_ffmpeg -i voice-main.wav \
                       -i bgm-main-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume=0.4,afade=t=out:st=${FADE_START_MAIN}:d=2[bgm2];
+                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_MAIN_DURATION}+4),0.5,0.5))':eval=frame,
+                                      afade=t=out:st=${FADE_START_MAIN}:d=5[bgm2];
                                       [voice_delayed][bgm2]amix=inputs=2[main]" \
                       -map "[main]" \
                       -t $TOTAL_MAIN_DURATION \
@@ -270,15 +279,16 @@ jobs:
             exit 1
           fi
           
-          # エンディング: BGM4秒イントロ→音声開始→音声終了後BGMフェードアウト（3秒）
+          # エンディング: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後最大音量→7秒フェードアウト
           FADE_START_ENDING=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 4}")
-          TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 7}")
+          TOTAL_ENDING_DURATION=$(awk "BEGIN {print $VOICE_ENDING_DURATION + 11}")
           
           echo "🎵 エンディングセクションのミキシング開始"
           safe_ffmpeg -i voice-ending.wav \
                       -i bgm-ending-30s.wav \
                       -filter_complex "[0]adelay=4s:all=1[voice_delayed];
-                                      [1]volume=0.5,afade=t=out:st=${FADE_START_ENDING}:d=3[bgm3];
+                                      [1]volume='if(lt(t,4),1,if(lt(t,${VOICE_ENDING_DURATION}+4),0.5,1))':eval=frame,
+                                      afade=t=out:st=${FADE_START_ENDING}:d=7[bgm3];
                                       [voice_delayed][bgm3]amix=inputs=2[ending]" \
                       -map "[ending]" \
                       -t $TOTAL_ENDING_DURATION \
@@ -292,15 +302,21 @@ jobs:
             exit 1
           fi
           
+          # 1秒の無音ファイルを作成
+          echo "🔇 無音ファイルを作成"
+          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -c:a pcm_s16le silence-1s.wav || exit 1
+          
           # 3つのセクションを連結し、最終調整（エラーハンドリング付き）
-          echo "🎵 最終ミックス開始"
+          echo "🎵 最終ミックス開始（セクション間に1秒の無音を挿入）"
           echo "📁 連結するファイル:"
-          ls -la opening-mixed.wav main-mixed.wav ending-mixed.wav
+          ls -la opening-mixed.wav silence-1s.wav main-mixed.wav silence-1s.wav ending-mixed.wav
           
           safe_ffmpeg -i opening-mixed.wav \
+                      -i silence-1s.wav \
                       -i main-mixed.wav \
+                      -i silence-1s.wav \
                       -i ending-mixed.wav \
-                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
+                      -filter_complex "[0][1][2][3][4]concat=n=5:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
                       -c:a mp3 \
                       -b:a 320k \
@@ -318,8 +334,8 @@ jobs:
             \"duration\": \"90s\",
             \"sections\": [
               {\"name\": \"opening\", \"duration\": \"4s intro + voice + 2s fade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
-              {\"name\": \"main\", \"duration\": \"4s intro + voice + 2s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"40%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
-              {\"name\": \"ending\", \"duration\": \"4s intro + voice + 3.5s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"3s\"}
+              {\"name\": \"main\", \"duration\": \"4s intro + voice + 5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
+              {\"name\": \"ending\", \"duration\": \"4s intro + voice + 7s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
             ],
             \"audio_standard\": \"-23 LUFS\",
             \"format\": \"MP3 320kbps\"

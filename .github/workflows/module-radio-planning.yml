@@ -50,8 +50,20 @@ jobs:
           WORK_DIR="radio-scripts"
           mkdir -p "$WORK_DIR"
           
+          # パーソナリティデータファイルの内容を読み込み
+          if [ -f "radio-workflow/radio-personality-data.md" ]; then
+            PERSONALITY_DATA=$(cat radio-workflow/radio-personality-data.md)
+            echo "✅ パーソナリティデータを読み込みました"
+          else
+            PERSONALITY_DATA=""
+            echo "::warning::パーソナリティデータファイルが見つかりません"
+          fi
+          
           # プロンプトの構築
           PROMPT="以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
+
+          【パーソナリティ設定】
+          $PERSONALITY_DATA
 
           【開発進捗・最新情報】
           ${{ inputs.development-report }}
@@ -60,11 +72,11 @@ jobs:
           ${{ inputs.topic-focus || 'なし' }}
 
           【要件】
-          - オープニング: 30秒（明るい挨拶と今日のトピック紹介）
+          - オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介）
           - メイン: 30秒（内容を分かりやすく解説）  
           - エンディング: 30秒（まとめと次回予告）
-          - MC: 20代女性、明るく親しみやすい口調
-          - ターゲット: 20-30代の技術に興味がある層
+          - パーソナリティ: radio-personality-data.mdの設定に従う
+          - 一人称は「僕」、口癖や話し方の特徴を必ず反映
           - **重要**: 各セクションは音声生成API制限のため、必ず3000文字以内で生成してください
 
           **重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
@@ -134,15 +146,15 @@ jobs:
               jq -r '.ending' "$WORK_DIR/scripts.json" | sed 's/^/script-ending=/' >> $GITHUB_OUTPUT
             else
               echo "::warning::Invalid JSON format, using fallback scripts"
-              echo "script-opening=こんにちは、神威日報ラジオです。本日は神威アプリの最新開発情報をお届けします。" >> $GITHUB_OUTPUT
-              echo "script-main=今日は神威アプリの開発進捗についてお話します。新機能の実装が順調に進んでおり、ユーザー体験がさらに向上します。" >> $GITHUB_OUTPUT
-              echo "script-ending=以上、神威日報ラジオでした。また明日お会いしましょう。" >> $GITHUB_OUTPUT
+              echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
+              echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
+              echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
             fi
           else
             echo "::warning::Scripts JSON file not found, using fallback scripts"
-            echo "script-opening=こんにちは、神威日報ラジオです。本日は神威アプリの最新開発情報をお届けします。" >> $GITHUB_OUTPUT
-            echo "script-main=今日は神威アプリの開発進捗についてお話します。新機能の実装が順調に進んでおり、ユーザー体験がさらに向上します。" >> $GITHUB_OUTPUT
-            echo "script-ending=以上、神威日報ラジオでした。また明日お会いしましょう。" >> $GITHUB_OUTPUT
+            echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
+            echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
+            echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
           fi
           
           echo 'voice-config={"gender":"female","age":"20s"}' >> $GITHUB_OUTPUT
