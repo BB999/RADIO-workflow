@@ -112,9 +112,34 @@ jobs:
           MUSIC_FILE="bgm-opening.wav"
           
           # 直接ダウンロードされたファイルを検索（より包括的に）
-          DOWNLOADED_FILE=$(ls *.wav 2>/dev/null | grep -E "(lyria_output_|music)" | head -1)
+          echo "🔍 生成されたファイルを検索中..."
+          ls -la || true
+          
+          # 複数のパターンでファイルを検索
+          DOWNLOADED_FILE=""
+          
+          # パターン1: lyria_output_で始まるファイル
           if [ -z "$DOWNLOADED_FILE" ]; then
-            DOWNLOADED_FILE=$(ls lyria_output_*.wav 2>/dev/null | head -1)
+            DOWNLOADED_FILE=$(find . -name "lyria_output_*.wav" -type f 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン1で発見: $DOWNLOADED_FILE"
+          fi
+          
+          # パターン2: musicで始まるファイル
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(find . -name "music*.wav" -type f 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン2で発見: $DOWNLOADED_FILE"
+          fi
+          
+          # パターン3: 最近作成されたwavファイル
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(find . -name "*.wav" -type f -mmin -5 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン3で発見: $DOWNLOADED_FILE"
+          fi
+          
+          # パターン4: 任意のwavファイル
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(find . -name "*.wav" -type f 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン4で発見: $DOWNLOADED_FILE"
           fi
           
           echo "🔍 URL抽出結果: '$MUSIC_URL'"
