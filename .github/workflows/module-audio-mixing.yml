@@ -197,32 +197,41 @@ jobs:
           echo "  メイン音声: ${VOICE_MAIN_DURATION}秒"
           echo "  エンディング音声: ${VOICE_ENDING_DURATION}秒"
           
-          # 必要なBGMの長さを計算（音声の長さ + 10秒の余裕）
-          BGM_OPENING_NEEDED=$(awk "BEGIN {print int($VOICE_OPENING_DURATION + 10)}")
-          BGM_MAIN_NEEDED=$(awk "BEGIN {print int($VOICE_MAIN_DURATION + 10)}")
-          BGM_ENDING_NEEDED=$(awk "BEGIN {print int($VOICE_ENDING_DURATION + 10)}")
+          # 必要なBGMの長さを計算（音声の長さ + 各セクションに必要な余裕時間）
+          BGM_OPENING_NEEDED=$(awk "BEGIN {print int($VOICE_OPENING_DURATION + 14)}")  # 6秒イントロ + 音声 + 3秒フル + 5秒フェードアウト
+          BGM_MAIN_NEEDED=$(awk "BEGIN {print int($VOICE_MAIN_DURATION + 9)}")         # 4秒イントロ + 音声 + 5秒フェードアウト
+          BGM_ENDING_NEEDED=$(awk "BEGIN {print int($VOICE_ENDING_DURATION + 11)}")    # 4秒イントロ + 音声 + 7秒フェードアウト
           
           echo "🎵 必要なBGMの長さ:"
           echo "  オープニング: ${BGM_OPENING_NEEDED}秒"
           echo "  メイン: ${BGM_MAIN_NEEDED}秒"
           echo "  エンディング: ${BGM_ENDING_NEEDED}秒"
           
-          # BGMを必要な長さにループ拡張
+          # BGMを必要な長さにループ拡張（クロスフェード付き）
           if [ $BGM_OPENING_NEEDED -gt 30 ]; then
-            echo "🔄 オープニングBGMを${BGM_OPENING_NEEDED}秒に拡張"
-            safe_ffmpeg -stream_loop -1 -i bgm-opening-30s.wav -t $BGM_OPENING_NEEDED -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-extended.wav -y || exit 1
+            echo "🔄 オープニングBGMを${BGM_OPENING_NEEDED}秒に拡張（クロスフェード付き）"
+            # 最後の1秒をフェードアウト、最初の1秒をフェードインしてループ
+            safe_ffmpeg -i bgm-opening-30s.wav -filter_complex \
+              "[0:a]afade=t=out:st=29:d=1,afade=t=in:st=0:d=1,aloop=loop=-1:size=44100*30,atrim=0:$BGM_OPENING_NEEDED[looped]" \
+              -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-extended.wav -y || exit 1
             mv bgm-opening-extended.wav bgm-opening-30s.wav
           fi
           
           if [ $BGM_MAIN_NEEDED -gt 30 ]; then
-            echo "🔄 メインBGMを${BGM_MAIN_NEEDED}秒に拡張"
-            safe_ffmpeg -stream_loop -1 -i bgm-main-30s.wav -t $BGM_MAIN_NEEDED -ar 44100 -ac 2 -c:a pcm_s16le bgm-main-extended.wav -y || exit 1
+            echo "🔄 メインBGMを${BGM_MAIN_NEEDED}秒に拡張（クロスフェード付き）"
+            # 最後の1秒をフェードアウト、最初の1秒をフェードインしてループ
+            safe_ffmpeg -i bgm-main-30s.wav -filter_complex \
+              "[0:a]afade=t=out:st=29:d=1,afade=t=in:st=0:d=1,aloop=loop=-1:size=44100*30,atrim=0:$BGM_MAIN_NEEDED[looped]" \
+              -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-main-extended.wav -y || exit 1
             mv bgm-main-extended.wav bgm-main-30s.wav
           fi
           
           if [ $BGM_ENDING_NEEDED -gt 30 ]; then
-            echo "🔄 エンディングBGMを${BGM_ENDING_NEEDED}秒に拡張"
-            safe_ffmpeg -stream_loop -1 -i bgm-ending-30s.wav -t $BGM_ENDING_NEEDED -ar 44100 -ac 2 -c:a pcm_s16le bgm-ending-extended.wav -y || exit 1
+            echo "🔄 エンディングBGMを${BGM_ENDING_NEEDED}秒に拡張（クロスフェード付き）"
+            # 最後の1秒をフェードアウト、最初の1秒をフェードインしてループ
+            safe_ffmpeg -i bgm-ending-30s.wav -filter_complex \
+              "[0:a]afade=t=out:st=29:d=1,afade=t=in:st=0:d=1,aloop=loop=-1:size=44100*30,atrim=0:$BGM_ENDING_NEEDED[looped]" \
+              -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-ending-extended.wav -y || exit 1
             mv bgm-ending-extended.wav bgm-ending-30s.wav
           fi
           

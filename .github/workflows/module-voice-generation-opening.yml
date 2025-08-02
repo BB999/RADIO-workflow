@@ -53,7 +53,7 @@ jobs:
             
             # JSONペイロードを作成（エスケープ問題回避）
             ESCAPED_TEXT=$(echo '${{ inputs.script-text }}' | sed 's/"/\\"/g' | tr '\n' ' ')
-            echo "{\"model_uuid\":\"$SELECTED_VOICE_ID\",\"text\":\"$ESCAPED_TEXT\",\"output_format\":\"wav\",\"speaking_rate\":1.1,\"emotional_intensity\":1.5,\"pitch\":0.1}" > payload.json
+            echo "{\"model_uuid\":\"$SELECTED_VOICE_ID\",\"text\":\"$ESCAPED_TEXT\",\"output_format\":\"wav\",\"speaking_rate\":1.2,\"emotional_intensity\":1.5,\"pitch\":0.1}" > payload.json
             
             HTTP_CODE=$(curl -X POST https://api.aivis-project.com/v1/tts/synthesize \
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
