@@ -112,6 +112,16 @@ jobs:
             echo "$duration"
           }
           
+          # ガジェット・こくおう.mp3をダウンロード
+          echo "🎵 ガジェット・こくおう.mp3をダウンロード"
+          if [ -f "/Users/noranekob/cursor/kamuicode-workflow/radio-workflow/music/ガジェット・こくおう.mp3" ]; then
+            cp "/Users/noranekob/cursor/kamuicode-workflow/radio-workflow/music/ガジェット・こくおう.mp3" gadget-kokuou.mp3
+            echo "✅ gadget-kokuou.mp3 をコピーしました"
+          else
+            echo "::error::ガジェット・こくおう.mp3が見つかりません"
+            exit 1
+          fi
+          
           # エラーハンドリング付きFFmpeg実行
           safe_ffmpeg() {
             local TEMP_LOG="ffmpeg_$(date +%s).log"
@@ -235,38 +245,37 @@ jobs:
             mv bgm-ending-extended.wav bgm-ending-30s.wav
           fi
           
-          # オープニング: BGM最大音量6秒→音声開始時50%→音声終了後3秒最大→5秒フェードアウト
+          # オープニング: BGM最大音量6秒→音声開始時50%→音声終了10秒前からガジェット・こくおうへクロスフェード
           VOICE_START=0
           VOICE_END=$(awk "BEGIN {print $VOICE_OPENING_DURATION}")
-          FULL_VOLUME_END=$(awk "BEGIN {print $VOICE_END + 3}")
-          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_END + 8}")
+          CROSSFADE_START=$(awk "BEGIN {print $VOICE_END - 10}")  # 音声終了10秒前
+          CROSSFADE_DURATION=5  # クロスフェード時間
           
           # FFmpeg用の計算済み値
           VOICE_END_WITH_DELAY=$(awk "BEGIN {print $VOICE_END + 6}")
-          FULL_VOLUME_END_WITH_DELAY=$(awk "BEGIN {print $FULL_VOLUME_END + 6}")
-          TOTAL_DURATION_WITH_DELAY=$(awk "BEGIN {print $TOTAL_OPENING_DURATION + 6}")
-          FADE_START_TIME=$(awk "BEGIN {print $FULL_VOLUME_END_WITH_DELAY}")
+          CROSSFADE_START_WITH_DELAY=$(awk "BEGIN {print $CROSSFADE_START + 6}")
           
           echo "🎵 オープニングセクションのミキシング開始"
           echo "  音声開始: 6秒後"
           echo "  音声終了: ${VOICE_END_WITH_DELAY}秒"
-          echo "  フルボリューム終了: ${FULL_VOLUME_END_WITH_DELAY}秒"
-          echo "  総時間: ${TOTAL_DURATION_WITH_DELAY}秒"
+          echo "  クロスフェード開始: ${CROSSFADE_START_WITH_DELAY}秒"
           
           # 緩やかな音量変化のための時間計算
           FADE_DOWN_START=6
           FADE_DOWN_END=6.5
-          FADE_UP_START=$(awk "BEGIN {print $VOICE_END_WITH_DELAY}")
-          FADE_UP_END=$(awk "BEGIN {print $VOICE_END_WITH_DELAY + 0.5}")
+          
+          # オープニングBGMのフェードアウト計算
+          BGM_FADEOUT_START=$(awk "BEGIN {print $CROSSFADE_START_WITH_DELAY}")
+          BGM_FADEOUT_END=$(awk "BEGIN {print $CROSSFADE_START_WITH_DELAY + $CROSSFADE_DURATION}")
           
           safe_ffmpeg -i voice-opening.wav \
                       -i bgm-opening-30s.wav \
                       -filter_complex "[0]aresample=44100,adelay=6s:all=1[voice_delayed];
-                                      [1]aresample=44100,volume='if(lt(t,$FADE_DOWN_START),1,if(lt(t,$FADE_DOWN_END),1-0.5*(t-$FADE_DOWN_START)/0.5,if(lt(t,$FADE_UP_START),0.5,if(lt(t,$FADE_UP_END),0.5+0.5*(t-$FADE_UP_START)/0.5,1))))':eval=frame,
-                                      afade=t=out:st=${FADE_START_TIME}:d=5[bgm1];
+                                      [1]aresample=44100,volume='if(lt(t,$FADE_DOWN_START),1,if(lt(t,$FADE_DOWN_END),1-0.5*(t-$FADE_DOWN_START)/0.5,0.5))':eval=frame,
+                                      afade=t=out:st=${BGM_FADEOUT_START}:d=${CROSSFADE_DURATION}[bgm1];
                                       [voice_delayed][bgm1]amix=inputs=2[opening]" \
                       -map "[opening]" \
-                      -t ${TOTAL_DURATION_WITH_DELAY} \
+                      -t ${VOICE_END_WITH_DELAY} \
                       -ar 44100 -ac 2 -c:a pcm_s16le \
                       opening-mixed.wav || exit 1
           
@@ -274,6 +283,26 @@ jobs:
             echo "✅ opening-mixed.wav 生成成功 ($(stat -c%s opening-mixed.wav) bytes)"
           else
             echo "::error::❌ opening-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
+          # ガジェット・こくおうの楽曲セクション作成（1分間再生して5秒フェードアウト）
+          echo "🎵 ガジェット・こくおうセクションの作成"
+          GADGET_TOTAL_DURATION=65  # 60秒再生 + 5秒フェードアウト
+          GADGET_FADEOUT_START=60
+          
+          # クロスフェードインで開始して、1分再生後5秒フェードアウト
+          safe_ffmpeg -i gadget-kokuou.mp3 \
+                      -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=${CROSSFADE_DURATION},afade=t=out:st=${GADGET_FADEOUT_START}:d=5[gadget]" \
+                      -map "[gadget]" \
+                      -t ${GADGET_TOTAL_DURATION} \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      gadget-section.wav || exit 1
+          
+          if [ -f "gadget-section.wav" ]; then
+            echo "✅ gadget-section.wav 生成成功 ($(stat -c%s gadget-section.wav) bytes)"
+          else
+            echo "::error::❌ gadget-section.wav の生成に失敗"
             exit 1
           fi
           
@@ -345,17 +374,16 @@ jobs:
           echo "🔇 無音ファイルを作成"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -ar 44100 -ac 2 -c:a pcm_s16le silence-1s.wav || exit 1
           
-          # 3つのセクションを連結し、最終調整（エラーハンドリング付き）
-          echo "🎵 最終ミックス開始（セクション間に1秒の無音を挿入）"
+          # 4つのセクションを連結し、最終調整（エラーハンドリング付き）
+          echo "🎵 最終ミックス開始（オープニング→ガジェット・こくおう→メイン→エンディング）"
           echo "📁 連結するファイル:"
-          ls -la opening-mixed.wav silence-1s.wav main-mixed.wav silence-1s.wav ending-mixed.wav
+          ls -la opening-mixed.wav gadget-section.wav main-mixed.wav ending-mixed.wav
           
           safe_ffmpeg -i opening-mixed.wav \
-                      -i silence-1s.wav \
+                      -i gadget-section.wav \
                       -i main-mixed.wav \
-                      -i silence-1s.wav \
                       -i ending-mixed.wav \
-                      -filter_complex "[0][1][2][3][4]concat=n=5:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
+                      -filter_complex "[0][1][2][3]concat=n=4:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
                       -c:a mp3 \
                       -b:a 320k \
@@ -370,9 +398,10 @@ jobs:
           
           # メタデータ生成
           echo "{
-            \"duration\": \"90s\",
+            \"duration\": \"150s+\",
             \"sections\": [
-              {\"name\": \"opening\", \"duration\": \"4s intro + voice + 2s fade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"50%\", \"intro\": \"4s\", \"fade_out\": \"2s\"},
+              {\"name\": \"opening\", \"duration\": \"6s intro + voice + crossfade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%\", \"intro\": \"6s\", \"crossfade\": \"5s to gadget\"},
+              {\"name\": \"gadget-kokuou\", \"duration\": \"65s\", \"bgm\": \"ガジェット・こくおう\", \"bgm_volume\": \"100%\", \"fade_in\": \"5s\", \"fade_out\": \"5s\"},
               {\"name\": \"main\", \"duration\": \"4s intro + voice + 5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
               {\"name\": \"ending\", \"duration\": \"4s intro + voice + 7s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
             ],
