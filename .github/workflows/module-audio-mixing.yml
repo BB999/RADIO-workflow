@@ -428,14 +428,14 @@ jobs:
           echo "🔇 無音ファイルを作成"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -ar 44100 -ac 2 -c:a pcm_s16le silence-1s.wav || exit 1
           
-          # 4つのセクションを連結し、最終調整（オープニング→メイン→楽曲→エンディング）
-          echo "🎵 最終ミックス開始（オープニング→メイン→楽曲→エンディング）"
+          # 4つのセクションを連結し、最終調整（オープニング→楽曲→メイン→エンディング）
+          echo "🎵 最終ミックス開始（オープニング→楽曲→メイン→エンディング）"
           echo "📁 連結するファイル:"
-          ls -la opening-mixed.wav main-mixed.wav music-mixed.wav ending-mixed.wav
+          ls -la opening-mixed.wav music-mixed.wav main-mixed.wav ending-mixed.wav
           
           safe_ffmpeg -i opening-mixed.wav \
-                      -i main-mixed.wav \
                       -i music-mixed.wav \
+                      -i main-mixed.wav \
                       -i ending-mixed.wav \
                       -filter_complex "[0][1][2][3]concat=n=4:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
@@ -462,8 +462,8 @@ jobs:
             \"selected_music\": \"$SELECTED_MUSIC_INFO\",
             \"sections\": [
               {\"name\": \"opening\", \"duration\": \"6s intro + voice + 5s fade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%\", \"intro\": \"6s\", \"fade_out\": \"5s\"},
-              {\"name\": \"main\", \"duration\": \"4s intro + voice + 5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
               {\"name\": \"music\", \"duration\": \"max 40s with fade\", \"content\": \"$SELECTED_MUSIC_INFO\", \"fade_in\": \"2s\", \"fade_out\": \"3s\"},
+              {\"name\": \"main\", \"duration\": \"4s intro + voice + 5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
               {\"name\": \"ending\", \"duration\": \"4s intro + voice + 7s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
             ],
             \"audio_standard\": \"-23 LUFS\",
