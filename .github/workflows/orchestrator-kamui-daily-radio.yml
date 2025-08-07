@@ -30,11 +30,26 @@ jobs:
           
           # AIVIS Cloud API 動作チェック
           echo "📡 AIVIS Cloud API 動作チェック中..."
+          
+          # APIキー確認
           if [ -z "${{ secrets.AIVIS_API_KEY }}" ]; then
             echo "::error::AIVIS_API_KEY が設定されていません"
+            echo "::error::GitHub Secrets に AIVIS_API_KEY を設定してください"
+            AIVIS_STATUS="missing_key"
           else
-            # AIVIS APIのヘルスチェックエンドポイント（または軽量テスト）
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            echo "✅ APIキーが設定されています (先頭10文字: ${AIVIS_API_KEY:0:10}...)"
+            
+            # 詳細なcurlリクエスト実行
+            echo "🔍 API接続テスト開始..."
+            echo "  エンドポイント: https://api.aivis.club/v1/audio/speech"
+            echo "  リクエストボディ: {\"model\": \"tts-1\", \"input\": \"test\", \"voice\": \"alloy\", \"response_format\": \"mp3\"}"
+            
+            # レスポンスファイルの準備
+            RESPONSE_FILE="aivis_response.json"
+            ERROR_FILE="aivis_error.txt"
+            
+            # curlコマンド実行（詳細ログ付き）
+            HTTP_STATUS=$(curl -s -w "%{http_code}" \
               -X POST "https://api.aivis.club/v1/audio/speech" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
@@ -44,18 +59,56 @@ jobs:
                 "voice": "alloy",
                 "response_format": "mp3"
               }' \
-              --connect-timeout 30)
+              --connect-timeout 30 \
+              --max-time 60 \
+              -o "$RESPONSE_FILE" \
+              --stderr "$ERROR_FILE" \
+              --verbose) || {
+                echo "::error::curl実行に失敗しました"
+                echo "::error::curlエラー詳細:"
+                cat "$ERROR_FILE" || echo "エラーファイルを読み取れません"
+                HTTP_STATUS="000"
+            }
             
+            echo "📊 APIレスポンス詳細:"
+            echo "  HTTPステータスコード: $HTTP_STATUS"
+            echo "  レスポンスファイルサイズ: $(stat -c%s "$RESPONSE_FILE" 2>/dev/null || echo "0") bytes"
+            
+            # レスポンス内容の表示（最初の500文字）
+            if [ -f "$RESPONSE_FILE" ]; then
+              echo "  レスポンス内容（先頭500文字）:"
+              head -c 500 "$RESPONSE_FILE" || echo "レスポンス内容を読み取れません"
+            fi
+            
+            # エラーファイルの表示
+            if [ -f "$ERROR_FILE" ] && [ -s "$ERROR_FILE" ]; then
+              echo "  curlエラー出力:"
+              cat "$ERROR_FILE"
+            fi
+            
+            # ステータス判定
             if [ "$HTTP_STATUS" = "200" ]; then
               echo "✅ AIVIS Cloud API 動作確認成功"
               AIVIS_STATUS="ok"
-            elif [ "$HTTP_STATUS" = "401" ] || [ "$HTTP_STATUS" = "403" ]; then
-              echo "::error::AIVIS Cloud API 認証失敗 (HTTP $HTTP_STATUS) - APIキーが無効です"
+            elif [ "$HTTP_STATUS" = "401" ]; then
+              echo "::error::AIVIS Cloud API 認証失敗 (HTTP 401)"
+              echo "::error::APIキーが無効または期限切れの可能性があります"
+            elif [ "$HTTP_STATUS" = "403" ]; then
+              echo "::error::AIVIS Cloud API アクセス拒否 (HTTP 403)"
+              echo "::error::APIキーに十分な権限がない可能性があります"
             elif [ "$HTTP_STATUS" = "429" ]; then
-              echo "::error::AIVIS Cloud API レート制限 (HTTP 429) - 後で再試行してください"
+              echo "::error::AIVIS Cloud API レート制限 (HTTP 429)"
+              echo "::error::リクエスト数が制限に達しました。後で再試行してください"
+            elif [ "$HTTP_STATUS" = "000" ]; then
+              echo "::error::AIVIS Cloud API 接続失敗"
+              echo "::error::ネットワーク接続またはタイムアウトエラーです"
             else
-              echo "::error::AIVIS Cloud API エラー (HTTP $HTTP_STATUS)"
+              echo "::error::AIVIS Cloud API 予期しないエラー (HTTP $HTTP_STATUS)"
+              echo "::error::サービス側の問題の可能性があります"
             fi
+            
+            # 一時ファイルのクリーンアップ
+            rm -f "$RESPONSE_FILE" "$ERROR_FILE"
           fi
           
           # 全体ステータス判定
