@@ -234,3 +234,16 @@ jobs:
           - 音声品質: -23 LUFS (放送基準)
           - 並列処理: 6つのモジュールを同時実行
           EOF
+
+  line-notification:
+    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, create-pr, summary]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send LINE notification
+        run: |
+          curl -X POST https://notify-api.line.me/api/notify \
+            -H 'Authorization: Bearer ${{ secrets.LINE_NOTIFY_TOKEN }}' \
+            -F 'message=🎙️ 神威日報ラジオ制作完了しました
+          
+          $(date "+%Y/%m/%d %H:%M:%S")'
