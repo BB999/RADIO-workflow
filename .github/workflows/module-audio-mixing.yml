@@ -71,6 +71,12 @@ jobs:
           name: bgm-ending
           path: artifacts/bgm-ending
       
+      - name: Download voice-uuid artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-uuid
+          path: artifacts/voice-uuid
+      
       - name: List downloaded artifacts
         run: |
           echo "::group::📁 ダウンロードされたアーティファクト"
@@ -114,14 +120,39 @@ jobs:
             echo "$duration"
           }
           
-          # ガジェット・こくおう.mp3をコピー
-          echo "🎵 ガジェット・こくおう.mp3をコピー"
-          if [ -f "radio-workflow/music/ガジェット・こくおう.mp3" ]; then
-            cp "radio-workflow/music/ガジェット・こくおう.mp3" gadget-kokuou.mp3
-            echo "✅ gadget-kokuou.mp3 をコピーしました"
+          # 選択された音楽ファイルを取得してコピー
+          echo "🎵 選択された音楽ファイルを取得中..."
+          
+          # voice-uuidアーティファクトから音楽情報を読み込み
+          if [ -f "artifacts/voice-uuid/USE_UUID.md" ]; then
+            echo "✅ USE_UUID.mdファイルが見つかりました"
+            
+            # 選択された音楽ファイル名を取得
+            SELECTED_MUSIC=$(grep "Selected Music File:" artifacts/voice-uuid/USE_UUID.md | cut -d' ' -f4-)
+            
+            if [ -n "$SELECTED_MUSIC" ] && [ -f "radio-workflow/music/$SELECTED_MUSIC" ]; then
+              echo "🎯 選択された音楽: $SELECTED_MUSIC"
+              cp "radio-workflow/music/$SELECTED_MUSIC" selected-music.mp3
+              echo "✅ selected-music.mp3 をコピーしました"
+            else
+              echo "::warning::選択された音楽ファイルが見つかりません: $SELECTED_MUSIC"
+              echo "::warning::デフォルトのガジェット・こくおう.mp3を使用します"
+              if [ -f "radio-workflow/music/ガジェット・こくおう.mp3" ]; then
+                cp "radio-workflow/music/ガジェット・こくおう.mp3" selected-music.mp3
+              else
+                echo "::error::デフォルト音楽ファイルも見つかりません"
+                exit 1
+              fi
+            fi
           else
-            echo "::error::ガジェット・こくおう.mp3が見つかりません"
-            exit 1
+            echo "::warning::USE_UUID.mdファイルが見つかりません、デフォルト音楽を使用"
+            if [ -f "radio-workflow/music/ガジェット・こくおう.mp3" ]; then
+              cp "radio-workflow/music/ガジェット・こくおう.mp3" selected-music.mp3
+              echo "✅ デフォルト音楽をコピーしました"
+            else
+              echo "::error::デフォルト音楽ファイルが見つかりません"
+              exit 1
+            fi
           fi
           
           # エラーハンドリング付きFFmpeg実行
@@ -288,55 +319,55 @@ jobs:
             exit 1
           fi
           
-          # ガジェット・こくおうの楽曲セクション作成（最大40秒、楽曲の長さに応じて調整）
-          echo "🎵 ガジェット・こくおうセクションの作成"
+          # 選択された楽曲セクション作成（最大40秒、楽曲の長さに応じて調整）
+          echo "🎵 選択された楽曲セクションの作成"
           
           # 楽曲の長さを取得
-          GADGET_DURATION=$(get_duration gadget-kokuou.mp3)
-          echo "  楽曲の長さ: ${GADGET_DURATION}秒"
+          MUSIC_DURATION=$(get_duration selected-music.mp3)
+          echo "  楽曲の長さ: ${MUSIC_DURATION}秒"
           
           # 最大40秒に制限
-          if [ $(awk "BEGIN {print ($GADGET_DURATION > 40)}") -eq 1 ]; then
-            GADGET_TOTAL_DURATION=40
-            GADGET_FADEOUT_START=37  # 40秒 - 3秒フェードアウト
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
+            MUSIC_TOTAL_DURATION=40
+            MUSIC_FADEOUT_START=37  # 40秒 - 3秒フェードアウト
             echo "  40秒に制限します"
           else
             # 楽曲が40秒以下の場合はその長さを使用
-            GADGET_TOTAL_DURATION=$GADGET_DURATION
+            MUSIC_TOTAL_DURATION=$MUSIC_DURATION
             # フェードアウトは最後の3秒（ただし楽曲が4秒以上の場合のみ）
-            if [ $(awk "BEGIN {print ($GADGET_DURATION > 4)}") -eq 1 ]; then
-              GADGET_FADEOUT_START=$(awk "BEGIN {print $GADGET_DURATION - 3}")
+            if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+              MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION - 3}")
             else
               # 4秒以下の場合はフェードアウトなし
-              GADGET_FADEOUT_START=$GADGET_DURATION
+              MUSIC_FADEOUT_START=$MUSIC_DURATION
             fi
           fi
           
-          echo "  再生時間: ${GADGET_TOTAL_DURATION}秒"
-          echo "  フェードアウト開始: ${GADGET_FADEOUT_START}秒"
+          echo "  再生時間: ${MUSIC_TOTAL_DURATION}秒"
+          echo "  フェードアウト開始: ${MUSIC_FADEOUT_START}秒"
           
           # クロスフェードインで開始して、フェードアウト（3秒または楽曲が短い場合は調整）
-          if [ $(awk "BEGIN {print ($GADGET_DURATION > 4)}") -eq 1 ]; then
-            safe_ffmpeg -i gadget-kokuou.mp3 \
-                        -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=${CROSSFADE_DURATION},afade=t=out:st=${GADGET_FADEOUT_START}:d=3[gadget]" \
-                        -map "[gadget]" \
-                        -t ${GADGET_TOTAL_DURATION} \
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=${CROSSFADE_DURATION},afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music]" \
+                        -map "[music]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
                         -ar 44100 -ac 2 -c:a pcm_s16le \
-                        gadget-section.wav || exit 1
+                        music-section.wav || exit 1
           else
             # 4秒以下の場合はフェードインのみ
-            safe_ffmpeg -i gadget-kokuou.mp3 \
-                        -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=${CROSSFADE_DURATION}[gadget]" \
-                        -map "[gadget]" \
-                        -t ${GADGET_TOTAL_DURATION} \
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=${CROSSFADE_DURATION}[music]" \
+                        -map "[music]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
                         -ar 44100 -ac 2 -c:a pcm_s16le \
-                        gadget-section.wav || exit 1
+                        music-section.wav || exit 1
           fi
           
-          if [ -f "gadget-section.wav" ]; then
-            echo "✅ gadget-section.wav 生成成功 ($(stat -c%s gadget-section.wav) bytes)"
+          if [ -f "music-section.wav" ]; then
+            echo "✅ music-section.wav 生成成功 ($(stat -c%s music-section.wav) bytes)"
           else
-            echo "::error::❌ gadget-section.wav の生成に失敗"
+            echo "::error::❌ music-section.wav の生成に失敗"
             exit 1
           fi
           
@@ -409,12 +440,12 @@ jobs:
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -ar 44100 -ac 2 -c:a pcm_s16le silence-1s.wav || exit 1
           
           # 4つのセクションを連結し、最終調整（エラーハンドリング付き）
-          echo "🎵 最終ミックス開始（オープニング→ガジェット・こくおう→メイン→エンディング）"
+          echo "🎵 最終ミックス開始（オープニング→選択楽曲→メイン→エンディング）"
           echo "📁 連結するファイル:"
-          ls -la opening-mixed.wav gadget-section.wav main-mixed.wav ending-mixed.wav
+          ls -la opening-mixed.wav music-section.wav main-mixed.wav ending-mixed.wav
           
           safe_ffmpeg -i opening-mixed.wav \
-                      -i gadget-section.wav \
+                      -i music-section.wav \
                       -i main-mixed.wav \
                       -i ending-mixed.wav \
                       -filter_complex "[0][1][2][3]concat=n=4:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
@@ -430,12 +461,19 @@ jobs:
             exit 1
           fi
           
+          # 選択された音楽情報を取得してメタデータに含める
+          SELECTED_MUSIC_INFO="unknown"
+          if [ -f "artifacts/voice-uuid/USE_UUID.md" ]; then
+            SELECTED_MUSIC_INFO=$(grep "Selected Music File:" artifacts/voice-uuid/USE_UUID.md | cut -d' ' -f4- || echo "unknown")
+          fi
+          
           # メタデータ生成
           echo "{
             \"duration\": \"variable\",
+            \"selected_music\": \"$SELECTED_MUSIC_INFO\",
             \"sections\": [
               {\"name\": \"opening\", \"duration\": \"6s intro + voice + crossfade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%\", \"intro\": \"6s\", \"crossfade\": \"instant switch at voice_end-4s\"},
-              {\"name\": \"gadget-kokuou\", \"duration\": \"max 40s\", \"bgm\": \"ガジェット・こくおう\", \"bgm_volume\": \"100%\", \"fade_in\": \"instant\", \"fade_out\": \"3s\"},
+              {\"name\": \"selected-music\", \"duration\": \"max 40s\", \"bgm\": \"$SELECTED_MUSIC_INFO\", \"bgm_volume\": \"100%\", \"fade_in\": \"instant\", \"fade_out\": \"3s\"},
               {\"name\": \"main\", \"duration\": \"4s intro + voice + 5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
               {\"name\": \"ending\", \"duration\": \"4s intro + voice + 7s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
             ],
