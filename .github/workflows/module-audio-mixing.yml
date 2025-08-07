@@ -130,6 +130,17 @@ jobs:
             # 選択された音楽ファイル名を取得
             SELECTED_MUSIC=$(grep "Selected Music File:" artifacts/voice-uuid/USE_UUID.md | cut -d' ' -f4-)
             
+            echo "🔍 デバッグ情報:"
+            echo "  選択された音楽ファイル: '$SELECTED_MUSIC'"
+            echo "  現在のディレクトリ: $(pwd)"
+            echo "  radio-workflowディレクトリの存在確認:"
+            ls -la radio-workflow/ || echo "radio-workflowディレクトリが見つかりません"
+            echo "  musicディレクトリの存在確認:"
+            ls -la radio-workflow/music/ || echo "musicディレクトリが見つかりません"
+            echo "  期待するファイルパス: radio-workflow/music/$SELECTED_MUSIC"
+            echo "  ファイルの存在確認:"
+            ls -la "radio-workflow/music/$SELECTED_MUSIC" || echo "ファイルが見つかりません"
+            
             if [ -n "$SELECTED_MUSIC" ] && [ -f "radio-workflow/music/$SELECTED_MUSIC" ]; then
               echo "🎯 選択された音楽: $SELECTED_MUSIC"
               cp "radio-workflow/music/$SELECTED_MUSIC" selected-music.mp3
