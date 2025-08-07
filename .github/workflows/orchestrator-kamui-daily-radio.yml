@@ -242,8 +242,21 @@ jobs:
     steps:
       - name: Send LINE notification
         run: |
-          curl -X POST https://notify-api.line.me/api/notify \
-            -H 'Authorization: Bearer ${{ secrets.LINE_NOTIFY_TOKEN }}' \
-            -F 'message=🎙️ 神威日報ラジオ制作完了しました
+          COMPLETION_TIME=$(date "+%Y/%m/%d %H:%M:%S")
+          STATUS_EMOJI="✅"
+          if [[ "${{ needs.audio-mixing.result }}" != "success" ]]; then
+            STATUS_EMOJI="❌"
+          fi
           
-          $(date "+%Y/%m/%d %H:%M:%S")'
+          curl -X POST https://api.line.me/v2/bot/message/push \
+            -H 'Content-Type: application/json' \
+            -H 'Authorization: Bearer ${{ secrets.LINE_BOT_CHANNEL_ACCESS_TOKEN }}' \
+            -d "{
+              \"to\": \"${{ secrets.LINE_USER_ID }}\",
+              \"messages\": [
+                {
+                  \"type\": \"text\",
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作完了！\n\n📻 新しいエピソードの制作が完了しました。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌' }}\n・音声合成: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌' }}\"
+                }
+              ]
+            }"
