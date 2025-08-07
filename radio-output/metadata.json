@@ -1,0 +1,12 @@
+{
+  "duration": "variable",
+  "selected_music": "ガジェット・こくおう.mp3",
+  "sections": [
+    {"name": "opening", "duration": "6s intro + voice + crossfade", "bgm": "upbeat", "bgm_volume": "100%→50%", "intro": "6s", "crossfade": "instant switch at voice_end-4s"},
+    {"name": "selected-music", "duration": "max 40s", "bgm": "ガジェット・こくおう.mp3", "bgm_volume": "100%", "fade_in": "instant", "fade_out": "3s"},
+    {"name": "main", "duration": "4s intro + voice + 5s fade", "bgm": "talk-friendly", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "ending", "duration": "4s intro + voice + 7s fade", "bgm": "warm-outro", "bgm_volume": "100%→50%→100%", "intro": "4s", "fade_out": "7s"}
+  ],
+  "audio_standard": "-23 LUFS",
+  "format": "MP3 320kbps"
+}
