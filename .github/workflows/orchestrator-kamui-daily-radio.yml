@@ -175,6 +175,16 @@ jobs:
       
       - name: Create Pull Request
         run: |
+          # 台本の内容を取得（改行を維持するため一時ファイルに保存）
+          echo "${{ needs.planning.outputs.script-opening }}" > /tmp/script-opening.txt
+          echo "${{ needs.planning.outputs.script-main }}" > /tmp/script-main.txt
+          echo "${{ needs.planning.outputs.script-ending }}" > /tmp/script-ending.txt
+          
+          # SSMLタグを除去してプレーンテキストに変換
+          OPENING_TEXT=$(sed 's/<[^>]*>//g' /tmp/script-opening.txt | sed 's/^ *//' | sed 's/ *$//')
+          MAIN_TEXT=$(sed 's/<[^>]*>//g' /tmp/script-main.txt | sed 's/^ *//' | sed 's/ *$//')
+          ENDING_TEXT=$(sed 's/<[^>]*>//g' /tmp/script-ending.txt | sed 's/^ *//' | sed 's/ *$//')
+          
           gh pr create --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" --body "$(cat <<'EOF'
           ## 🎙️ 神威日報ラジオ生成完了
           
@@ -184,7 +194,18 @@ jobs:
           - **音声品質**: -23 LUFS (放送基準)
           - **MC**: AI生成（20代女性）
           
-          ### 📝 内容
+          ### 📝 生成された台本
+          
+          #### オープニング
+          $OPENING_TEXT
+          
+          #### メインコンテンツ
+          $MAIN_TEXT
+          
+          #### エンディング
+          $ENDING_TEXT
+          
+          ### 📝 入力内容
           **開発進捗**: ${{ inputs.development-report }}
           **強調ポイント**: ${{ inputs.topic-focus || 'なし' }}
           
@@ -200,6 +221,7 @@ jobs:
           - [ ] 音声ファイルの再生確認
           - [ ] 音声品質の確認 (-23 LUFS)
           - [ ] メタデータの内容確認
+          - [ ] 台本の内容確認
           
           🤖 Generated with [Claude Code](https://claude.ai/code)
           EOF
