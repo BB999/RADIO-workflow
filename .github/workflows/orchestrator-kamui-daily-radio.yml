@@ -181,11 +181,11 @@ jobs:
           ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           
           # PRボディをファイルに書き込んで作成
-          cat > pr_body.md << EOF
+          cat > pr_body.md << 'EOF'
 ## 🎙️ 神威日報ラジオ生成完了
 
 ### 📊 番組情報
-- **放送日**: ${{ steps.date.outputs.date }}
+- **放送日**: PLACEHOLDER_DATE
 - **時間**: 240秒（4分）
 - **音声品質**: -23 LUFS (放送基準)
 - **MC**: AI生成（20代女性）
@@ -193,21 +193,21 @@ jobs:
 ### 📝 生成された台本
 
 #### オープニング
-${OPENING_TEXT}
+PLACEHOLDER_OPENING
 
 #### メインコンテンツ
-${MAIN_TEXT}
+PLACEHOLDER_MAIN
 
 #### エンディング
-${ENDING_TEXT}
+PLACEHOLDER_ENDING
 
 ### 📁 生成ファイル
-- \`radio-output/final-radio.mp3\` - 完成したラジオ番組音声
-- \`radio-output/metadata.json\` - 番組メタデータ
+- `radio-output/final-radio.mp3` - 完成したラジオ番組音声
+- `radio-output/metadata.json` - 番組メタデータ
 
 ### 🔗 関連リンク
-- [リリース](https://github.com/${{ github.repository }}/releases/tag/radio-${{ github.run_id }})
-- [ワークフロー実行](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+- [リリース](https://github.com/PLACEHOLDER_REPO/releases/tag/radio-PLACEHOLDER_RUN_ID)
+- [ワークフロー実行](https://github.com/PLACEHOLDER_REPO/actions/runs/PLACEHOLDER_RUN_ID)
 
 ### ✅ テストプラン
 - [ ] 音声ファイルの再生確認
@@ -217,6 +217,14 @@ ${ENDING_TEXT}
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
+          
+          # プレースホルダーを実際の値で置換
+          sed -i "s/PLACEHOLDER_DATE/${{ steps.date.outputs.date }}/g" pr_body.md
+          sed -i "s/PLACEHOLDER_REPO/${{ github.repository }}/g" pr_body.md
+          sed -i "s/PLACEHOLDER_RUN_ID/${{ github.run_id }}/g" pr_body.md
+          sed -i "s/PLACEHOLDER_OPENING/${OPENING_TEXT}/g" pr_body.md
+          sed -i "s/PLACEHOLDER_MAIN/${MAIN_TEXT}/g" pr_body.md
+          sed -i "s/PLACEHOLDER_ENDING/${ENDING_TEXT}/g" pr_body.md
           
           gh pr create --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" --body-file pr_body.md
         env:
