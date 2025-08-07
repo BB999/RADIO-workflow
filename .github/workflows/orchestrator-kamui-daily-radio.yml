@@ -89,6 +89,10 @@ jobs:
             if [ "$HTTP_STATUS" = "200" ]; then
               echo "✅ AIVIS Cloud API 動作確認成功"
               AIVIS_STATUS="ok"
+            elif [ "$HTTP_STATUS" = "422" ]; then
+              echo "✅ AIVIS Cloud API 動作確認成功 (テストパラメータによる検証応答)"
+              echo "  APIサーバーが正常に応答し、リクエスト形式の検証が動作しています"
+              AIVIS_STATUS="ok"
             elif [ "$HTTP_STATUS" = "401" ]; then
               echo "::error::AIVIS Cloud API 認証失敗 (HTTP 401)"
               echo "::error::APIキーが無効または期限切れの可能性があります"
