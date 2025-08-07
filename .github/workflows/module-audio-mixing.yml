@@ -279,91 +279,34 @@ jobs:
             mv bgm-ending-extended.wav bgm-ending-30s.wav
           fi
           
-          # オープニング+選択楽曲統合セクション: BGM6秒→音声+BGM→音声終了4秒前で選択楽曲にクロスフェード→楽曲40秒
-          echo "🎵 オープニング+選択楽曲統合セクションの作成"
+          # オープニングセクション: BGM6秒→音声+BGM→音声終了後5秒フェードアウト
+          echo "🎵 オープニングセクションの作成（楽曲は別セクション）"
           
-          # 楽曲の長さを取得
-          MUSIC_DURATION=$(get_duration selected-music.mp3)
-          echo "  楽曲の長さ: ${MUSIC_DURATION}秒"
-          
-          # 最大40秒に制限
-          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
-            MUSIC_TOTAL_DURATION=40
-            MUSIC_FADEOUT_START=37  # 40秒 - 3秒フェードアウト
-            echo "  楽曲を40秒に制限します"
-          else
-            MUSIC_TOTAL_DURATION=$MUSIC_DURATION
-            if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
-              MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION - 3}")
-            else
-              MUSIC_FADEOUT_START=$MUSIC_DURATION
-            fi
-            echo "  楽曲をフル長さ（${MUSIC_TOTAL_DURATION}秒）で使用"
-          fi
-          
-          # タイミング計算
+          # タイミング計算（楽曲なし版）
           VOICE_START=6  # オープニング音声開始
           VOICE_END=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # オープニング音声終了
-          CROSSFADE_START=$(awk "BEGIN {print $VOICE_END - 4}")  # 音声終了4秒前からクロスフェード
-          MUSIC_START=$CROSSFADE_START  # 楽曲開始タイミング
-          MUSIC_END=$(awk "BEGIN {print $MUSIC_START + $MUSIC_TOTAL_DURATION}")  # 楽曲終了
-          TOTAL_OPENING_DURATION=$MUSIC_END
+          FADE_START_OPENING=$(awk "BEGIN {print $VOICE_END}")  # 音声終了後にBGMフェードアウト開始
+          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 11}")  # 6秒イントロ + 音声 + 5秒フェードアウト
           
           echo "  音声開始: ${VOICE_START}秒"
           echo "  音声終了: ${VOICE_END}秒" 
-          echo "  クロスフェード/楽曲開始: ${CROSSFADE_START}秒"
-          echo "  楽曲終了: ${MUSIC_END}秒"
-          echo "  統合セクション総時間: ${TOTAL_OPENING_DURATION}秒"
+          echo "  フェードアウト開始: ${FADE_START_OPENING}秒"
+          echo "  オープニング総時間: ${TOTAL_OPENING_DURATION}秒"
           
-          # デバッグ：変数の値を確認
-          echo "🔍 デバッグ: adelay値確認"
-          echo "  VOICE_START adelay: ${VOICE_START}s:all=1"
-          echo "  MUSIC_START adelay: ${MUSIC_START}s:all=1"
-          
-          # 変数が空の場合のチェック
-          if [ -z "$MUSIC_START" ] || [ "$MUSIC_START" = "" ]; then
-            echo "::error::MUSIC_START変数が空です！"
-            MUSIC_START=$VOICE_END  # フォールバック：音声終了後に楽曲開始
-            echo "  フォールバック値使用: ${MUSIC_START}秒"
-          fi
-          
-          # 3つの音源を統合ミックス（オープニングBGM + 音声 + 選択楽曲）
-          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
-            # 楽曲が4秒以上の場合：フェードアウトあり
-            safe_ffmpeg -i voice-opening.wav \
-                        -i bgm-opening-30s.wav \
-                        -i selected-music.mp3 \
-                        -filter_complex "
-                        [0]aresample=44100,adelay=${VOICE_START}s:all=1[voice_delayed];
-                        [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,0.5))':eval=frame,afade=t=out:st=${CROSSFADE_START}:d=0.5[bgm_opening];
-                        [2]aresample=44100,adelay=${MUSIC_START}s:all=1,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_delayed];
-                        [voice_delayed][bgm_opening]amix=inputs=2[voice_bgm];
-                        [voice_bgm][music_delayed]amix=inputs=2[opening_with_music]
-                        " \
-                        -map "[opening_with_music]" \
-                        -t ${TOTAL_OPENING_DURATION} \
-                        -ar 44100 -ac 2 -c:a pcm_s16le \
-                        opening-mixed.wav || exit 1
-          else
-            # 楽曲が4秒以下の場合：フェードアウトなし
-            safe_ffmpeg -i voice-opening.wav \
-                        -i bgm-opening-30s.wav \
-                        -i selected-music.mp3 \
-                        -filter_complex "
-                        [0]aresample=44100,adelay=${VOICE_START}s:all=1[voice_delayed];
-                        [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,0.5))':eval=frame,afade=t=out:st=${CROSSFADE_START}:d=0.5[bgm_opening];
-                        [2]aresample=44100,adelay=${MUSIC_START}s:all=1[music_delayed];
-                        [voice_delayed][bgm_opening]amix=inputs=2[voice_bgm];
-                        [voice_bgm][music_delayed]amix=inputs=2[opening_with_music]
-                        " \
-                        -map "[opening_with_music]" \
-                        -t ${TOTAL_OPENING_DURATION} \
-                        -ar 44100 -ac 2 -c:a pcm_s16le \
-                        opening-mixed.wav || exit 1
-          fi
+          # オープニングセクション: 音声+BGMのみ
+          safe_ffmpeg -i voice-opening.wav \
+                      -i bgm-opening-30s.wav \
+                      -filter_complex "[0]aresample=44100,adelay=${VOICE_START}s:all=1[voice_delayed];
+                                      [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,0.5))':eval=frame,
+                                      afade=t=out:st=${FADE_START_OPENING}:d=5[bgm_opening];
+                                      [voice_delayed][bgm_opening]amix=inputs=2[opening]" \
+                      -map "[opening]" \
+                      -t ${TOTAL_OPENING_DURATION} \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      opening-mixed.wav || exit 1
           
           if [ -f "opening-mixed.wav" ]; then
-            echo "✅ opening-mixed.wav（選択楽曲統合版）生成成功 ($(stat -c%s opening-mixed.wav) bytes)"
+            echo "✅ opening-mixed.wav 生成成功 ($(stat -c%s opening-mixed.wav) bytes)"
           else
             echo "::error::❌ opening-mixed.wav の生成に失敗"
             exit 1
@@ -433,19 +376,68 @@ jobs:
             exit 1
           fi
           
+          # 楽曲セクション: 選択楽曲を独立セクションとして作成
+          echo "🎵 楽曲セクションの作成"
+          
+          # 楽曲の長さを取得
+          MUSIC_DURATION=$(get_duration selected-music.mp3)
+          echo "  楽曲の長さ: ${MUSIC_DURATION}秒"
+          
+          # 最大40秒に制限
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
+            MUSIC_TOTAL_DURATION=40
+            MUSIC_FADEOUT_START=37  # 40秒 - 3秒フェードアウト
+            echo "  楽曲を40秒に制限します"
+          else
+            MUSIC_TOTAL_DURATION=$MUSIC_DURATION
+            if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+              MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION - 3}")
+            else
+              MUSIC_FADEOUT_START=$MUSIC_DURATION
+            fi
+            echo "  楽曲をフル長さ（${MUSIC_TOTAL_DURATION}秒）で使用"
+          fi
+          
+          # 楽曲セクションの作成（フェードイン・フェードアウト付き）
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+            # 楽曲が4秒以上の場合：フェードイン・フェードアウトあり
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=2,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
+                        -map "[music_faded]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        music-mixed.wav || exit 1
+          else
+            # 楽曲が4秒以下の場合：フェードイン・フェードアウトなし
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100[music]" \
+                        -map "[music]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        music-mixed.wav || exit 1
+          fi
+          
+          if [ -f "music-mixed.wav" ]; then
+            echo "✅ music-mixed.wav 生成成功 ($(stat -c%s music-mixed.wav) bytes)"
+          else
+            echo "::error::❌ music-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
           # 1秒の無音ファイルを作成
           echo "🔇 無音ファイルを作成"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -ar 44100 -ac 2 -c:a pcm_s16le silence-1s.wav || exit 1
           
-          # 3つのセクションを連結し、最終調整（オープニング+楽曲統合版）
-          echo "🎵 最終ミックス開始（オープニング+選択楽曲→メイン→エンディング）"
+          # 4つのセクションを連結し、最終調整（オープニング→メイン→楽曲→エンディング）
+          echo "🎵 最終ミックス開始（オープニング→メイン→楽曲→エンディング）"
           echo "📁 連結するファイル:"
-          ls -la opening-mixed.wav main-mixed.wav ending-mixed.wav
+          ls -la opening-mixed.wav main-mixed.wav music-mixed.wav ending-mixed.wav
           
           safe_ffmpeg -i opening-mixed.wav \
                       -i main-mixed.wav \
+                      -i music-mixed.wav \
                       -i ending-mixed.wav \
-                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
+                      -filter_complex "[0][1][2][3]concat=n=4:v=0:a=1[combined];[combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
                       -c:a mp3 \
                       -b:a 320k \
@@ -469,8 +461,9 @@ jobs:
             \"duration\": \"variable\",
             \"selected_music\": \"$SELECTED_MUSIC_INFO\",
             \"sections\": [
-              {\"name\": \"opening-with-music\", \"duration\": \"6s intro + voice + crossfade + selected music\", \"bgm\": \"upbeat→$SELECTED_MUSIC_INFO\", \"bgm_volume\": \"100%→50%\", \"intro\": \"6s\", \"crossfade\": \"at voice_end-4s\", \"music_duration\": \"max 40s\"},
+              {\"name\": \"opening\", \"duration\": \"6s intro + voice + 5s fade\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%\", \"intro\": \"6s\", \"fade_out\": \"5s\"},
               {\"name\": \"main\", \"duration\": \"4s intro + voice + 5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
+              {\"name\": \"music\", \"duration\": \"max 40s with fade\", \"content\": \"$SELECTED_MUSIC_INFO\", \"fade_in\": \"2s\", \"fade_out\": \"3s\"},
               {\"name\": \"ending\", \"duration\": \"4s intro + voice + 7s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
             ],
             \"audio_standard\": \"-23 LUFS\",
