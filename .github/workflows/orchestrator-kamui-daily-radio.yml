@@ -26,37 +26,7 @@ jobs:
         run: |
           echo "🔍 API接続チェック開始..."
           
-          CLAUDE_STATUS="failed"
           AIVIS_STATUS="failed"
-          
-          # Claude API (Anthropic) 動作チェック
-          echo "📡 Claude API 動作チェック中..."
-          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
-            echo "::error::ANTHROPIC_API_KEY が設定されていません"
-          else
-            # 軽量なAPIリクエストでテスト（短いメッセージで最小限の利用）
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              -X POST "https://api.anthropic.com/v1/messages" \
-              -H "Content-Type: application/json" \
-              -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
-              -H "anthropic-version: 2023-06-01" \
-              -d '{
-                "model": "claude-3-haiku-20240307",
-                "max_tokens": 10,
-                "messages": [{"role": "user", "content": "test"}]
-              }')
-            
-            if [ "$HTTP_STATUS" = "200" ]; then
-              echo "✅ Claude API 動作確認成功"
-              CLAUDE_STATUS="ok"
-            elif [ "$HTTP_STATUS" = "401" ]; then
-              echo "::error::Claude API 認証失敗 (HTTP 401) - APIキーが無効です"
-            elif [ "$HTTP_STATUS" = "429" ]; then
-              echo "::error::Claude API レート制限 (HTTP 429) - 後で再試行してください"
-            else
-              echo "::error::Claude API エラー (HTTP $HTTP_STATUS)"
-            fi
-          fi
           
           # AIVIS Cloud API 動作チェック
           echo "📡 AIVIS Cloud API 動作チェック中..."
@@ -89,12 +59,11 @@ jobs:
           fi
           
           # 全体ステータス判定
-          if [ "$CLAUDE_STATUS" = "ok" ] && [ "$AIVIS_STATUS" = "ok" ]; then
-            echo "✅ 全てのAPI動作チェック完了 - 処理を続行します"
+          if [ "$AIVIS_STATUS" = "ok" ]; then
+            echo "✅ AIVIS Cloud API動作チェック完了 - 処理を続行します"
             echo "status=ready" >> $GITHUB_OUTPUT
           else
-            echo "::error::APIの動作チェックに失敗しました。ワークフローを停止します。"
-            echo "claude_status=$CLAUDE_STATUS" >> $GITHUB_OUTPUT
+            echo "::error::AIVIS Cloud APIの動作チェックに失敗しました。ワークフローを停止します。"
             echo "aivis_status=$AIVIS_STATUS" >> $GITHUB_OUTPUT
             echo "status=failed" >> $GITHUB_OUTPUT
             exit 1
@@ -334,7 +303,7 @@ jobs:
           EOF
 
   line-notification:
-    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, create-pr, summary]
+    needs: [api-check, planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing, create-pr, summary]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -354,7 +323,7 @@ jobs:
               \"messages\": [
                 {
                   \"type\": \"text\",
-                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作完了！\n\n📻 新しいエピソードの制作が完了しました。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌' }}\n・音声合成: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌' }}\"
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作完了！\n\n📻 新しいエピソードの制作が完了しました。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${{ needs.api-check.result == 'success' && '✅' || '❌' }}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌' }}\n・音声合成: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌' }}\"
                 }
               ]
             }"
