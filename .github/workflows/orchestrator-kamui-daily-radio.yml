@@ -175,57 +175,48 @@ jobs:
       
       - name: Create Pull Request
         run: |
-          # 台本の内容を取得（改行を維持するため一時ファイルに保存）
-          echo "${{ needs.planning.outputs.script-opening }}" > /tmp/script-opening.txt
-          echo "${{ needs.planning.outputs.script-main }}" > /tmp/script-main.txt
-          echo "${{ needs.planning.outputs.script-ending }}" > /tmp/script-ending.txt
+          # 台本の内容を取得してSSMLタグを除去
+          OPENING_TEXT=$(echo "${{ needs.planning.outputs.script-opening }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
+          MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
+          ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           
-          # SSMLタグを除去してプレーンテキストに変換
-          OPENING_TEXT=$(sed 's/<[^>]*>//g' /tmp/script-opening.txt | sed 's/^ *//' | sed 's/ *$//')
-          MAIN_TEXT=$(sed 's/<[^>]*>//g' /tmp/script-main.txt | sed 's/^ *//' | sed 's/ *$//')
-          ENDING_TEXT=$(sed 's/<[^>]*>//g' /tmp/script-ending.txt | sed 's/^ *//' | sed 's/ *$//')
+          # PRボディを作成
+          PR_BODY="## 🎙️ 神威日報ラジオ生成完了
           
-          gh pr create --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" --body "$(cat <<'EOF'
-          ## 🎙️ 神威日報ラジオ生成完了
+### 📊 番組情報
+- **放送日**: ${{ steps.date.outputs.date }}
+- **時間**: 240秒（4分）
+- **音声品質**: -23 LUFS (放送基準)
+- **MC**: AI生成（20代女性）
+
+### 📝 生成された台本
+
+#### オープニング
+${OPENING_TEXT}
+
+#### メインコンテンツ
+${MAIN_TEXT}
+
+#### エンディング
+${ENDING_TEXT}
+
+### 📁 生成ファイル
+- \`radio-output/final-radio.mp3\` - 完成したラジオ番組音声
+- \`radio-output/metadata.json\` - 番組メタデータ
+
+### 🔗 関連リンク
+- [リリース](https://github.com/${{ github.repository }}/releases/tag/radio-${{ github.run_id }})
+- [ワークフロー実行](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+### ✅ テストプラン
+- [ ] 音声ファイルの再生確認
+- [ ] 音声品質の確認 (-23 LUFS)
+- [ ] メタデータの内容確認
+- [ ] 台本の内容確認
+
+🤖 Generated with [Claude Code](https://claude.ai/code)"
           
-          ### 📊 番組情報
-          - **放送日**: ${{ steps.date.outputs.date }}
-          - **時間**: 240秒（4分）
-          - **音声品質**: -23 LUFS (放送基準)
-          - **MC**: AI生成（20代女性）
-          
-          ### 📝 生成された台本
-          
-          #### オープニング
-          $OPENING_TEXT
-          
-          #### メインコンテンツ
-          $MAIN_TEXT
-          
-          #### エンディング
-          $ENDING_TEXT
-          
-          ### 📝 入力内容
-          **開発進捗**: ${{ inputs.development-report }}
-          **強調ポイント**: ${{ inputs.topic-focus || 'なし' }}
-          
-          ### 📁 生成ファイル
-          - `radio-output/final-radio.mp3` - 完成したラジオ番組音声
-          - `radio-output/metadata.json` - 番組メタデータ
-          
-          ### 🔗 関連リンク
-          - [リリース](https://github.com/${{ github.repository }}/releases/tag/radio-${{ github.run_id }})
-          - [ワークフロー実行](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
-          ### ✅ テストプラン
-          - [ ] 音声ファイルの再生確認
-          - [ ] 音声品質の確認 (-23 LUFS)
-          - [ ] メタデータの内容確認
-          - [ ] 台本の内容確認
-          
-          🤖 Generated with [Claude Code](https://claude.ai/code)
-          EOF
-          )"
+          gh pr create --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" --body "$PR_BODY"
         env:
           GH_TOKEN: ${{ github.token }}
 
