@@ -33,6 +33,8 @@ jobs:
       url: ${{ steps.mixing.outputs.final-file }}
       metadata: ${{ steps.mixing.outputs.metadata }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Download voice-opening artifact
         uses: actions/download-artifact@v4
         with:
@@ -112,10 +114,10 @@ jobs:
             echo "$duration"
           }
           
-          # ガジェット・こくおう.mp3をダウンロード
-          echo "🎵 ガジェット・こくおう.mp3をダウンロード"
-          if [ -f "/Users/noranekob/cursor/kamuicode-workflow/radio-workflow/music/ガジェット・こくおう.mp3" ]; then
-            cp "/Users/noranekob/cursor/kamuicode-workflow/radio-workflow/music/ガジェット・こくおう.mp3" gadget-kokuou.mp3
+          # ガジェット・こくおう.mp3をコピー
+          echo "🎵 ガジェット・こくおう.mp3をコピー"
+          if [ -f "radio-workflow/music/ガジェット・こくおう.mp3" ]; then
+            cp "radio-workflow/music/ガジェット・こくおう.mp3" gadget-kokuou.mp3
             echo "✅ gadget-kokuou.mp3 をコピーしました"
           else
             echo "::error::ガジェット・こくおう.mp3が見つかりません"
@@ -420,3 +422,19 @@ jobs:
             final-radio.mp3
             metadata.json
           retention-days: 7
+      
+      - name: Send LINE notification
+        if: always()
+        run: |
+          curl -X POST https://api.line.me/v2/bot/message/push \
+            -H 'Content-Type: application/json' \
+            -H 'Authorization: Bearer ${{ secrets.LINE_BOT_CHANNEL_ACCESS_TOKEN }}' \
+            -d '{
+              "to": "${{ secrets.LINE_USER_ID }}",
+              "messages": [
+                {
+                  "type": "text",
+                  "text": "🎙️ ラジオ制作が完了しました！\n\n📻 神威コードラジオの新しいエピソードが完成しました。\n⏰ 完成時刻: '$''(date +\"%-m月%-d日 %-H時%-M分\")''"
+                }
+              ]
+            }'
