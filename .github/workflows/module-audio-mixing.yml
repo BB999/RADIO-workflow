@@ -426,15 +426,16 @@ jobs:
       - name: Send LINE notification
         if: always()
         run: |
+          COMPLETION_TIME=$(date +"%m月%d日 %H時%M分")
           curl -X POST https://api.line.me/v2/bot/message/push \
             -H 'Content-Type: application/json' \
             -H 'Authorization: Bearer ${{ secrets.LINE_BOT_CHANNEL_ACCESS_TOKEN }}' \
-            -d '{
-              "to": "${{ secrets.LINE_USER_ID }}",
-              "messages": [
+            -d "{
+              \"to\": \"${{ secrets.LINE_USER_ID }}\",
+              \"messages\": [
                 {
-                  "type": "text",
-                  "text": "🎙️ ラジオ制作が完了しました！\n\n📻 神威コードラジオの新しいエピソードが完成しました。\n⏰ 完成時刻: '$''(date +\"%-m月%-d日 %-H時%-M分\")''"
+                  \"type\": \"text\",
+                  \"text\": \"🎙️ ラジオ制作が完了しました！\n\n📻 神威コードラジオの新しいエピソードが完成しました。\n⏰ 完成時刻: ${COMPLETION_TIME}\"
                 }
               ]
-            }'
+            }"
