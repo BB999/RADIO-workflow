@@ -311,8 +311,52 @@ jobs:
         run: |
           COMPLETION_TIME=$(date "+%Y/%m/%d %H:%M:%S")
           STATUS_EMOJI="✅"
-          if [[ "${{ needs.audio-mixing.result }}" != "success" ]]; then
+          
+          # 全体の成功判定
+          if [[ "${{ needs.api-check.result }}" != "success" ]] || \
+             [[ "${{ needs.planning.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-opening.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-main.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-ending.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-opening.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-main.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-ending.result }}" != "success" ]] || \
+             [[ "${{ needs.audio-mixing.result }}" != "success" ]] || \
+             [[ "${{ needs.create-pr.result }}" != "success" ]]; then
             STATUS_EMOJI="❌"
+          fi
+          
+          # エラー詳細情報の構築
+          ERROR_DETAILS=""
+          if [[ "${{ needs.api-check.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 API接続エラー: AIVIS Cloud API認証失敗"
+          fi
+          if [[ "${{ needs.planning.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 台本生成エラー: Claude API応答異常"
+          fi
+          if [[ "${{ needs.voice-opening.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニング音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-main.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-ending.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディング音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.bgm-opening.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニングBGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-main.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メインBGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-ending.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディングBGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.audio-mixing.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 音声ミキシングエラー: FFmpeg処理失敗"
+          fi
+          if [[ "${{ needs.create-pr.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 プルリク作成エラー: GitHub API失敗"
           fi
           
           curl -X POST https://api.line.me/v2/bot/message/push \
@@ -323,7 +367,7 @@ jobs:
               \"messages\": [
                 {
                   \"type\": \"text\",
-                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作完了！\n\n📻 新しいエピソードの制作が完了しました。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${{ needs.api-check.result == 'success' && '✅' || '❌' }}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌' }}\n・BGM生成: ${{ (needs.bgm-opening.result == 'success' && needs.bgm-main.result == 'success' && needs.bgm-ending.result == 'success') && '✅' || '❌' }}\n・音声ミキシング: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌' }}\"
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_EMOJI == '✅' && '完了' || '失敗'}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${{ needs.api-check.result == 'success' && '✅' || '❌ 認証失敗' }}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌ Claude API異常' }}\n・音声生成(開始): ${{ needs.voice-opening.result == 'success' && '✅' || '❌ AIVIS API失敗' }}\n・音声生成(本編): ${{ needs.voice-main.result == 'success' && '✅' || '❌ AIVIS API失敗' }}\n・音声生成(終了): ${{ needs.voice-ending.result == 'success' && '✅' || '❌ AIVIS API失敗' }}\n・BGM生成(開始): ${{ needs.bgm-opening.result == 'success' && '✅' || '❌ Google Lyria失敗' }}\n・BGM生成(本編): ${{ needs.bgm-main.result == 'success' && '✅' || '❌ Google Lyria失敗' }}\n・BGM生成(終了): ${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}\n・音声ミキシング: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌ FFmpeg失敗' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌ GitHub API失敗' }}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
                 }
               ]
             }"
