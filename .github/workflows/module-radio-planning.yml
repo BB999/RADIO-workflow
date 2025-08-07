@@ -111,6 +111,127 @@ jobs:
           
           echo "::endgroup::"
           
+          # 時事ニュース取得
+          echo "::group::📰 時事ニュース取得"
+          echo "最新のニュースを取得中..."
+          
+          # 安全なニュースカテゴリーのみ使用
+          NEWS_TOPICS="テクノロジー AI ガジェット ゲーム アニメ エンターテイメント 科学 宇宙 新商品"
+          
+          # Claude Code CLIで時事ニュースと天気情報取得（WebSearchツール使用）
+          NEWS_PROMPT="今日の日本の最新ニュースを3つと、東京の今日の天気予報を教えてください。
+
+          【ニュースカテゴリー】
+          - テクノロジー、AI、IT関連
+          - エンターテイメント、芸能
+          - 科学、宇宙
+          - ゲーム、アニメ
+          - 新商品、ガジェット
+          
+          **重要**: 政治、宗教、差別、誹謗中傷、炎上系の話題は絶対に避けてください。
+          明るく楽しい話題のみを選んでください。
+          
+          以下の形式で出力してください：
+          
+          【天気予報】
+          東京の天気: 晴れ/曇り/雨など
+          最高気温: XX℃
+          最低気温: XX℃
+          
+          【ニュース】
+          1. [カテゴリー] ニュースタイトル - 簡単な説明
+          2. [カテゴリー] ニュースタイトル - 簡単な説明
+          3. [カテゴリー] ニュースタイトル - 簡単な説明"
+          
+          NEWS_RESULT=$(npx @anthropic-ai/claude-code \
+            --allowedTools "WebSearch" \
+            --max-turns 3 \
+            --print \
+            "$NEWS_PROMPT" 2>/dev/null || echo "ニュース取得失敗")
+          
+          # ニュース取得結果を整形
+          if [ -z "$NEWS_RESULT" ] || [ "$NEWS_RESULT" = "ニュース取得失敗" ]; then
+            echo "::warning::時事ニュースと天気情報の取得に失敗しました。デフォルトの情報を使用します。"
+            NEWS_CONTENT="
+          【天気予報】
+          東京の天気: 晴れ
+          最高気温: 20℃
+          最低気温: 12℃
+          
+          【最近の話題】
+          - AI技術の進化が話題
+          - 新しいゲーム機の発表
+          - 宇宙開発の最新情報"
+          else
+            NEWS_CONTENT="$NEWS_RESULT"
+            echo "✅ 時事ニュース取得成功"
+            echo "$NEWS_CONTENT"
+          fi
+          
+          echo "::endgroup::"
+          
+          # ランダム要素の生成
+          echo "::group::🎲 ランダム要素生成"
+          
+          # ランダムなトーク要素
+          RANDOM_ELEMENTS=()
+          RANDOM_ELEMENTS+=("今日のプログラミングあるある話")
+          RANDOM_ELEMENTS+=("開発者の変な癖エピソード")
+          RANDOM_ELEMENTS+=("バグとの格闘記")
+          RANDOM_ELEMENTS+=("深夜コーディングの思い出")
+          RANDOM_ELEMENTS+=("コンパイルエラーとの戦い")
+          RANDOM_ELEMENTS+=("コードレビューの裏話")
+          RANDOM_ELEMENTS+=("新機能のアイデア妄想")
+          RANDOM_ELEMENTS+=("開発環境トラブル体験談")
+          RANDOM_ELEMENTS+=("ステージング環境での事件")
+          RANDOM_ELEMENTS+=("デプロイ前夜の不安話")
+          
+          # ランダムに1つ選択
+          RANDOM_ELEMENT_INDEX=$((RANDOM % ${#RANDOM_ELEMENTS[@]}))
+          SELECTED_RANDOM_ELEMENT="${RANDOM_ELEMENTS[$RANDOM_ELEMENT_INDEX]}"
+          
+          # ランダムなオープニングパターン
+          OPENING_PATTERNS=()
+          OPENING_PATTERNS+=("元気いっぱいハイテンション")
+          OPENING_PATTERNS+=("ちょっと眠そうな感じから徐々にテンション上がる")
+          OPENING_PATTERNS+=("謎のテンションで始まる")
+          OPENING_PATTERNS+=("いきなりボケから入る")
+          OPENING_PATTERNS+=("自分にツッコミながら挨拶")
+          
+          OPENING_PATTERN_INDEX=$((RANDOM % ${#OPENING_PATTERNS[@]}))
+          SELECTED_OPENING_PATTERN="${OPENING_PATTERNS[$OPENING_PATTERN_INDEX]}"
+          
+          # ランダムな締めパターン
+          ENDING_PATTERNS=()
+          ENDING_PATTERNS+=("感動的に締める（でもちょっとズレてる）")
+          ENDING_PATTERNS+=("急にテンション下がって締める")
+          ENDING_PATTERNS+=("最後にダジャレで締める")
+          ENDING_PATTERNS+=("リスナーに無茶振りして締める")
+          ENDING_PATTERNS+=("謎の決意表明で締める")
+          
+          ENDING_PATTERN_INDEX=$((RANDOM % ${#ENDING_PATTERNS[@]}))
+          SELECTED_ENDING_PATTERN="${ENDING_PATTERNS[$ENDING_PATTERN_INDEX]}"
+          
+          # 今日の特別なキャラ設定
+          CHARACTER_MODES=()
+          CHARACTER_MODES+=("いつも通り")
+          CHARACTER_MODES+=("ちょっと関西弁混じり")
+          CHARACTER_MODES+=("やたら例え話が多い")
+          CHARACTER_MODES+=("声真似を多用")
+          CHARACTER_MODES+=("効果音を口で言いまくり")
+          CHARACTER_MODES+=("一人二役で会話")
+          
+          CHARACTER_MODE_INDEX=$((RANDOM % ${#CHARACTER_MODES[@]}))
+          SELECTED_CHARACTER_MODE="${CHARACTER_MODES[$CHARACTER_MODE_INDEX]}"
+          
+          echo "🎯 今日のランダム要素:"
+          echo "  トーク要素: $SELECTED_RANDOM_ELEMENT"
+          echo "  オープニングスタイル: $SELECTED_OPENING_PATTERN"
+          echo "  エンディングスタイル: $SELECTED_ENDING_PATTERN"
+          echo "  キャラモード: $SELECTED_CHARACTER_MODE"
+          
+          echo "::endgroup::"
+          
           # プロンプトの構築（音楽選択後に実行）
           PROMPT="以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
 
@@ -122,6 +243,15 @@ jobs:
 
           【強調ポイント】
           ${{ inputs.topic-focus || 'なし' }}
+
+          【今日の天気と時事ニュース】
+          $NEWS_CONTENT
+
+          【今日のランダム要素】
+          - 特別トーク要素: $SELECTED_RANDOM_ELEMENT
+          - オープニングスタイル: $SELECTED_OPENING_PATTERN
+          - エンディングスタイル: $SELECTED_ENDING_PATTERN
+          - キャラクターモード: $SELECTED_CHARACTER_MODE
 
           【今日の楽曲】$(
             if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
@@ -150,10 +280,13 @@ jobs:
           - オープニング: 1分（明るい挨拶、必ず今日の日付と番組名を紹介、楽曲については詳細を言わずに「今日の楽曲をお楽しみください」程度で紹介）約300-400文字"
             fi
           )
-          - メイン: 2分（内容を分かりやすく解説）約600-800文字  
+          - メイン: 2分（内容を分かりやすく解説、時事ニュースも織り交ぜる）約600-800文字  
           - エンディング: 1分（まとめと次回予告）約300-400文字
           - パーソナリティ: radio-personality-data.mdの設定に従う
           - 一人称は「僕」、口癖や話し方の特徴を必ず反映
+          - **時事ニュース**: メインパートで1〜2個の時事ネタに触れて、開発の話と絡める
+          - **ランダム要素**: 指定されたランダム要素を必ず取り入れる（特別トーク要素、オープニング・エンディングスタイル、キャラクターモード）
+          - **バリエーション**: 毎回違う雰囲気の番組になるよう、ランダム要素を活かして個性を出す
           - **重要**: オープニング・エンディングは1分（300-400文字）、メインは2分（600-800文字）で生成し、API制限の3000文字以内に収めてください$(
             if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
               echo "
