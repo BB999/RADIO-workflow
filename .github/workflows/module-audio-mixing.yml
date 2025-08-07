@@ -279,54 +279,36 @@ jobs:
             mv bgm-ending-extended.wav bgm-ending-30s.wav
           fi
           
-          # オープニング＋楽曲統合セクション: 音声終了3秒前でBGM→楽曲の急速クロスフェード
-          echo "🎵 オープニング＋楽曲統合セクションの作成（音声中に楽曲開始）"
+          # オープニングセクション: BGM6秒→音声+BGM→音声終了後5秒フェードアウト
+          echo "🎵 オープニングセクションの作成（楽曲は別セクション）"
           
-          # タイミング計算
+          # タイミング計算（楽曲なし版）
           VOICE_START=6  # オープニング音声開始
           VOICE_END=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # オープニング音声終了
-          CROSSFADE_START=$(awk "BEGIN {print $VOICE_END - 3}")  # 音声終了3秒前にクロスフェード開始
-          
-          # 楽曲の長さを取得
-          MUSIC_DURATION=$(get_duration selected-music.mp3)
-          echo "  楽曲の長さ: ${MUSIC_DURATION}秒"
-          
-          # 楽曲部分の計算（音声終了3秒前から開始）
-          MUSIC_START_DELAY=$(awk "BEGIN {print $CROSSFADE_START}")
-          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
-            MUSIC_PLAY_DURATION=43  # 3秒クロスフェード + 最大40秒
-            MUSIC_FADEOUT_START=40  # 40秒地点でフェードアウト開始
-          else
-            MUSIC_PLAY_DURATION=$(awk "BEGIN {print $MUSIC_DURATION + 3}")
-            MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION}")
-          fi
-          
-          TOTAL_SECTION_DURATION=$(awk "BEGIN {print $VOICE_END + $MUSIC_PLAY_DURATION - 3}")
+          FADE_START_OPENING=$(awk "BEGIN {print $VOICE_END - 3}")  # 音声終了3秒前にBGMフェードアウト開始
+          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # 6秒イントロ + 音声（BGMは音声終了時に完全フェードアウト）
           
           echo "  音声開始: ${VOICE_START}秒"
           echo "  音声終了: ${VOICE_END}秒" 
-          echo "  クロスフェード開始: ${CROSSFADE_START}秒"
-          echo "  楽曲開始（遅延）: ${MUSIC_START_DELAY}秒"
-          echo "  統合セクション総時間: ${TOTAL_SECTION_DURATION}秒"
+          echo "  フェードアウト開始: ${FADE_START_OPENING}秒"
+          echo "  オープニング総時間: ${TOTAL_OPENING_DURATION}秒"
           
-          # オープニング音声＋BGM＋選択楽曲の統合処理
+          # オープニングセクション: 音声+BGMのみ
           safe_ffmpeg -i voice-opening.wav \
                       -i bgm-opening-30s.wav \
-                      -i selected-music.mp3 \
                       -filter_complex "[0]aresample=44100,adelay=${VOICE_START}s:all=1[voice_delayed];
-                                      [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,if(lt(t,${CROSSFADE_START}),0.5,0.5*pow((${VOICE_END}-t)/3,2))))':eval=frame,atrim=0:${VOICE_END}[bgm_opening];
-                                      [2]aresample=44100,adelay=${MUSIC_START_DELAY}s:all=1,volume='if(lt(t-${MUSIC_START_DELAY},1),t-${MUSIC_START_DELAY},1)':eval=frame,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_delayed];
-                                      [voice_delayed][bgm_opening]amix=inputs=2[voice_bgm];
-                                      [voice_bgm][music_delayed]amix=inputs=2[opening_music]" \
-                      -map "[opening_music]" \
-                      -t ${TOTAL_SECTION_DURATION} \
+                                      [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,0.5))':eval=frame,
+                                      afade=t=out:st=${FADE_START_OPENING}:d=3[bgm_opening];
+                                      [voice_delayed][bgm_opening]amix=inputs=2[opening]" \
+                      -map "[opening]" \
+                      -t ${TOTAL_OPENING_DURATION} \
                       -ar 44100 -ac 2 -c:a pcm_s16le \
-                      opening-music-combined.wav || exit 1
+                      opening-mixed.wav || exit 1
           
-          if [ -f "opening-music-combined.wav" ]; then
-            echo "✅ opening-music-combined.wav 生成成功 ($(stat -c%s opening-music-combined.wav) bytes)"
+          if [ -f "opening-mixed.wav" ]; then
+            echo "✅ opening-mixed.wav 生成成功 ($(stat -c%s opening-mixed.wav) bytes)"
           else
-            echo "::error::❌ opening-music-combined.wav の生成に失敗"
+            echo "::error::❌ opening-mixed.wav の生成に失敗"
             exit 1
           fi
           
@@ -394,21 +376,69 @@ jobs:
             exit 1
           fi
           
-          # 楽曲セクションは削除（オープニングと統合済み）
+          # 楽曲セクション: 選択楽曲を独立セクションとして作成
+          echo "🎵 楽曲セクションの作成"
+          
+          # 楽曲の長さを取得
+          MUSIC_DURATION=$(get_duration selected-music.mp3)
+          echo "  楽曲の長さ: ${MUSIC_DURATION}秒"
+          
+          # 最大40秒に制限
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
+            MUSIC_TOTAL_DURATION=40
+            MUSIC_FADEOUT_START=37  # 40秒 - 3秒フェードアウト
+            echo "  楽曲を40秒に制限します"
+          else
+            MUSIC_TOTAL_DURATION=$MUSIC_DURATION
+            if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+              MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION - 3}")
+            else
+              MUSIC_FADEOUT_START=$MUSIC_DURATION
+            fi
+            echo "  楽曲をフル長さ（${MUSIC_TOTAL_DURATION}秒）で使用"
+          fi
+          
+          # 楽曲セクションの作成（0秒からフェードイン、クロスフェード用）
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+            # 楽曲が4秒以上の場合：0秒からフェードイン・フェードアウトあり
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=3,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
+                        -map "[music_faded]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        music-mixed.wav || exit 1
+          else
+            # 楽曲が4秒以下の場合：フェードイン・フェードアウトなし
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100[music]" \
+                        -map "[music]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        music-mixed.wav || exit 1
+          fi
+          
+          if [ -f "music-mixed.wav" ]; then
+            echo "✅ music-mixed.wav 生成成功 ($(stat -c%s music-mixed.wav) bytes)"
+          else
+            echo "::error::❌ music-mixed.wav の生成に失敗"
+            exit 1
+          fi
           
           # 1秒の無音ファイルを作成
           echo "🔇 無音ファイルを作成"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -ar 44100 -ac 2 -c:a pcm_s16le silence-1s.wav || exit 1
           
-          # 3つのセクションを連結（オープニング＋楽曲統合、メイン、エンディング）
-          echo "🎵 最終ミックス開始（オープニング＋楽曲→メイン→エンディング）"
+          # 4つのセクションを連結し、最終調整（オープニング→楽曲→メイン→エンディング）
+          echo "🎵 最終ミックス開始（オープニング→楽曲→メイン→エンディング）"
           echo "📁 連結するファイル:"
-          ls -la opening-music-combined.wav main-mixed.wav ending-mixed.wav
+          ls -la opening-mixed.wav music-mixed.wav main-mixed.wav ending-mixed.wav
           
-          safe_ffmpeg -i opening-music-combined.wav \
+          safe_ffmpeg -i opening-mixed.wav \
+                      -i music-mixed.wav \
                       -i main-mixed.wav \
                       -i ending-mixed.wav \
-                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined];
+                      -filter_complex "[0][1]acrossfade=d=3:c1=tri:c2=tri[opening_music];
+                                      [opening_music][2][3]concat=n=3:v=0:a=1[combined];
                                       [combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
                       -c:a mp3 \
@@ -433,7 +463,8 @@ jobs:
             \"duration\": \"variable\",
             \"selected_music\": \"$SELECTED_MUSIC_INFO\",
             \"sections\": [
-              {\"name\": \"opening_music\", \"duration\": \"6s intro + voice + music (integrated)\", \"bgm\": \"upbeat→music\", \"bgm_volume\": \"100%→50%→0\", \"music_starts\": \"voice_end-3s\", \"crossfade\": \"1s rapid\"},
+              {\"name\": \"opening\", \"duration\": \"6s intro + voice (bgm fades 3s before end)\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%→0\", \"intro\": \"6s\", \"fade_out\": \"3s before voice end\"},
+              {\"name\": \"music\", \"duration\": \"max 40s with crossfade\", \"content\": \"$SELECTED_MUSIC_INFO\", \"fade_in\": \"3s (crossfade)\", \"fade_out\": \"3s\"},
               {\"name\": \"main\", \"duration\": \"4s intro + voice + 5s fade\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
               {\"name\": \"ending\", \"duration\": \"4s intro + voice + 7s fade\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
             ],
