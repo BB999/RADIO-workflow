@@ -323,7 +323,7 @@ jobs:
               \"messages\": [
                 {
                   \"type\": \"text\",
-                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作完了！\n\n📻 新しいエピソードの制作が完了しました。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${{ needs.api-check.result == 'success' && '✅' || '❌' }}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌' }}\n・音声合成: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌' }}\"
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作完了！\n\n📻 新しいエピソードの制作が完了しました。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${{ needs.api-check.result == 'success' && '✅' || '❌' }}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌' }}\n・BGM生成: ${{ (needs.bgm-opening.result == 'success' && needs.bgm-main.result == 'success' && needs.bgm-ending.result == 'success') && '✅' || '❌' }}\n・音声ミキシング: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌' }}\"
                 }
               ]
             }"
