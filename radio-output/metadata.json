@@ -1,0 +1,11 @@
+{
+  "duration": "variable",
+  "selected_music": "ごじにゃのテーマ・コタ.mp3",
+  "sections": [
+    {"name": "opening_music", "duration": "6s intro + voice + music (integrated)", "bgm": "upbeat→music", "bgm_volume": "100%→50%→0", "music_starts": "voice_end-3s", "crossfade": "1s rapid"},
+    {"name": "main", "duration": "4s intro + voice + 5s fade", "bgm": "talk-friendly", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "ending", "duration": "4s intro + voice + 7s fade", "bgm": "warm-outro", "bgm_volume": "100%→50%→100%", "intro": "4s", "fade_out": "7s"}
+  ],
+  "audio_standard": "-23 LUFS",
+  "format": "MP3 320kbps"
+}
