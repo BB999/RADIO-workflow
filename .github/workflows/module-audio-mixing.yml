@@ -315,6 +315,18 @@ jobs:
           echo "  楽曲終了: ${MUSIC_END}秒"
           echo "  統合セクション総時間: ${TOTAL_OPENING_DURATION}秒"
           
+          # デバッグ：変数の値を確認
+          echo "🔍 デバッグ: adelay値確認"
+          echo "  VOICE_START adelay: ${VOICE_START}s:all=1"
+          echo "  MUSIC_START adelay: ${MUSIC_START}s:all=1"
+          
+          # 変数が空の場合のチェック
+          if [ -z "$MUSIC_START" ] || [ "$MUSIC_START" = "" ]; then
+            echo "::error::MUSIC_START変数が空です！"
+            MUSIC_START=$VOICE_END  # フォールバック：音声終了後に楽曲開始
+            echo "  フォールバック値使用: ${MUSIC_START}秒"
+          fi
+          
           # 3つの音源を統合ミックス（オープニングBGM + 音声 + 選択楽曲）
           if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
             # 楽曲が4秒以上の場合：フェードアウトあり
