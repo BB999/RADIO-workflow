@@ -68,29 +68,41 @@ jobs:
           # 音楽ファイル選択
           echo "::group::🎵 音楽ファイル選択"
           
-          # 音楽ファイルリスト（ファイル名・アーティスト名）
-          declare -a MUSIC_FILES=(
-            "てんくう・のらねこび.mp3"
-            "ガジェット・こくおう.mp3"
-            "海底・ねもぴ.mp3"
-          )
+          # radio-workflow/musicディレクトリから実際のmp3ファイルを取得
+          echo "📁 musicディレクトリの音楽ファイルをスキャン中..."
+          if [ ! -d "radio-workflow/music" ]; then
+            echo "::error::radio-workflow/musicディレクトリが見つかりません"
+            exit 1
+          fi
           
-          # アーティスト名と曲名の対応（ファイル名から抽出）
-          declare -A MUSIC_INFO
-          MUSIC_INFO["てんくう・のらねこび.mp3"]="のらねこび,てんくう"
-          MUSIC_INFO["ガジェット・こくおう.mp3"]="こくおう,ガジェット"
-          MUSIC_INFO["海底・ねもぴ.mp3"]="ねもぴ,海底"
+          # .mp3ファイルを配列に取得
+          declare -a MUSIC_FILES=()
+          while IFS= read -r -d '' file; do
+            filename=$(basename "$file")
+            MUSIC_FILES+=("$filename")
+            echo "  - 発見: $filename"
+          done < <(find radio-workflow/music -name "*.mp3" -print0)
+          
+          # 音楽ファイルが存在するかチェック
+          if [ ${#MUSIC_FILES[@]} -eq 0 ]; then
+            echo "::error::musicディレクトリに.mp3ファイルが見つかりません"
+            exit 1
+          fi
+          
+          echo "📊 合計 ${#MUSIC_FILES[@]} 個の音楽ファイルが見つかりました"
           
           # ランダムに音楽ファイルを選択
           MUSIC_RANDOM_INDEX=$((RANDOM % ${#MUSIC_FILES[@]}))
           SELECTED_MUSIC_FILE="${MUSIC_FILES[$MUSIC_RANDOM_INDEX]}"
           
-          # アーティスト名と曲名を取得
-          if [ -n "${MUSIC_INFO[$SELECTED_MUSIC_FILE]}" ]; then
-            IFS=',' read -r ARTIST_NAME SONG_NAME <<< "${MUSIC_INFO[$SELECTED_MUSIC_FILE]}"
+          # ファイル名から推測でアーティスト名と曲名を抽出（・で区切られている場合）
+          if [[ "$SELECTED_MUSIC_FILE" =~ ^(.+)・(.+)\.mp3$ ]]; then
+            SONG_NAME="${BASH_REMATCH[1]}"
+            ARTIST_NAME="${BASH_REMATCH[2]}"
           else
-            ARTIST_NAME=""
+            # ・が含まれていない場合はファイル名のみ
             SONG_NAME=""
+            ARTIST_NAME=""
           fi
           
           echo "🎯 選択された音楽: $SELECTED_MUSIC_FILE"
