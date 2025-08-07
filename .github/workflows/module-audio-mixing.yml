@@ -135,24 +135,14 @@ jobs:
               cp "radio-workflow/music/$SELECTED_MUSIC" selected-music.mp3
               echo "✅ selected-music.mp3 をコピーしました"
             else
-              echo "::warning::選択された音楽ファイルが見つかりません: $SELECTED_MUSIC"
-              echo "::warning::デフォルトのガジェット・こくおう.mp3を使用します"
-              if [ -f "radio-workflow/music/ガジェット・こくおう.mp3" ]; then
-                cp "radio-workflow/music/ガジェット・こくおう.mp3" selected-music.mp3
-              else
-                echo "::error::デフォルト音楽ファイルも見つかりません"
-                exit 1
-              fi
-            fi
-          else
-            echo "::warning::USE_UUID.mdファイルが見つかりません、デフォルト音楽を使用"
-            if [ -f "radio-workflow/music/ガジェット・こくおう.mp3" ]; then
-              cp "radio-workflow/music/ガジェット・こくおう.mp3" selected-music.mp3
-              echo "✅ デフォルト音楽をコピーしました"
-            else
-              echo "::error::デフォルト音楽ファイルが見つかりません"
+              echo "::error::選択された音楽ファイルが見つかりません: $SELECTED_MUSIC"
+              echo "::error::音楽ファイルは必ず存在すべきです。ワークフローを停止します。"
               exit 1
             fi
+          else
+            echo "::error::USE_UUID.mdファイルが見つかりません"
+            echo "::error::音楽選択情報が必要です。ワークフローを停止します。"
+            exit 1
           fi
           
           # エラーハンドリング付きFFmpeg実行
