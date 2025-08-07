@@ -41,8 +41,8 @@ jobs:
             
             # 詳細なcurlリクエスト実行
             echo "🔍 API接続テスト開始..."
-            echo "  エンドポイント: https://api.aivis.club/v1/audio/speech"
-            echo "  リクエストボディ: {\"model\": \"tts-1\", \"input\": \"test\", \"voice\": \"alloy\", \"response_format\": \"mp3\"}"
+            echo "  エンドポイント: https://api.aivis-project.com/v1/tts/synthesize"
+            echo "  リクエストボディ: {\"model_uuid\": \"test\", \"text\": \"テスト\", \"output_format\": \"wav\"}"
             
             # レスポンスファイルの準備
             RESPONSE_FILE="aivis_response.json"
@@ -50,14 +50,13 @@ jobs:
             
             # curlコマンド実行（詳細ログ付き）
             HTTP_STATUS=$(curl -s -w "%{http_code}" \
-              -X POST "https://api.aivis.club/v1/audio/speech" \
+              -X POST "https://api.aivis-project.com/v1/tts/synthesize" \
               -H "Content-Type: application/json" \
               -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
               -d '{
-                "model": "tts-1",
-                "input": "test",
-                "voice": "alloy",
-                "response_format": "mp3"
+                "model_uuid": "test",
+                "text": "テスト",
+                "output_format": "wav"
               }' \
               --connect-timeout 30 \
               --max-time 60 \
@@ -364,6 +363,7 @@ jobs:
         run: |
           COMPLETION_TIME=$(date "+%Y/%m/%d %H:%M:%S")
           STATUS_EMOJI="✅"
+          STATUS_TEXT="完了"
           
           # 全体の成功判定
           if [[ "${{ needs.api-check.result }}" != "success" ]] || \
@@ -377,7 +377,20 @@ jobs:
              [[ "${{ needs.audio-mixing.result }}" != "success" ]] || \
              [[ "${{ needs.create-pr.result }}" != "success" ]]; then
             STATUS_EMOJI="❌"
+            STATUS_TEXT="失敗"
           fi
+          
+          # 個別ステータス変数の準備
+          API_STATUS="${{ needs.api-check.result == 'success' && '✅' || '❌ 認証失敗' }}"
+          PLANNING_STATUS="${{ needs.planning.result == 'success' && '✅' || '❌ Claude API異常' }}"
+          VOICE_OPENING_STATUS="${{ needs.voice-opening.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_MAIN_STATUS="${{ needs.voice-main.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_ENDING_STATUS="${{ needs.voice-ending.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          BGM_OPENING_STATUS="${{ needs.bgm-opening.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_MAIN_STATUS="${{ needs.bgm-main.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_ENDING_STATUS="${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          MIXING_STATUS="${{ needs.audio-mixing.result == 'success' && '✅' || '❌ FFmpeg失敗' }}"
+          PR_STATUS="${{ needs.create-pr.result == 'success' && '✅' || '❌ GitHub API失敗' }}"
           
           # エラー詳細情報の構築
           ERROR_DETAILS=""
@@ -420,7 +433,7 @@ jobs:
               \"messages\": [
                 {
                   \"type\": \"text\",
-                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_EMOJI == '✅' && '完了' || '失敗'}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${{ needs.api-check.result == 'success' && '✅' || '❌ 認証失敗' }}\n\n📊 制作結果:\n・台本生成: ${{ needs.planning.result == 'success' && '✅' || '❌ Claude API異常' }}\n・音声生成(開始): ${{ needs.voice-opening.result == 'success' && '✅' || '❌ AIVIS API失敗' }}\n・音声生成(本編): ${{ needs.voice-main.result == 'success' && '✅' || '❌ AIVIS API失敗' }}\n・音声生成(終了): ${{ needs.voice-ending.result == 'success' && '✅' || '❌ AIVIS API失敗' }}\n・BGM生成(開始): ${{ needs.bgm-opening.result == 'success' && '✅' || '❌ Google Lyria失敗' }}\n・BGM生成(本編): ${{ needs.bgm-main.result == 'success' && '✅' || '❌ Google Lyria失敗' }}\n・BGM生成(終了): ${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}\n・音声ミキシング: ${{ needs.audio-mixing.result == 'success' && '✅' || '❌ FFmpeg失敗' }}\n・プルリク作成: ${{ needs.create-pr.result == 'success' && '✅' || '❌ GitHub API失敗' }}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(本編): ${VOICE_MAIN_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(本編): ${BGM_MAIN_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・プルリク作成: ${PR_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
                 }
               ]
             }"
