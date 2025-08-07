@@ -16,7 +16,92 @@ permissions:
   pull-requests: write  # PR作成に必要
 
 jobs:
+  api-check:
+    runs-on: ubuntu-latest
+    outputs:
+      api-status: ${{ steps.check.outputs.status }}
+    steps:
+      - name: Check API availability
+        id: check
+        run: |
+          echo "🔍 API接続チェック開始..."
+          
+          CLAUDE_STATUS="failed"
+          AIVIS_STATUS="failed"
+          
+          # Claude API (Anthropic) 動作チェック
+          echo "📡 Claude API 動作チェック中..."
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY が設定されていません"
+          else
+            # 軽量なAPIリクエストでテスト（短いメッセージで最小限の利用）
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST "https://api.anthropic.com/v1/messages" \
+              -H "Content-Type: application/json" \
+              -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
+              -H "anthropic-version: 2023-06-01" \
+              -d '{
+                "model": "claude-3-haiku-20240307",
+                "max_tokens": 10,
+                "messages": [{"role": "user", "content": "test"}]
+              }')
+            
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Claude API 動作確認成功"
+              CLAUDE_STATUS="ok"
+            elif [ "$HTTP_STATUS" = "401" ]; then
+              echo "::error::Claude API 認証失敗 (HTTP 401) - APIキーが無効です"
+            elif [ "$HTTP_STATUS" = "429" ]; then
+              echo "::error::Claude API レート制限 (HTTP 429) - 後で再試行してください"
+            else
+              echo "::error::Claude API エラー (HTTP $HTTP_STATUS)"
+            fi
+          fi
+          
+          # AIVIS Cloud API 動作チェック
+          echo "📡 AIVIS Cloud API 動作チェック中..."
+          if [ -z "${{ secrets.AIVIS_API_KEY }}" ]; then
+            echo "::error::AIVIS_API_KEY が設定されていません"
+          else
+            # AIVIS APIのヘルスチェックエンドポイント（または軽量テスト）
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST "https://api.aivis.club/v1/audio/speech" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
+              -d '{
+                "model": "tts-1",
+                "input": "test",
+                "voice": "alloy",
+                "response_format": "mp3"
+              }' \
+              --connect-timeout 30)
+            
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ AIVIS Cloud API 動作確認成功"
+              AIVIS_STATUS="ok"
+            elif [ "$HTTP_STATUS" = "401" ] || [ "$HTTP_STATUS" = "403" ]; then
+              echo "::error::AIVIS Cloud API 認証失敗 (HTTP $HTTP_STATUS) - APIキーが無効です"
+            elif [ "$HTTP_STATUS" = "429" ]; then
+              echo "::error::AIVIS Cloud API レート制限 (HTTP 429) - 後で再試行してください"
+            else
+              echo "::error::AIVIS Cloud API エラー (HTTP $HTTP_STATUS)"
+            fi
+          fi
+          
+          # 全体ステータス判定
+          if [ "$CLAUDE_STATUS" = "ok" ] && [ "$AIVIS_STATUS" = "ok" ]; then
+            echo "✅ 全てのAPI動作チェック完了 - 処理を続行します"
+            echo "status=ready" >> $GITHUB_OUTPUT
+          else
+            echo "::error::APIの動作チェックに失敗しました。ワークフローを停止します。"
+            echo "claude_status=$CLAUDE_STATUS" >> $GITHUB_OUTPUT
+            echo "aivis_status=$AIVIS_STATUS" >> $GITHUB_OUTPUT
+            echo "status=failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
   planning:
+    needs: api-check
     uses: ./.github/workflows/module-radio-planning.yml
     with:
       development-report: ${{ inputs.development-report }}
