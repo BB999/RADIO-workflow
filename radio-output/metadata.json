@@ -1,0 +1,11 @@
+{
+  "duration": "variable",
+  "selected_music": "不明2・ねもぴ.mp3",
+  "sections": [
+    {"name": "opening-with-music", "duration": "6s intro + voice + crossfade + selected music", "bgm": "upbeat→不明2・ねもぴ.mp3", "bgm_volume": "100%→50%", "intro": "6s", "crossfade": "at voice_end-4s", "music_duration": "max 40s"},
+    {"name": "main", "duration": "4s intro + voice + 5s fade", "bgm": "talk-friendly", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "ending", "duration": "4s intro + voice + 7s fade", "bgm": "warm-outro", "bgm_volume": "100%→50%→100%", "intro": "4s", "fade_out": "7s"}
+  ],
+  "audio_standard": "-23 LUFS",
+  "format": "MP3 320kbps"
+}
