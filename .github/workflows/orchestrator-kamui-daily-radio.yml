@@ -180,9 +180,10 @@ jobs:
           MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           
-          # PRボディを作成
-          PR_BODY="## 🎙️ 神威日報ラジオ生成完了
-          
+          # PRボディを作成（HEREDOCを使用）
+          PR_BODY=$(cat <<'EOF'
+## 🎙️ 神威日報ラジオ生成完了
+
 ### 📊 番組情報
 - **放送日**: ${{ steps.date.outputs.date }}
 - **時間**: 240秒（4分）
@@ -201,8 +202,8 @@ ${MAIN_TEXT}
 ${ENDING_TEXT}
 
 ### 📁 生成ファイル
-- \`radio-output/final-radio.mp3\` - 完成したラジオ番組音声
-- \`radio-output/metadata.json\` - 番組メタデータ
+- `radio-output/final-radio.mp3` - 完成したラジオ番組音声
+- `radio-output/metadata.json` - 番組メタデータ
 
 ### 🔗 関連リンク
 - [リリース](https://github.com/${{ github.repository }}/releases/tag/radio-${{ github.run_id }})
@@ -214,7 +215,9 @@ ${ENDING_TEXT}
 - [ ] メタデータの内容確認
 - [ ] 台本の内容確認
 
-🤖 Generated with [Claude Code](https://claude.ai/code)"
+🤖 Generated with [Claude Code](https://claude.ai/code)
+EOF
+)
           
           gh pr create --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" --body "$PR_BODY"
         env:
