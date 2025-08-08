@@ -6,9 +6,9 @@ class SSMLFormatter {
     constructor() {
         // 間の長さ設定（秒）
         this.breakDurations = {
-            period: 0.8,        // 句点「。」
-            comma: 0.3,         // 読点「、」
-            exclamation: 1.2,   // 感嘆符「！」
+            period: 1.0,        // 句点「。」
+            comma: 0.5,         // 読点「、」
+            exclamation: 1.6,   // 感嘆符「！」
             question: 1.0,      // 疑問符「？」
             lineBreak: 1.5,     // 改行
             dialogue: 1.0,      // セリフ切り替わり
