@@ -285,20 +285,19 @@ jobs:
           # タイミング計算（楽曲なし版）
           VOICE_START=6  # オープニング音声開始
           VOICE_END=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # オープニング音声終了
-          FADE_START_OPENING=$(awk "BEGIN {print $VOICE_END}")  # 音声終了時からBGMフェードアウト開始
-          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 9}")  # 6秒イントロ + 音声 + 3秒BGMフェードアウト
+          BGM_STOP=$(awk "BEGIN {print $VOICE_END - 5}")  # セリフ終了5秒前でBGM停止
+          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # 6秒イントロ + 音声のみ
           
           echo "  音声開始: ${VOICE_START}秒"
-          echo "  音声終了: ${VOICE_END}秒" 
-          echo "  フェードアウト開始: ${FADE_START_OPENING}秒"
+          echo "  音声終了: ${VOICE_END}秒"
+          echo "  BGM停止: ${BGM_STOP}秒" 
           echo "  オープニング総時間: ${TOTAL_OPENING_DURATION}秒"
           
-          # オープニングセクション: 音声+BGMのみ
+          # オープニングセクション: 音声+BGM（セリフ終了5秒前でBGM停止）
           safe_ffmpeg -i voice-opening.wav \
                       -i bgm-opening-30s.wav \
                       -filter_complex "[0]aresample=44100,adelay=${VOICE_START}s:all=1[voice_delayed];
-                                      [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,0.5))':eval=frame,
-                                      afade=t=out:st=${FADE_START_OPENING}:d=3[bgm_opening];
+                                      [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,if(lt(t,${BGM_STOP}),0.5,0)))':eval=frame[bgm_opening];
                                       [voice_delayed][bgm_opening]amix=inputs=2[opening]" \
                       -map "[opening]" \
                       -t ${TOTAL_OPENING_DURATION} \
@@ -398,19 +397,19 @@ jobs:
             echo "  楽曲をフル長さ（${MUSIC_TOTAL_DURATION}秒）で使用"
           fi
           
-          # 楽曲セクションの作成（0秒からフェードイン、クロスフェード用）
+          # 楽曲セクションの作成（クロスフェード中は50%音量、その後100%）
           if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
-            # 楽曲が4秒以上の場合：0秒からフェードイン・フェードアウトあり
+            # 楽曲が4秒以上の場合：音量調整とフェードアウトあり
             safe_ffmpeg -i selected-music.mp3 \
-                        -filter_complex "[0]aresample=44100,afade=t=in:st=0:d=3,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
+                        -filter_complex "[0]aresample=44100,volume='if(lt(t,5),0.5,1)':eval=frame,afade=t=in:st=0:d=3,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
                         -map "[music_faded]" \
                         -t ${MUSIC_TOTAL_DURATION} \
                         -ar 44100 -ac 2 -c:a pcm_s16le \
                         music-mixed.wav || exit 1
           else
-            # 楽曲が4秒以下の場合：フェードイン・フェードアウトなし
+            # 楽曲が4秒以下の場合：音量調整のみ
             safe_ffmpeg -i selected-music.mp3 \
-                        -filter_complex "[0]aresample=44100[music]" \
+                        -filter_complex "[0]aresample=44100,volume='if(lt(t,5),0.5,1)':eval=frame[music]" \
                         -map "[music]" \
                         -t ${MUSIC_TOTAL_DURATION} \
                         -ar 44100 -ac 2 -c:a pcm_s16le \
