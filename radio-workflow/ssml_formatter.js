@@ -11,8 +11,8 @@ class SSMLFormatter {
             exclamation: 1.2,   // 感嘆符「！」
             question: 1.0,      // 疑問符「？」
             lineBreak: 1.5,     // 改行
-            dialogue: 2.0,      // セリフ切り替わり
-            ellipsis: 1.8,      // 「……」「…」
+            dialogue: 1.0,      // セリフ切り替わり
+            ellipsis: 1.3,      // 「……」「…」
             colon: 0.5,         // 「：」
             dash: 0.6           // 「ー」「—」
         };
