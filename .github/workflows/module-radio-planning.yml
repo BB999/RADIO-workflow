@@ -91,9 +91,11 @@ jobs:
           
           echo "📊 合計 ${#MUSIC_FILES[@]} 個の音楽ファイルが見つかりました"
           
-          # ランダムに音楽ファイルを選択
-          MUSIC_RANDOM_INDEX=$((RANDOM % ${#MUSIC_FILES[@]}))
+          # ランダムに音楽ファイルを選択（日時ベースのシード）
+          SEED=$(date +%s%N | cut -b10-19)
+          MUSIC_RANDOM_INDEX=$((SEED % ${#MUSIC_FILES[@]}))
           SELECTED_MUSIC_FILE="${MUSIC_FILES[$MUSIC_RANDOM_INDEX]}"
+          echo "  シード値: $SEED, インデックス: $MUSIC_RANDOM_INDEX"
           
           # ファイル名から推測でアーティスト名と曲名を抽出（・で区切られている場合）
           if [[ "$SELECTED_MUSIC_FILE" =~ ^(.+)・(.+)\.mp3$ ]]; then
