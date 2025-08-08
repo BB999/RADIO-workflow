@@ -285,8 +285,8 @@ jobs:
           # タイミング計算（楽曲なし版）
           VOICE_START=6  # オープニング音声開始
           VOICE_END=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # オープニング音声終了
-          FADE_START_OPENING=$(awk "BEGIN {print $VOICE_END - 3}")  # 音声終了3秒前にBGMフェードアウト開始
-          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # 6秒イントロ + 音声（BGMは音声終了時に完全フェードアウト）
+          FADE_START_OPENING=$(awk "BEGIN {print $VOICE_END}")  # 音声終了時からBGMフェードアウト開始
+          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 9}")  # 6秒イントロ + 音声 + 3秒BGMフェードアウト
           
           echo "  音声開始: ${VOICE_START}秒"
           echo "  音声終了: ${VOICE_END}秒" 
@@ -437,7 +437,7 @@ jobs:
                       -i music-mixed.wav \
                       -i main-mixed.wav \
                       -i ending-mixed.wav \
-                      -filter_complex "[0][1]acrossfade=d=3:c1=tri:c2=tri[opening_music];
+                      -filter_complex "[0][1]acrossfade=d=5:c1=tri:c2=tri[opening_music];
                                       [opening_music][2][3]concat=n=3:v=0:a=1[combined];
                                       [combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
