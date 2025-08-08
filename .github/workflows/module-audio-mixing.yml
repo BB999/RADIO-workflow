@@ -251,30 +251,45 @@ jobs:
           echo "  メイン: ${BGM_MAIN_NEEDED}秒"
           echo "  エンディング: ${BGM_ENDING_NEEDED}秒"
           
-          # BGMを必要な長さにループ拡張（シンプルなループ）
+          # BGMを必要な長さにループ拡張（0.5秒クロスフェード）
           if [ $BGM_OPENING_NEEDED -gt 30 ]; then
             echo "🔄 オープニングBGMを${BGM_OPENING_NEEDED}秒に拡張"
-            # シンプルなループ処理
+            # ループ回数を計算（29.5秒ごと、0.5秒のオーバーラップ）
+            LOOP_COUNT=$(awk "BEGIN {print int($BGM_OPENING_NEEDED / 29.5) + 1}")
+            # 最後の0.5秒と最初の0.5秒でクロスフェード
             safe_ffmpeg -i bgm-opening-30s.wav -filter_complex \
-              "[0:a]aloop=loop=-1:size=44100*30,atrim=0:$BGM_OPENING_NEEDED[looped]" \
+              "[0:a]atrim=0:29.5[part1];
+               [0:a]atrim=0:30[full];
+               [part1][full]acrossfade=d=0.5:c1=tri:c2=tri[crossed];
+               [crossed]aloop=loop=$LOOP_COUNT:size=44100*29.5,atrim=0:$BGM_OPENING_NEEDED[looped]" \
               -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-extended.wav -y || exit 1
             mv bgm-opening-extended.wav bgm-opening-30s.wav
           fi
           
           if [ $BGM_MAIN_NEEDED -gt 30 ]; then
             echo "🔄 メインBGMを${BGM_MAIN_NEEDED}秒に拡張"
-            # シンプルなループ処理
+            # ループ回数を計算（29.5秒ごと、0.5秒のオーバーラップ）
+            LOOP_COUNT=$(awk "BEGIN {print int($BGM_MAIN_NEEDED / 29.5) + 1}")
+            # 最後の0.5秒と最初の0.5秒でクロスフェード
             safe_ffmpeg -i bgm-main-30s.wav -filter_complex \
-              "[0:a]aloop=loop=-1:size=44100*30,atrim=0:$BGM_MAIN_NEEDED[looped]" \
+              "[0:a]atrim=0:29.5[part1];
+               [0:a]atrim=0:30[full];
+               [part1][full]acrossfade=d=0.5:c1=tri:c2=tri[crossed];
+               [crossed]aloop=loop=$LOOP_COUNT:size=44100*29.5,atrim=0:$BGM_MAIN_NEEDED[looped]" \
               -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-main-extended.wav -y || exit 1
             mv bgm-main-extended.wav bgm-main-30s.wav
           fi
           
           if [ $BGM_ENDING_NEEDED -gt 30 ]; then
             echo "🔄 エンディングBGMを${BGM_ENDING_NEEDED}秒に拡張"
-            # シンプルなループ処理
+            # ループ回数を計算（29.5秒ごと、0.5秒のオーバーラップ）
+            LOOP_COUNT=$(awk "BEGIN {print int($BGM_ENDING_NEEDED / 29.5) + 1}")
+            # 最後の0.5秒と最初の0.5秒でクロスフェード
             safe_ffmpeg -i bgm-ending-30s.wav -filter_complex \
-              "[0:a]aloop=loop=-1:size=44100*30,atrim=0:$BGM_ENDING_NEEDED[looped]" \
+              "[0:a]atrim=0:29.5[part1];
+               [0:a]atrim=0:30[full];
+               [part1][full]acrossfade=d=0.5:c1=tri:c2=tri[crossed];
+               [crossed]aloop=loop=$LOOP_COUNT:size=44100*29.5,atrim=0:$BGM_ENDING_NEEDED[looped]" \
               -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-ending-extended.wav -y || exit 1
             mv bgm-ending-extended.wav bgm-ending-30s.wav
           fi
