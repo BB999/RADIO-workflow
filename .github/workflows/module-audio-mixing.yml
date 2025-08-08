@@ -401,17 +401,19 @@ jobs:
           VOICE_CROSSFADE_END=5  # クロスフェード中のセリフ終了タイミング（楽曲セクション基準）
           
           if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
-            # 楽曲が4秒以上の場合：音量制御+フェードアウト
+            # 楽曲が4秒以上の場合：ラジオ標準音量正規化→音量制御→フェードアウト
             safe_ffmpeg -i selected-music.mp3 \
-                        -filter_complex "[0]aresample=44100,volume='if(lt(t,${VOICE_CROSSFADE_END}),0.5,1)':eval=frame,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
+                        -filter_complex "[0]aresample=44100,loudnorm=I=-23:LRA=7:TP=-1[normalized];
+                                        [normalized]volume='if(lt(t,${VOICE_CROSSFADE_END}),0.5,1)':eval=frame,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
                         -map "[music_faded]" \
                         -t ${MUSIC_TOTAL_DURATION} \
                         -ar 44100 -ac 2 -c:a pcm_s16le \
                         music-mixed.wav || exit 1
           else
-            # 楽曲が4秒以下の場合：音量制御のみ
+            # 楽曲が4秒以下の場合：ラジオ標準音量正規化→音量制御
             safe_ffmpeg -i selected-music.mp3 \
-                        -filter_complex "[0]aresample=44100,volume='if(lt(t,${VOICE_CROSSFADE_END}),0.5,1)':eval=frame[music]" \
+                        -filter_complex "[0]aresample=44100,loudnorm=I=-23:LRA=7:TP=-1[normalized];
+                                        [normalized]volume='if(lt(t,${VOICE_CROSSFADE_END}),0.5,1)':eval=frame[music]" \
                         -map "[music]" \
                         -t ${MUSIC_TOTAL_DURATION} \
                         -ar 44100 -ac 2 -c:a pcm_s16le \
