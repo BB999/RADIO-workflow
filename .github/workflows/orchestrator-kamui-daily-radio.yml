@@ -365,12 +365,12 @@ jobs:
       
       - name: Create Pull Request
         run: |
-          # 台本の内容を取得してSSMLタグを除去
-          OPENING_TEXT=$(echo "${{ needs.planning.outputs.script-opening }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          MAIN2_TEXT=$(echo "${{ needs.planning.outputs.script-main2 }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          MAIN3_TEXT=$(echo "${{ needs.planning.outputs.script-main3 }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
+          # 台本の内容を取得（SSMLタグ付きのまま）
+          OPENING_TEXT=$(echo "${{ needs.planning.outputs.script-opening }}" | sed 's/^ *//' | sed 's/ *$//')
+          MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/^ *//' | sed 's/ *$//')
+          MAIN2_TEXT=$(echo "${{ needs.planning.outputs.script-main2 }}" | sed 's/^ *//' | sed 's/ *$//')
+          MAIN3_TEXT=$(echo "${{ needs.planning.outputs.script-main3 }}" | sed 's/^ *//' | sed 's/ *$//')
+          ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/^ *//' | sed 's/ *$//')
           
           # 文字数計算（日本語対応）
           OPENING_COUNT=$(echo "$OPENING_TEXT" | wc -m)
