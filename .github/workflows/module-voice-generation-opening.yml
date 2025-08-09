@@ -109,6 +109,21 @@ jobs:
               echo "::warning::⚠️ WAVファイル形式ではない可能性があります"
               file voice-opening.wav
             fi
+            
+            # 音声ファイルを正規化（聞こえやすく調整）
+            echo "🔊 音声正規化処理"
+            ffmpeg -i voice-opening.wav \
+                   -filter_complex "[0]loudnorm=I=-20:LRA=7:TP=-1[normalized]" \
+                   -map "[normalized]" \
+                   -ar 44100 -ac 2 -c:a pcm_s16le \
+                   voice-opening-normalized.wav -y
+            
+            if [ -f voice-opening-normalized.wav ]; then
+              mv voice-opening-normalized.wav voice-opening.wav
+              echo "✅ 音声正規化完了"
+            else
+              echo "::warning::音声正規化に失敗、元ファイルを使用"
+            fi
           else
             echo "::error::❌ 音声ファイルが生成されませんでした"
             exit 1
