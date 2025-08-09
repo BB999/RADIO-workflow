@@ -314,18 +314,18 @@ jobs:
           MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           
-          # 文字数計算
-          OPENING_COUNT=$(echo "$OPENING_TEXT" | wc -c)
-          MAIN_COUNT=$(echo "$MAIN_TEXT" | wc -c)
-          ENDING_COUNT=$(echo "$ENDING_TEXT" | wc -c)
+          # 文字数計算（日本語対応）
+          OPENING_COUNT=$(echo "$OPENING_TEXT" | wc -m)
+          MAIN_COUNT=$(echo "$MAIN_TEXT" | wc -m)
+          ENDING_COUNT=$(echo "$ENDING_TEXT" | wc -m)
           TOTAL_COUNT=$((OPENING_COUNT + MAIN_COUNT + ENDING_COUNT))
           
           # 音声IDとアーティファクトから楽曲情報を取得
           VOICE_ID="不明"
           SELECTED_MUSIC="不明"
-          if [ -f "radio-workflow/temp/USE_UUID.md" ]; then
-            VOICE_ID=$(grep "Voice UUID:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f3 2>/dev/null || echo "不明")
-            SELECTED_MUSIC=$(grep "Selected Music File:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f4- 2>/dev/null || echo "不明")
+          if [ -f "radio-output/USE_UUID.md" ]; then
+            VOICE_ID=$(grep "Voice UUID:" radio-output/USE_UUID.md | cut -d' ' -f3 2>/dev/null || echo "不明")
+            SELECTED_MUSIC=$(grep "Selected Music File:" radio-output/USE_UUID.md | cut -d' ' -f4- 2>/dev/null || echo "不明")
           fi
           
           # PRボディを直接作成
