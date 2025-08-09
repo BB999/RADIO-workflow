@@ -262,7 +262,7 @@ jobs:
           
           # プロンプトをファイルに保存（長い文字列を避けるため）
           PROMPT_FILE="radio_prompt.txt"
-          cat > "$PROMPT_FILE" << 'PROMPT_EOF'
+          cat > "$PROMPT_FILE" <<'HEREDOC_END'
 以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
 
 【パーソナリティ設定】
@@ -300,21 +300,18 @@ OPENING_REQUIREMENT_PLACEHOLDER
 - エンディング: 30秒（まとめと次回予告）約200-250文字
 - パーソナリティ: radio-personality-data.mdの設定に従う
 - 一人称は「僕」、口癖や話し方の特徴を必ず反映
-- **時事ニュース**: メインパートで1〜2個の時事ネタに触れて、開発の話と絡める
-- **ランダム要素**: 指定されたランダム要素を必ず取り入れる（特別トーク要素、オープニング・エンディングスタイル、キャラクターモード）
-- **バリエーション**: 毎回違う雰囲気の番組になるよう、ランダム要素を活かして個性を出す
 
 MUSIC_INTRO_PLACEHOLDER
 
-**重要**: 以下のJSONを "radio-scripts/scripts.json" ファイルに保存してください：
+重要: 以下のJSONを radio-scripts/scripts.json ファイルに保存してください：
 {
   "opening": "オープニング台本（200-250文字程度）",
   "main": "メイン1台本（昼の神威日報、300-350文字程度）",
-  "main2": "メイン2台本（テックニュース、300-350文字程度）",
+  "main2": "メイン2台本（テックニュース、300-350文字程度）",  
   "main3": "メイン3台本（夜の神威日報、300-350文字程度）",
   "ending": "エンディング台本（200-250文字程度）"
 }
-PROMPT_EOF
+HEREDOC_END
 
           # プレースホルダーを実際の値で置換
           sed -i "s|PERSONALITY_DATA_PLACEHOLDER|$PERSONALITY_DATA|g" "$PROMPT_FILE"
