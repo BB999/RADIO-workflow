@@ -182,11 +182,13 @@ jobs:
           path: radio-workflow/temp/USE_UUID.md
           retention-days: 1
 
-  preprocess-development-report:
+  preprocess-all-inputs:
     needs: planning-setup
     runs-on: ubuntu-latest
     outputs:
-      processed-report: ${{ steps.process.outputs.processed-report }}
+      processed-development-report: ${{ steps.process.outputs.processed-development-report }}
+      processed-tech-news: ${{ steps.process.outputs.processed-tech-news }}
+      processed-evening-report: ${{ steps.process.outputs.processed-evening-report }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -199,151 +201,96 @@ jobs:
       - name: Install Claude Code SDK
         run: npm install @anthropic-ai/claude-code
       
-      - name: Process development report in stages
+      - name: Process all inputs in stages
         id: process
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          echo "🔄 development-report段階的処理開始"
+          echo "🔄 全入力データの段階的処理開始"
           
-          # 入力データの長さをチェック
+          # Development Report の処理
+          echo "📝 Development Report処理開始"
           INPUT_TEXT="${{ inputs.development-report }}"
           INPUT_LENGTH=$(echo "$INPUT_TEXT" | wc -c)
-          echo "📏 入力データ長: ${INPUT_LENGTH}文字"
+          echo "📏 開発進捗データ長: ${INPUT_LENGTH}文字"
           
-          # 文字数が1000文字以下なら直接使用
           if [ "$INPUT_LENGTH" -le 1000 ]; then
-            echo "✅ 短いデータのため直接使用します"
-            PROCESSED_REPORT="$INPUT_TEXT"
+            echo "✅ 開発進捗: 短いデータのため直接使用"
+            PROCESSED_DEVELOPMENT_REPORT="$INPUT_TEXT"
           else
-            echo "⚡ 長いデータのため段階的処理を実行します"
-            
-            # データを2つに分割（改行で分割）
-            echo "$INPUT_TEXT" > temp_full.txt
-            TOTAL_LINES=$(wc -l < temp_full.txt)
+            echo "⚡ 開発進捗: 段階的処理実行"
+            echo "$INPUT_TEXT" > temp_dev_full.txt
+            TOTAL_LINES=$(wc -l < temp_dev_full.txt)
             HALF_LINES=$((TOTAL_LINES / 2))
             
-            head -n "$HALF_LINES" temp_full.txt > temp_part1.txt
-            tail -n +"$((HALF_LINES + 1))" temp_full.txt > temp_part2.txt
+            head -n "$HALF_LINES" temp_dev_full.txt > temp_dev_part1.txt
+            tail -n +"$((HALF_LINES + 1))" temp_dev_full.txt > temp_dev_part2.txt
             
-            echo "📂 パート1 (${HALF_LINES}行):"
-            head -3 temp_part1.txt
-            echo "..."
-            echo "📂 パート2 ($((TOTAL_LINES - HALF_LINES))行):"
-            head -3 temp_part2.txt
-            echo "..."
-            
-            # パート1を要約
-            echo "🤖 パート1要約開始"
-            cat > part1_prompt.txt << 'PROMPT_EOF'
+            cat > dev_part1_prompt.txt << 'PROMPT_EOF'
           以下の神威アプリ開発進捗情報を、ラジオ台本用に1000文字以内で要約してください。
           重要な機能追加、バグ修正、技術実装の要点のみを含めてください：
           
           PROMPT_EOF
-            cat temp_part1.txt >> part1_prompt.txt
+            cat temp_dev_part1.txt >> dev_part1_prompt.txt
             
             SUMMARY1=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
               --max-turns 2 \
-              < part1_prompt.txt) || {
-              echo "::error::パート1要約でエラーが発生しました"
+              < dev_part1_prompt.txt) || {
+              echo "::error::開発進捗パート1要約でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ パート1要約完了 ($(echo "$SUMMARY1" | wc -c)文字)"
-            
-            # パート2を要約
-            echo "🤖 パート2要約開始"
-            cat > part2_prompt.txt << 'PROMPT_EOF'
+            cat > dev_part2_prompt.txt << 'PROMPT_EOF'
           以下の神威アプリ開発進捗情報を、ラジオ台本用に1000文字以内で要約してください。
           重要な機能追加、バグ修正、技術実装の要点のみを含めてください：
           
           PROMPT_EOF
-            cat temp_part2.txt >> part2_prompt.txt
+            cat temp_dev_part2.txt >> dev_part2_prompt.txt
             
             SUMMARY2=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
               --max-turns 2 \
-              < part2_prompt.txt) || {
-              echo "::error::パート2要約でエラーが発生しました"
+              < dev_part2_prompt.txt) || {
+              echo "::error::開発進捗パート2要約でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ パート2要約完了 ($(echo "$SUMMARY2" | wc -c)文字)"
-            
-            # 2つの要約を統合
-            echo "🔀 要約統合開始"
-            cat > merge_prompt.txt << 'PROMPT_EOF'
+            cat > dev_merge_prompt.txt << 'PROMPT_EOF'
           以下2つの神威アプリ開発進捗要約を、ラジオ台本用に1000文字以内で統合してください。
           重複を避け、最も重要なポイントを含めてください：
           
           【要約1】
           PROMPT_EOF
-            echo "$SUMMARY1" >> merge_prompt.txt
-            echo "" >> merge_prompt.txt
-            echo "【要約2】" >> merge_prompt.txt
-            echo "$SUMMARY2" >> merge_prompt.txt
+            echo "$SUMMARY1" >> dev_merge_prompt.txt
+            echo "" >> dev_merge_prompt.txt
+            echo "【要約2】" >> dev_merge_prompt.txt
+            echo "$SUMMARY2" >> dev_merge_prompt.txt
             
-            PROCESSED_REPORT=$(npx @anthropic-ai/claude-code \
+            PROCESSED_DEVELOPMENT_REPORT=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
               --max-turns 2 \
-              < merge_prompt.txt) || {
-              echo "::error::要約統合でエラーが発生しました"
+              < dev_merge_prompt.txt) || {
+              echo "::error::開発進捗要約統合でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ 要約統合完了 ($(echo "$PROCESSED_REPORT" | wc -c)文字)"
-            
-            # 一時ファイルをクリーンアップ
-            rm -f temp_*.txt *_prompt.txt
+            rm -f temp_dev_*.txt dev_*_prompt.txt
           fi
           
-          echo "📝 最終処理結果:"
-          echo "$PROCESSED_REPORT"
+          echo "✅ 開発進捗処理完了 ($(echo "$PROCESSED_DEVELOPMENT_REPORT" | wc -c)文字)"
           
-          {
-            echo "processed-report<<EOF"
-            echo "$PROCESSED_REPORT"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-  preprocess-tech-news:
-    needs: planning-setup
-    runs-on: ubuntu-latest
-    outputs:
-      processed-tech-news: ${{ steps.process.outputs.processed-tech-news }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code
-      
-      - name: Process tech news in stages
-        id: process
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          echo "🔄 tech-news段階的処理開始"
-          
-          # 入力データの長さをチェック
+          # Tech News の処理
+          echo "📰 Tech News処理開始"
           INPUT_TEXT="${{ inputs.tech-news }}"
           INPUT_LENGTH=$(echo "$INPUT_TEXT" | wc -c)
-          echo "📏 入力データ長: ${INPUT_LENGTH}文字"
+          echo "📏 テックニュースデータ長: ${INPUT_LENGTH}文字"
           
-          # 文字数が1000文字以下なら直接使用
           if [ "$INPUT_LENGTH" -le 1000 ]; then
-            echo "✅ 短いデータのため直接使用します"
+            echo "✅ テックニュース: 短いデータのため直接使用"
             PROCESSED_TECH_NEWS="$INPUT_TEXT"
           else
-            echo "⚡ 長いデータのため段階的処理を実行します"
-            
-            # データを2つに分割（改行で分割）
+            echo "⚡ テックニュース: 段階的処理実行"
             echo "$INPUT_TEXT" > temp_tech_full.txt
             TOTAL_LINES=$(wc -l < temp_tech_full.txt)
             HALF_LINES=$((TOTAL_LINES / 2))
@@ -351,15 +298,6 @@ jobs:
             head -n "$HALF_LINES" temp_tech_full.txt > temp_tech_part1.txt
             tail -n +"$((HALF_LINES + 1))" temp_tech_full.txt > temp_tech_part2.txt
             
-            echo "📂 パート1 (${HALF_LINES}行):"
-            head -3 temp_tech_part1.txt
-            echo "..."
-            echo "📂 パート2 ($((TOTAL_LINES - HALF_LINES))行):"
-            head -3 temp_tech_part2.txt
-            echo "..."
-            
-            # パート1を要約
-            echo "🤖 パート1要約開始"
             cat > tech_part1_prompt.txt << 'PROMPT_EOF'
           以下のテックニュース情報を、ラジオ台本用に1000文字以内で要約してください。
           重要なニュース、技術動向、業界情報の要点のみを含めてください：
@@ -371,14 +309,10 @@ jobs:
               --allowedTools "none" \
               --max-turns 2 \
               < tech_part1_prompt.txt) || {
-              echo "::error::パート1要約でエラーが発生しました"
+              echo "::error::テックニュースパート1要約でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ パート1要約完了 ($(echo "$SUMMARY1" | wc -c)文字)"
-            
-            # パート2を要約
-            echo "🤖 パート2要約開始"
             cat > tech_part2_prompt.txt << 'PROMPT_EOF'
           以下のテックニュース情報を、ラジオ台本用に1000文字以内で要約してください。
           重要なニュース、技術動向、業界情報の要点のみを含めてください：
@@ -390,14 +324,10 @@ jobs:
               --allowedTools "none" \
               --max-turns 2 \
               < tech_part2_prompt.txt) || {
-              echo "::error::パート2要約でエラーが発生しました"
+              echo "::error::テックニュースパート2要約でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ パート2要約完了 ($(echo "$SUMMARY2" | wc -c)文字)"
-            
-            # 2つの要約を統合
-            echo "🔀 要約統合開始"
             cat > tech_merge_prompt.txt << 'PROMPT_EOF'
           以下2つのテックニュース要約を、ラジオ台本用に1000文字以内で統合してください。
           重複を避け、最も重要なポイントを含めてください：
@@ -413,62 +343,26 @@ jobs:
               --allowedTools "none" \
               --max-turns 2 \
               < tech_merge_prompt.txt) || {
-              echo "::error::要約統合でエラーが発生しました"
+              echo "::error::テックニュース要約統合でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ 要約統合完了 ($(echo "$PROCESSED_TECH_NEWS" | wc -c)文字)"
-            
-            # 一時ファイルをクリーンアップ
             rm -f temp_tech_*.txt tech_*_prompt.txt
           fi
           
-          echo "📝 最終処理結果:"
-          echo "$PROCESSED_TECH_NEWS"
+          echo "✅ テックニュース処理完了 ($(echo "$PROCESSED_TECH_NEWS" | wc -c)文字)"
           
-          {
-            echo "processed-tech-news<<EOF"
-            echo "$PROCESSED_TECH_NEWS"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-  preprocess-evening-report:
-    needs: planning-setup
-    runs-on: ubuntu-latest
-    outputs:
-      processed-evening-report: ${{ steps.process.outputs.processed-evening-report }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code
-      
-      - name: Process evening report in stages
-        id: process
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          echo "🔄 evening-report段階的処理開始"
-          
-          # 入力データの長さをチェック
+          # Evening Report の処理
+          echo "🌙 Evening Report処理開始"
           INPUT_TEXT="${{ inputs.evening-report }}"
           INPUT_LENGTH=$(echo "$INPUT_TEXT" | wc -c)
-          echo "📏 入力データ長: ${INPUT_LENGTH}文字"
+          echo "📏 夜の神威日報データ長: ${INPUT_LENGTH}文字"
           
-          # 文字数が1000文字以下なら直接使用
           if [ "$INPUT_LENGTH" -le 1000 ]; then
-            echo "✅ 短いデータのため直接使用します"
+            echo "✅ 夜の神威日報: 短いデータのため直接使用"
             PROCESSED_EVENING_REPORT="$INPUT_TEXT"
           else
-            echo "⚡ 長いデータのため段階的処理を実行します"
-            
-            # データを2つに分割（改行で分割）
+            echo "⚡ 夜の神威日報: 段階的処理実行"
             echo "$INPUT_TEXT" > temp_evening_full.txt
             TOTAL_LINES=$(wc -l < temp_evening_full.txt)
             HALF_LINES=$((TOTAL_LINES / 2))
@@ -476,15 +370,6 @@ jobs:
             head -n "$HALF_LINES" temp_evening_full.txt > temp_evening_part1.txt
             tail -n +"$((HALF_LINES + 1))" temp_evening_full.txt > temp_evening_part2.txt
             
-            echo "📂 パート1 (${HALF_LINES}行):"
-            head -3 temp_evening_part1.txt
-            echo "..."
-            echo "📂 パート2 ($((TOTAL_LINES - HALF_LINES))行):"
-            head -3 temp_evening_part2.txt
-            echo "..."
-            
-            # パート1を要約
-            echo "🤖 パート1要約開始"
             cat > evening_part1_prompt.txt << 'PROMPT_EOF'
           以下の夜の神威日報情報を、ラジオ台本用に1000文字以内で要約してください。
           重要な開発進捗、実装詳細、技術的な気づきの要点のみを含めてください：
@@ -496,14 +381,10 @@ jobs:
               --allowedTools "none" \
               --max-turns 2 \
               < evening_part1_prompt.txt) || {
-              echo "::error::パート1要約でエラーが発生しました"
+              echo "::error::夜の神威日報パート1要約でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ パート1要約完了 ($(echo "$SUMMARY1" | wc -c)文字)"
-            
-            # パート2を要約
-            echo "🤖 パート2要約開始"
             cat > evening_part2_prompt.txt << 'PROMPT_EOF'
           以下の夜の神威日報情報を、ラジオ台本用に1000文字以内で要約してください。
           重要な開発進捗、実装詳細、技術的な気づきの要点のみを含めてください：
@@ -515,14 +396,10 @@ jobs:
               --allowedTools "none" \
               --max-turns 2 \
               < evening_part2_prompt.txt) || {
-              echo "::error::パート2要約でエラーが発生しました"
+              echo "::error::夜の神威日報パート2要約でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ パート2要約完了 ($(echo "$SUMMARY2" | wc -c)文字)"
-            
-            # 2つの要約を統合
-            echo "🔀 要約統合開始"
             cat > evening_merge_prompt.txt << 'PROMPT_EOF'
           以下2つの夜の神威日報要約を、ラジオ台本用に1000文字以内で統合してください。
           重複を避け、最も重要なポイントを含めてください：
@@ -538,27 +415,38 @@ jobs:
               --allowedTools "none" \
               --max-turns 2 \
               < evening_merge_prompt.txt) || {
-              echo "::error::要約統合でエラーが発生しました"
+              echo "::error::夜の神威日報要約統合でエラーが発生しました"
               exit 1
             }
             
-            echo "✅ 要約統合完了 ($(echo "$PROCESSED_EVENING_REPORT" | wc -c)文字)"
-            
-            # 一時ファイルをクリーンアップ
             rm -f temp_evening_*.txt evening_*_prompt.txt
           fi
           
-          echo "📝 最終処理結果:"
-          echo "$PROCESSED_EVENING_REPORT"
+          echo "✅ 夜の神威日報処理完了 ($(echo "$PROCESSED_EVENING_REPORT" | wc -c)文字)"
+          
+          # 全結果をGitHub Outputsに設定
+          {
+            echo "processed-development-report<<EOF"
+            echo "$PROCESSED_DEVELOPMENT_REPORT"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          {
+            echo "processed-tech-news<<EOF"
+            echo "$PROCESSED_TECH_NEWS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
           
           {
             echo "processed-evening-report<<EOF"
             echo "$PROCESSED_EVENING_REPORT"
             echo "EOF"
           } >> $GITHUB_OUTPUT
+          
+          echo "🎯 全ての入力データ前処理が完了しました"
 
   script-opening:
-    needs: [planning-setup, preprocess-development-report, preprocess-tech-news, preprocess-evening-report]
+    needs: [planning-setup, preprocess-all-inputs]
     runs-on: ubuntu-latest
     outputs:
       script-text: ${{ steps.generate.outputs.script-text }}
@@ -597,9 +485,9 @@ jobs:
           ${{ needs.planning-setup.outputs.music-info }}
 
           【今日の内容概要（参考用）】
-          - 開発進捗: ${{ needs.preprocess-development-report.outputs.processed-report }}
-          - テックニュース: ${{ needs.preprocess-tech-news.outputs.processed-tech-news }}
-          - 夜の振り返り: ${{ needs.preprocess-evening-report.outputs.processed-evening-report }}
+          - 開発進捗: ${{ needs.preprocess-all-inputs.outputs.processed-development-report }}
+          - テックニュース: ${{ needs.preprocess-all-inputs.outputs.processed-tech-news }}
+          - 夜の振り返り: ${{ needs.preprocess-all-inputs.outputs.processed-evening-report }}
 
           【要件】
           - 時間: 30秒（約200-250文字）
@@ -639,7 +527,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
   script-main:
-    needs: [planning-setup, preprocess-development-report]
+    needs: [planning-setup, preprocess-all-inputs]
     runs-on: ubuntu-latest
     outputs:
       script-text: ${{ steps.generate.outputs.script-text }}
@@ -670,7 +558,7 @@ jobs:
           ${{ needs.planning-setup.outputs.personality-data }}
 
           【セクション内容】
-          ${{ needs.preprocess-development-report.outputs.processed-report }}
+          ${{ needs.preprocess-all-inputs.outputs.processed-development-report }}
 
           【強調ポイント】
           ${{ inputs.topic-focus || 'なし' }}
@@ -717,7 +605,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
   script-main2:
-    needs: [planning-setup, preprocess-tech-news]
+    needs: [planning-setup, preprocess-all-inputs]
     runs-on: ubuntu-latest
     outputs:
       script-text: ${{ steps.generate.outputs.script-text }}
@@ -748,7 +636,7 @@ jobs:
           ${{ needs.planning-setup.outputs.personality-data }}
 
           【セクション内容】
-          ${{ needs.preprocess-tech-news.outputs.processed-tech-news }}
+          ${{ needs.preprocess-all-inputs.outputs.processed-tech-news }}
 
           【今日のランダム要素】
           - キャラクターモード: ${{ needs.planning-setup.outputs.character-mode }}
@@ -792,7 +680,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
   script-main3:
-    needs: [planning-setup, preprocess-evening-report]
+    needs: [planning-setup, preprocess-all-inputs]
     runs-on: ubuntu-latest
     outputs:
       script-text: ${{ steps.generate.outputs.script-text }}
@@ -823,7 +711,7 @@ jobs:
           ${{ needs.planning-setup.outputs.personality-data }}
 
           【セクション内容】
-          ${{ needs.preprocess-evening-report.outputs.processed-evening-report }}
+          ${{ needs.preprocess-all-inputs.outputs.processed-evening-report }}
 
           【今日のランダム要素】
           - キャラクターモード: ${{ needs.planning-setup.outputs.character-mode }}
@@ -867,7 +755,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
   script-ending:
-    needs: [planning-setup, preprocess-development-report, preprocess-tech-news, preprocess-evening-report]
+    needs: [planning-setup, preprocess-all-inputs]
     runs-on: ubuntu-latest
     outputs:
       script-text: ${{ steps.generate.outputs.script-text }}
@@ -902,9 +790,9 @@ jobs:
           - キャラクターモード: ${{ needs.planning-setup.outputs.character-mode }}
 
           【今日の内容概要（参考用）】
-          - 開発進捗: ${{ needs.preprocess-development-report.outputs.processed-report }}
-          - テックニュース: ${{ needs.preprocess-tech-news.outputs.processed-tech-news }}
-          - 夜の振り返り: ${{ needs.preprocess-evening-report.outputs.processed-evening-report }}
+          - 開発進捗: ${{ needs.preprocess-all-inputs.outputs.processed-development-report }}
+          - テックニュース: ${{ needs.preprocess-all-inputs.outputs.processed-tech-news }}
+          - 夜の振り返り: ${{ needs.preprocess-all-inputs.outputs.processed-evening-report }}
 
           【要件】
           - 時間: 30秒（約200-250文字）

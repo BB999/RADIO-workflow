@@ -171,6 +171,14 @@ jobs:
             # 音声ファイルの簡易検証
             file "$DOWNLOADED_FILE"
             
+            # XMLファイルの場合はエラーとして扱う
+            if file "$DOWNLOADED_FILE" | grep -q "XML"; then
+              echo "::error::❌ ダウンロードしたファイルがXMLエラーレスポンスです"
+              echo "::error::ファイル全体の内容:"
+              cat "$DOWNLOADED_FILE"
+              continue  # リトライループに戻る
+            fi
+            
             # ffmpegでループ拡張
             sudo apt-get update && sudo apt-get install -y ffmpeg
             if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-opening-30s.wav" -y; then
