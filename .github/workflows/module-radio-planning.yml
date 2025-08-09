@@ -234,7 +234,6 @@ jobs:
           OPENING_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            --quiet \
             < opening_prompt.txt)
 
           # SSML処理
@@ -313,7 +312,6 @@ jobs:
           MAIN_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            --quiet \
             < main_prompt.txt)
 
           # SSML処理
@@ -389,7 +387,6 @@ jobs:
           MAIN2_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            --quiet \
             < main2_prompt.txt)
 
           # SSML処理
@@ -465,7 +462,6 @@ jobs:
           MAIN3_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            --quiet \
             < main3_prompt.txt)
 
           # SSML処理
@@ -538,7 +534,6 @@ jobs:
           ENDING_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            --quiet \
             < ending_prompt.txt)
 
           # SSML処理
