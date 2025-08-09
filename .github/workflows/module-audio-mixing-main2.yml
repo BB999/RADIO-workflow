@@ -51,8 +51,46 @@ jobs:
       
       - name: Install FFmpeg
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          # タイムアウトと3回リトライ機能付きFFmpegインストール
+          install_ffmpeg() {
+            local attempt=1
+            local max_attempts=3
+            
+            while [ $attempt -le $max_attempts ]; do
+              echo "📦 FFmpegインストール試行 $attempt/$max_attempts"
+              
+              # タイムアウト付きapt-get update実行（5分でタイムアウト）
+              if timeout 300 sudo apt-get update; then
+                echo "✅ apt-get update 成功"
+                if sudo apt-get install -y ffmpeg; then
+                  echo "✅ FFmpegインストール成功"
+                  return 0
+                else
+                  echo "::warning::FFmpegインストールに失敗（試行 $attempt/$max_attempts）"
+                fi
+              else
+                echo "::warning::apt-get update がタイムアウトまたは失敗（試行 $attempt/$max_attempts）"
+                
+                # Microsoft リポジトリが原因の可能性があるため削除して再試行
+                if [ $attempt -eq 2 ]; then
+                  echo "🔧 問題のあるリポジトリを無効化してリトライ"
+                  sudo rm -f /etc/apt/sources.list.d/microsoft* || true
+                  sudo rm -f /etc/apt/sources.list.d/azure* || true
+                fi
+              fi
+              
+              attempt=$((attempt + 1))
+              if [ $attempt -le $max_attempts ]; then
+                echo "⏳ 10秒待機してリトライ..."
+                sleep 10
+              fi
+            done
+            
+            echo "::error::❌ FFmpegのインストールに失敗しました（$max_attempts 回試行）"
+            return 1
+          }
+          
+          install_ffmpeg
       
       - name: Mix main2 audio with BGM
         id: mixing
