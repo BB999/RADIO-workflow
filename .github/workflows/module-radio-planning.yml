@@ -498,11 +498,25 @@ jobs:
           重要: 生成したオープニング台本のテキストのみを出力してください（JSON形式ではなく、プレーンテキスト）。
           EOF
 
-          # Claude Code実行
+          # Claude Code実行（エラーハンドリング付き）
+          echo "📝 オープニング台本生成を開始します..."
           OPENING_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            < opening_prompt.txt)
+            < opening_prompt.txt 2>&1) || {
+            echo "::error::オープニング台本生成に失敗しました"
+            echo "::error::エラー内容: $OPENING_SCRIPT"
+            exit 1
+          }
+          
+          # 空チェック
+          if [ -z "$OPENING_SCRIPT" ] || [[ "$OPENING_SCRIPT" == *"Error:"* ]] || [[ "$OPENING_SCRIPT" == *"Reached max turns"* ]]; then
+            echo "::error::台本が空またはエラーを含んでいます"
+            echo "::error::生成された内容: $OPENING_SCRIPT"
+            exit 1
+          fi
+          
+          echo "✅ オープニング台本生成完了 ($(echo "$OPENING_SCRIPT" | wc -c)文字)"
 
           # SSML処理
           if [ -f "radio-workflow/ssml_formatter.js" ]; then
@@ -576,11 +590,25 @@ jobs:
           重要: 生成したメイン台本のテキストのみを出力してください（JSON形式ではなく、プレーンテキスト）。
           EOF
 
-          # Claude Code実行
+          # Claude Code実行（エラーハンドリング付き）
+          echo "📝 台本生成を開始します..."
           MAIN_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            < main_prompt.txt)
+            < main_prompt.txt 2>&1) || {
+            echo "::error::メイン1台本生成に失敗しました"
+            echo "::error::エラー内容: $MAIN_SCRIPT"
+            exit 1
+          }
+          
+          # 空チェック
+          if [ -z "$MAIN_SCRIPT" ] || [[ "$MAIN_SCRIPT" == *"Error:"* ]] || [[ "$MAIN_SCRIPT" == *"Reached max turns"* ]]; then
+            echo "::error::台本が空またはエラーを含んでいます"
+            echo "::error::生成された内容: $MAIN_SCRIPT"
+            exit 1
+          fi
+          
+          echo "✅ メイン1台本生成完了 ($(echo "$MAIN_SCRIPT" | wc -c)文字)"
 
           # SSML処理
           if [ -f "radio-workflow/ssml_formatter.js" ]; then
@@ -651,11 +679,25 @@ jobs:
           重要: 生成したメイン2台本のテキストのみを出力してください（JSON形式ではなく、プレーンテキスト）。
           EOF
 
-          # Claude Code実行
+          # Claude Code実行（エラーハンドリング付き）
+          echo "📝 テックニュース台本生成を開始します..."
           MAIN2_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            < main2_prompt.txt)
+            < main2_prompt.txt 2>&1) || {
+            echo "::error::メイン2台本生成に失敗しました"
+            echo "::error::エラー内容: $MAIN2_SCRIPT"
+            exit 1
+          }
+          
+          # 空チェック
+          if [ -z "$MAIN2_SCRIPT" ] || [[ "$MAIN2_SCRIPT" == *"Error:"* ]] || [[ "$MAIN2_SCRIPT" == *"Reached max turns"* ]]; then
+            echo "::error::台本が空またはエラーを含んでいます"
+            echo "::error::生成された内容: $MAIN2_SCRIPT"
+            exit 1
+          fi
+          
+          echo "✅ メイン2台本生成完了 ($(echo "$MAIN2_SCRIPT" | wc -c)文字)"
 
           # SSML処理
           if [ -f "radio-workflow/ssml_formatter.js" ]; then
@@ -726,11 +768,25 @@ jobs:
           重要: 生成したメイン3台本のテキストのみを出力してください（JSON形式ではなく、プレーンテキスト）。
           EOF
 
-          # Claude Code実行
+          # Claude Code実行（エラーハンドリング付き）
+          echo "📝 夜の神威日報台本生成を開始します..."
           MAIN3_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            < main3_prompt.txt)
+            < main3_prompt.txt 2>&1) || {
+            echo "::error::メイン3台本生成に失敗しました"
+            echo "::error::エラー内容: $MAIN3_SCRIPT"
+            exit 1
+          }
+          
+          # 空チェック
+          if [ -z "$MAIN3_SCRIPT" ] || [[ "$MAIN3_SCRIPT" == *"Error:"* ]] || [[ "$MAIN3_SCRIPT" == *"Reached max turns"* ]]; then
+            echo "::error::台本が空またはエラーを含んでいます"
+            echo "::error::生成された内容: $MAIN3_SCRIPT"
+            exit 1
+          fi
+          
+          echo "✅ メイン3台本生成完了 ($(echo "$MAIN3_SCRIPT" | wc -c)文字)"
 
           # SSML処理
           if [ -f "radio-workflow/ssml_formatter.js" ]; then
@@ -803,11 +859,25 @@ jobs:
           重要: 生成したエンディング台本のテキストのみを出力してください（JSON形式ではなく、プレーンテキスト）。
           EOF
 
-          # Claude Code実行
+          # Claude Code実行（エラーハンドリング付き）
+          echo "📝 エンディング台本生成を開始します..."
           ENDING_SCRIPT=$(npx @anthropic-ai/claude-code \
             --allowedTools "none" \
             --max-turns 3 \
-            < ending_prompt.txt)
+            < ending_prompt.txt 2>&1) || {
+            echo "::error::エンディング台本生成に失敗しました"
+            echo "::error::エラー内容: $ENDING_SCRIPT"
+            exit 1
+          }
+          
+          # 空チェック
+          if [ -z "$ENDING_SCRIPT" ] || [[ "$ENDING_SCRIPT" == *"Error:"* ]] || [[ "$ENDING_SCRIPT" == *"Reached max turns"* ]]; then
+            echo "::error::台本が空またはエラーを含んでいます"
+            echo "::error::生成された内容: $ENDING_SCRIPT"
+            exit 1
+          fi
+          
+          echo "✅ エンディング台本生成完了 ($(echo "$ENDING_SCRIPT" | wc -c)文字)"
 
           # SSML処理
           if [ -f "radio-workflow/ssml_formatter.js" ]; then
