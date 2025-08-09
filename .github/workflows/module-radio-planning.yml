@@ -99,8 +99,17 @@ jobs:
           
           # ファイル名から推測でアーティスト名と曲名を抽出（・で区切られている場合）
           if [[ "$SELECTED_MUSIC_FILE" =~ ^(.+)・(.+)\.mp3$ ]]; then
-            SONG_NAME="${BASH_REMATCH[1]}"
-            ARTIST_NAME="${BASH_REMATCH[2]}"
+            POTENTIAL_SONG_NAME="${BASH_REMATCH[1]}"
+            POTENTIAL_ARTIST_NAME="${BASH_REMATCH[2]}"
+            
+            # 楽曲名やアーティスト名に「不明」が含まれている場合は空にする（AIに渡さない）
+            if [[ "$POTENTIAL_SONG_NAME" =~ 不明 ]] || [[ "$POTENTIAL_ARTIST_NAME" =~ 不明 ]]; then
+              SONG_NAME=""
+              ARTIST_NAME=""
+            else
+              SONG_NAME="$POTENTIAL_SONG_NAME"
+              ARTIST_NAME="$POTENTIAL_ARTIST_NAME"
+            fi
           else
             # ・が含まれていない場合はファイル名のみ
             SONG_NAME=""
