@@ -2,10 +2,10 @@ name: Audio Mixing Module - Main2
 on:
   workflow_call:
     inputs:
-      voice-main22:
+      voice-main2:
         required: true
         type: string
-      bgm-main22:
+      bgm-main2:
         required: true
         type: string
     outputs:
