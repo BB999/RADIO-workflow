@@ -260,90 +260,94 @@ jobs:
           
           echo "::endgroup::"
           
-          # プロンプトの構築（音楽選択後に実行）
-          PROMPT="以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
+          # プロンプトをファイルに保存（長い文字列を避けるため）
+          PROMPT_FILE="radio_prompt.txt"
+          cat > "$PROMPT_FILE" << 'PROMPT_EOF'
+以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
 
-          【パーソナリティ設定】
-          $PERSONALITY_DATA
+【パーソナリティ設定】
+PERSONALITY_DATA_PLACEHOLDER
 
-          【セクション1: 昼の神威日報】
-          ${{ inputs.development-report }}
+【セクション1: 昼の神威日報】
+DEVELOPMENT_REPORT_PLACEHOLDER
 
-          【セクション2: テックニュース】
-          ${{ inputs.tech-news }}
+【セクション2: テックニュース】
+TECH_NEWS_PLACEHOLDER
 
-          【セクション3: 夜の神威日報】
-          ${{ inputs.evening-report }}
+【セクション3: 夜の神威日報】
+EVENING_REPORT_PLACEHOLDER
 
-          【強調ポイント】
-          ${{ inputs.topic-focus || 'なし' }}
+【強調ポイント】
+TOPIC_FOCUS_PLACEHOLDER
 
-          【今日の天気と時事ニュース】
-          $NEWS_CONTENT
+【今日の天気と時事ニュース】
+NEWS_CONTENT_PLACEHOLDER
 
-          【今日のランダム要素】
-          - 特別トーク要素: $SELECTED_RANDOM_ELEMENT
-          - オープニングスタイル: $SELECTED_OPENING_PATTERN
-          - エンディングスタイル: $SELECTED_ENDING_PATTERN
-          - キャラクターモード: $SELECTED_CHARACTER_MODE
+【今日のランダム要素】
+- 特別トーク要素: RANDOM_ELEMENT_PLACEHOLDER
+- オープニングスタイル: OPENING_PATTERN_PLACEHOLDER
+- エンディングスタイル: ENDING_PATTERN_PLACEHOLDER
+- キャラクターモード: CHARACTER_MODE_PLACEHOLDER
 
-          【今日の楽曲】$(
-            if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
-              echo "
-          - アーティスト: $ARTIST_NAME
-          - 楽曲名: $SONG_NAME"
-            elif [ -n "$ARTIST_NAME" ]; then
-              echo "
-          - アーティスト: $ARTIST_NAME
-          - 楽曲: $SELECTED_MUSIC_FILE（楽曲名不明）"
-            else
-              echo "
-          - 楽曲: $SELECTED_MUSIC_FILE（詳細不明）"
-            fi
-          )
+【今日の楽曲】
+MUSIC_INFO_PLACEHOLDER
 
-          【要件】$(
-            if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
-              echo "
-          - オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、最後に今日の楽曲「$SONG_NAME」by $ARTIST_NAME の紹介を含める）約200-250文字"
-            elif [ -n "$ARTIST_NAME" ]; then
-              echo "
-          - オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、最後に$ARTIST_NAME の楽曲の紹介を含める）約200-250文字"
-            else
-              echo "
-          - オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、楽曲については詳細を言わずに「今日の楽曲をお楽しみください」程度で紹介）約200-250文字"
-            fi
-          )
-          - メイン1（昼の神威日報）: 50秒（開発進捗を楽しく解説）約300-350文字
-          - メイン2（テックニュース）: 50秒（テック情報を面白おかしく紹介）約300-350文字
-          - メイン3（夜の神威日報）: 50秒（1日の締めくくりの報告）約300-350文字
-          - エンディング: 30秒（まとめと次回予告）約200-250文字
-          - パーソナリティ: radio-personality-data.mdの設定に従う
-          - 一人称は「僕」、口癖や話し方の特徴を必ず反映
-          - **時事ニュース**: メインパートで1〜2個の時事ネタに触れて、開発の話と絡める
-          - **ランダム要素**: 指定されたランダム要素を必ず取り入れる（特別トーク要素、オープニング・エンディングスタイル、キャラクターモード）
-          - **バリエーション**: 毎回違う雰囲気の番組になるよう、ランダム要素を活かして個性を出す
-          - **重要**: オープニング・エンディングは1分（300-400文字）、メインは2分（600-800文字）で生成し、API制限の3000文字以内に収めてください$(
-            if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
-              echo "
-          - **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲、$ARTIST_NAME さんの『$SONG_NAME』をお聴きください」のような形で自然に楽曲紹介を入れてください"
-            elif [ -n "$ARTIST_NAME" ]; then
-              echo "
-          - **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲、$ARTIST_NAME さんの作品をお聴きください」のような形で自然に楽曲紹介を入れてください"
-            else
-              echo "
-          - **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲をお聴きください」のような形で楽曲紹介を入れてください（詳細は言わない）"
-            fi
-          )
+【要件】
+OPENING_REQUIREMENT_PLACEHOLDER
+- メイン1（昼の神威日報）: 50秒（開発進捗を楽しく解説）約300-350文字
+- メイン2（テックニュース）: 50秒（テック情報を面白おかしく紹介）約300-350文字
+- メイン3（夜の神威日報）: 50秒（1日の締めくくりの報告）約300-350文字
+- エンディング: 30秒（まとめと次回予告）約200-250文字
+- パーソナリティ: radio-personality-data.mdの設定に従う
+- 一人称は「僕」、口癖や話し方の特徴を必ず反映
+- **時事ニュース**: メインパートで1〜2個の時事ネタに触れて、開発の話と絡める
+- **ランダム要素**: 指定されたランダム要素を必ず取り入れる（特別トーク要素、オープニング・エンディングスタイル、キャラクターモード）
+- **バリエーション**: 毎回違う雰囲気の番組になるよう、ランダム要素を活かして個性を出す
 
-          **重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
-          {
-            \"opening\": \"オープニング台本（200-250文字程度）\",
-            \"main\": \"メイン1台本（昼の神威日報、300-350文字程度）\",
-            \"main2\": \"メイン2台本（テックニュース、300-350文字程度）\",
-            \"main3\": \"メイン3台本（夜の神威日報、300-350文字程度）\",
-            \"ending\": \"エンディング台本（200-250文字程度）\"
-          }"
+MUSIC_INTRO_PLACEHOLDER
+
+**重要**: 以下のJSONを "radio-scripts/scripts.json" ファイルに保存してください：
+{
+  "opening": "オープニング台本（200-250文字程度）",
+  "main": "メイン1台本（昼の神威日報、300-350文字程度）",
+  "main2": "メイン2台本（テックニュース、300-350文字程度）",
+  "main3": "メイン3台本（夜の神威日報、300-350文字程度）",
+  "ending": "エンディング台本（200-250文字程度）"
+}
+PROMPT_EOF
+
+          # プレースホルダーを実際の値で置換
+          sed -i "s|PERSONALITY_DATA_PLACEHOLDER|$PERSONALITY_DATA|g" "$PROMPT_FILE"
+          sed -i "s|DEVELOPMENT_REPORT_PLACEHOLDER|${{ inputs.development-report }}|g" "$PROMPT_FILE"
+          sed -i "s|TECH_NEWS_PLACEHOLDER|${{ inputs.tech-news }}|g" "$PROMPT_FILE"
+          sed -i "s|EVENING_REPORT_PLACEHOLDER|${{ inputs.evening-report }}|g" "$PROMPT_FILE"
+          sed -i "s|TOPIC_FOCUS_PLACEHOLDER|${{ inputs.topic-focus || 'なし' }}|g" "$PROMPT_FILE"
+          sed -i "s|NEWS_CONTENT_PLACEHOLDER|$NEWS_CONTENT|g" "$PROMPT_FILE"
+          sed -i "s|RANDOM_ELEMENT_PLACEHOLDER|$SELECTED_RANDOM_ELEMENT|g" "$PROMPT_FILE"
+          sed -i "s|OPENING_PATTERN_PLACEHOLDER|$SELECTED_OPENING_PATTERN|g" "$PROMPT_FILE"
+          sed -i "s|ENDING_PATTERN_PLACEHOLDER|$SELECTED_ENDING_PATTERN|g" "$PROMPT_FILE"
+          sed -i "s|CHARACTER_MODE_PLACEHOLDER|$SELECTED_CHARACTER_MODE|g" "$PROMPT_FILE"
+          
+          # 楽曲情報の設定
+          if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
+            MUSIC_INFO="- アーティスト: $ARTIST_NAME\n- 楽曲名: $SONG_NAME"
+            OPENING_REQ="- オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、最後に今日の楽曲「$SONG_NAME」by $ARTIST_NAME の紹介を含める）約200-250文字"
+            MUSIC_INTRO="- **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲、$ARTIST_NAME さんの『$SONG_NAME』をお聴きください」のような形で自然に楽曲紹介を入れてください"
+          elif [ -n "$ARTIST_NAME" ]; then
+            MUSIC_INFO="- アーティスト: $ARTIST_NAME\n- 楽曲: $SELECTED_MUSIC_FILE（楽曲名不明）"
+            OPENING_REQ="- オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、最後に$ARTIST_NAME の楽曲の紹介を含める）約200-250文字"
+            MUSIC_INTRO="- **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲、$ARTIST_NAME さんの作品をお聴きください」のような形で自然に楽曲紹介を入れてください"
+          else
+            MUSIC_INFO="- 楽曲: $SELECTED_MUSIC_FILE（詳細不明）"
+            OPENING_REQ="- オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、楽曲については詳細を言わずに「今日の楽曲をお楽しみください」程度で紹介）約200-250文字"
+            MUSIC_INTRO="- **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲をお聴きください」のような形で楽曲紹介を入れてください（詳細は言わない）"
+          fi
+          
+          sed -i "s|MUSIC_INFO_PLACEHOLDER|$MUSIC_INFO|g" "$PROMPT_FILE"
+          sed -i "s|OPENING_REQUIREMENT_PLACEHOLDER|$OPENING_REQ|g" "$PROMPT_FILE"
+          sed -i "s|MUSIC_INTRO_PLACEHOLDER|$MUSIC_INTRO|g" "$PROMPT_FILE"
+          
+          PROMPT=$(cat "$PROMPT_FILE")
           
           echo "🚀 Starting Radio Script Generation..."
           echo "📝 Prompt length: ${#PROMPT}"
@@ -357,7 +361,7 @@ jobs:
               --max-turns 10 \
               --verbose \
               --permission-mode "acceptEdits" \
-              -p "$PROMPT"; then
+              < "$PROMPT_FILE"; then
               
               # 生成された台本の文字数チェック
               if [ -f "$WORK_DIR/scripts.json" ] && jq empty "$WORK_DIR/scripts.json" 2>/dev/null; then
@@ -377,7 +381,7 @@ jobs:
                   break
                 else
                   echo "::warning::⚠️ 一部セクションが3000文字を超えています（試行 $attempt/5）"
-                  PROMPT="前回生成した台本が長すぎました。各セクションを3000文字以内で短く生成し直してください。JSONを $WORK_DIR/scripts.json に保存してください。"
+                  echo "前回生成した台本が長すぎました。各セクションを3000文字以内で短く生成し直してください。JSONを $WORK_DIR/scripts.json に保存してください。" > "$PROMPT_FILE"
                 fi
               else
                 echo "::warning::⚠️ JSONファイル生成失敗（試行 $attempt/5）"
