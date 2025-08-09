@@ -1,0 +1,308 @@
+name: Audio Mixing Module - Opening
+on:
+  workflow_call:
+    inputs:
+      voice-opening:
+        required: true
+        type: string
+      bgm-opening:
+        required: true
+        type: string
+    outputs:
+      mixed-audio:
+        value: ${{ jobs.mix-opening.outputs.audio-file }}
+
+jobs:
+  mix-opening:
+    runs-on: ubuntu-latest
+    outputs:
+      audio-file: ${{ steps.mixing.outputs.opening-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download voice-opening artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-opening
+          path: artifacts/voice-opening
+      
+      - name: Download bgm-opening artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bgm-opening
+          path: artifacts/bgm-opening
+      
+      - name: Download voice-uuid artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-uuid
+          path: artifacts/voice-uuid
+      
+      - name: List downloaded artifacts
+        run: |
+          echo "::group::📁 オープニング用アーティファクト"
+          echo "=== artifacts/ ==="
+          ls -la artifacts/ || echo "artifactsディレクトリが見つかりません"
+          echo ""
+          echo "=== 各アーティファクトの内容 ==="
+          for dir in artifacts/*/; do
+            if [ -d "$dir" ]; then
+              echo "--- $dir ---"
+              ls -la "$dir" || echo "ディレクトリが空です"
+              echo ""
+            fi
+          done
+          echo "::endgroup::"
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      
+      - name: Mix opening audio with BGM and selected music
+        id: mixing
+        run: |
+          # オープニングセクション: 音声 + BGM + 選択楽曲のミックス
+          
+          # 音声の長さを取得する関数（エラーハンドリング付き）
+          get_duration() {
+            local file="$1"
+            if [ ! -f "$file" ]; then
+              echo "::warning::音声ファイルが見つかりません: $file、デフォルト値30秒を使用"
+              echo "30"
+              return 0
+            fi
+            local duration=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$file" 2>/dev/null)
+            if [ -z "$duration" ] || [ "$duration" = "N/A" ]; then
+              echo "::warning::音声ファイルの長さを取得できません: $file、デフォルト値30秒を使用"
+              echo "30"
+              return 0
+            fi
+            echo "$duration"
+          }
+          
+          # エラーハンドリング付きFFmpeg実行
+          safe_ffmpeg() {
+            local TEMP_LOG="ffmpeg_$(date +%s).log"
+            if ! ffmpeg "$@" 2>"$TEMP_LOG"; then
+              echo "::error::FFmpeg処理に失敗しました: $*"
+              echo "::error::FFmpegエラー出力:"
+              cat "$TEMP_LOG" | head -20
+              rm -f "$TEMP_LOG"
+              return 1
+            fi
+            rm -f "$TEMP_LOG"
+            return 0
+          }
+          
+          # 選択された音楽ファイルを取得してコピー
+          echo "🎵 選択された音楽ファイルを取得中..."
+          
+          # voice-uuidアーティファクトから音楽情報を読み込み
+          if [ -f "artifacts/voice-uuid/USE_UUID.md" ]; then
+            echo "✅ USE_UUID.mdファイルが見つかりました"
+            
+            # 選択された音楽ファイル名を取得
+            SELECTED_MUSIC=$(grep "Selected Music File:" artifacts/voice-uuid/USE_UUID.md | cut -d' ' -f4-)
+            
+            echo "🔍 デバッグ情報:"
+            echo "  選択された音楽ファイル: '$SELECTED_MUSIC'"
+            echo "  現在のディレクトリ: $(pwd)"
+            echo "  radio-workflowディレクトリの存在確認:"
+            ls -la radio-workflow/ || echo "radio-workflowディレクトリが見つかりません"
+            echo "  musicディレクトリの存在確認:"
+            ls -la radio-workflow/music/ || echo "musicディレクトリが見つかりません"
+            echo "  期待するファイルパス: radio-workflow/music/$SELECTED_MUSIC"
+            echo "  ファイルの存在確認:"
+            ls -la "radio-workflow/music/$SELECTED_MUSIC" || echo "ファイルが見つかりません"
+            
+            if [ -n "$SELECTED_MUSIC" ] && [ -f "radio-workflow/music/$SELECTED_MUSIC" ]; then
+              echo "🎯 選択された音楽: $SELECTED_MUSIC"
+              cp "radio-workflow/music/$SELECTED_MUSIC" selected-music.mp3
+              echo "✅ selected-music.mp3 をコピーしました"
+            else
+              echo "::error::選択された音楽ファイルが見つかりません: $SELECTED_MUSIC"
+              echo "::error::音楽ファイルは必ず存在すべきです。ワークフローを停止します。"
+              exit 1
+            fi
+          else
+            echo "::error::USE_UUID.mdファイルが見つかりません"
+            echo "::error::音楽選択情報が必要です。ワークフローを停止します。"
+            exit 1
+          fi
+          
+          # アーティファクトからファイルをコピー
+          echo "📂 音声ファイルのコピー"
+          if [ -f "artifacts/voice-opening/${{ inputs.voice-opening }}" ]; then
+            cp "artifacts/voice-opening/${{ inputs.voice-opening }}" voice-opening.wav
+            echo "✅ voice-opening.wav をコピーしました"
+          else
+            echo "::warning::音声ファイルが見つかりません: artifacts/voice-opening/${{ inputs.voice-opening }}"
+            safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -ar 44100 -ac 2 -c:a pcm_s16le voice-opening.wav || exit 1
+          fi
+          
+          echo "📂 BGMファイルのコピー"
+          if [ -f "artifacts/bgm-opening/${{ inputs.bgm-opening }}" ]; then
+            cp "artifacts/bgm-opening/${{ inputs.bgm-opening }}" bgm-opening-30s.wav
+            echo "✅ bgm-opening-30s.wav をコピーしました"
+          else
+            echo "::warning::BGMファイルが見つかりません: artifacts/bgm-opening/${{ inputs.bgm-opening }}"
+            safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-30s.wav || exit 1
+          fi
+          
+          # 音声ファイルの長さを取得
+          echo "📏 音声ファイルの長さを測定中..."
+          VOICE_OPENING_DURATION=$(get_duration voice-opening.wav)
+          echo "  オープニング音声: ${VOICE_OPENING_DURATION}秒"
+          
+          # 必要なBGMの長さを計算（音声の長さ + 各セクションに必要な余裕時間）
+          BGM_OPENING_NEEDED=$(awk "BEGIN {print int($VOICE_OPENING_DURATION + 14)}")  # 6秒イントロ + 音声 + 3秒フル + 5秒フェードアウト
+          
+          echo "🎵 必要なBGMの長さ:"
+          echo "  オープニング: ${BGM_OPENING_NEEDED}秒"
+          
+          # BGMを必要な長さにループ拡張（0.5秒クロスフェード）
+          if [ $BGM_OPENING_NEEDED -gt 30 ]; then
+            echo "🔄 オープニングBGMを${BGM_OPENING_NEEDED}秒に拡張"
+            # ループ回数を計算（29.5秒ごと、0.5秒のオーバーラップ）
+            LOOP_COUNT=$(awk "BEGIN {print int($BGM_OPENING_NEEDED / 29.5) + 1}")
+            # 最後の0.5秒と最初の0.5秒でクロスフェード
+            safe_ffmpeg -i bgm-opening-30s.wav -filter_complex \
+              "[0:a]atrim=0:29.5[part1];
+               [0:a]atrim=0:30[full];
+               [part1][full]acrossfade=d=0.5:c1=tri:c2=tri[crossed];
+               [crossed]aloop=loop=$LOOP_COUNT:size=44100*29.5,atrim=0:$BGM_OPENING_NEEDED[looped]" \
+              -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-extended.wav -y || exit 1
+            mv bgm-opening-extended.wav bgm-opening-30s.wav
+          fi
+          
+          # オープニングセクション: BGM6秒→音声+BGM→クロスフェード用にBGM継続
+          echo "🎵 オープニングセクションの作成（楽曲とのクロスフェード対応）"
+          
+          # タイミング計算（セリフ中クロスフェード対応版）
+          VOICE_START=6  # オープニング音声開始
+          VOICE_END=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # オープニング音声終了
+          # セリフの後半5秒でクロスフェードするため、音声終了まで延長
+          TOTAL_OPENING_DURATION=$(awk "BEGIN {print $VOICE_OPENING_DURATION + 6}")  # 6秒イントロ + 音声（クロスフェードは楽曲側で調整）
+          
+          echo "  音声開始: ${VOICE_START}秒"
+          echo "  音声終了: ${VOICE_END}秒"
+          echo "  オープニング総時間: ${TOTAL_OPENING_DURATION}秒（セリフ中でクロスフェード）"
+          
+          # オープニングセクション: 音声+BGM（音声終了後もBGM継続してクロスフェード準備）
+          safe_ffmpeg -i voice-opening.wav \
+                      -i bgm-opening-30s.wav \
+                      -filter_complex "[0]aresample=44100,adelay=${VOICE_START}s:all=1[voice_delayed];
+                                      [1]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,0.5))':eval=frame[bgm_opening];
+                                      [voice_delayed][bgm_opening]amix=inputs=2[opening]" \
+                      -map "[opening]" \
+                      -t ${TOTAL_OPENING_DURATION} \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      opening-mixed.wav || exit 1
+          
+          if [ -f "opening-mixed.wav" ]; then
+            echo "✅ opening-mixed.wav 生成成功 ($(stat -c%s opening-mixed.wav) bytes)"
+          else
+            echo "::error::❌ opening-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
+          # 楽曲セクション: 選択楽曲を独立セクションとして作成
+          echo "🎵 楽曲セクションの作成"
+          
+          # 楽曲の長さを取得
+          MUSIC_DURATION=$(get_duration selected-music.mp3)
+          echo "  楽曲の長さ: ${MUSIC_DURATION}秒"
+          
+          # 最大40秒に制限
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
+            MUSIC_TOTAL_DURATION=40
+            MUSIC_FADEOUT_START=37  # 40秒 - 3秒フェードアウト
+            echo "  楽曲を40秒に制限します"
+          else
+            MUSIC_TOTAL_DURATION=$MUSIC_DURATION
+            if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+              MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION - 3}")
+            else
+              MUSIC_FADEOUT_START=$MUSIC_DURATION
+            fi
+            echo "  楽曲をフル長さ（${MUSIC_TOTAL_DURATION}秒）で使用"
+          fi
+          
+          # 楽曲セクションの作成（音量制御：セリフ中30%→セリフ終了後100%）
+          # クロスフェード5秒でセリフ終了を計算（オープニングセリフの最後5秒でクロスフェード開始）
+          VOICE_CROSSFADE_END=5  # クロスフェード中のセリフ終了タイミング（楽曲セクション基準）
+          
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
+            # 楽曲が4秒以上の場合：ラジオ標準音量正規化→音量制御→フェードアウト
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100,loudnorm=I=-23:LRA=7:TP=-1[normalized];
+                                        [normalized]volume='if(lt(t,${VOICE_CROSSFADE_END}),0.3,1)':eval=frame,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
+                        -map "[music_faded]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        music-mixed.wav || exit 1
+          else
+            # 楽曲が4秒以下の場合：ラジオ標準音量正規化→音量制御
+            safe_ffmpeg -i selected-music.mp3 \
+                        -filter_complex "[0]aresample=44100,loudnorm=I=-23:LRA=7:TP=-1[normalized];
+                                        [normalized]volume='if(lt(t,${VOICE_CROSSFADE_END}),0.3,1)':eval=frame[music]" \
+                        -map "[music]" \
+                        -t ${MUSIC_TOTAL_DURATION} \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        music-mixed.wav || exit 1
+          fi
+          
+          if [ -f "music-mixed.wav" ]; then
+            echo "✅ music-mixed.wav 生成成功 ($(stat -c%s music-mixed.wav) bytes)"
+          else
+            echo "::error::❌ music-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
+          # セリフ部分のみを分離（クロスフェード用）
+          echo "🎵 セリフ部分を分離してクロスフェード対応"
+          safe_ffmpeg -i voice-opening.wav \
+                      -filter_complex "[0]aresample=44100,adelay=${VOICE_START}s:all=1[voice_only]" \
+                      -map "[voice_only]" \
+                      -t ${TOTAL_OPENING_DURATION} \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      opening-voice-only.wav || exit 1
+          
+          # BGM部分のみを分離（クロスフェード用）
+          safe_ffmpeg -i bgm-opening-30s.wav \
+                      -filter_complex "[0]aresample=44100,volume='if(lt(t,6),1,if(lt(t,6.5),1-0.5*(t-6)/0.5,0.5))':eval=frame[bgm_only]" \
+                      -map "[bgm_only]" \
+                      -t ${TOTAL_OPENING_DURATION} \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      opening-bgm-only.wav || exit 1
+          
+          # オープニング完成版: セリフ保護付きクロスフェード（BGMと楽曲のクロスフェード、セリフはそのまま）
+          echo "🎵 オープニング最終ミックス開始（セリフ保護付きクロスフェード）"
+          
+          safe_ffmpeg -i opening-voice-only.wav \
+                      -i opening-bgm-only.wav \
+                      -i music-mixed.wav \
+                      -filter_complex "[1][2]acrossfade=d=5:c1=tri:c2=tri[bgm_music_cross];
+                                      [0][bgm_music_cross]amix=inputs=2[opening_complete]" \
+                      -map "[opening_complete]" \
+                      -c:a pcm_s16le \
+                      -ar 44100 -ac 2 \
+                      opening-final.wav || exit 1
+          
+          if [ -f "opening-final.wav" ]; then
+            echo "✅ opening-final.wav 生成成功 ($(stat -c%s opening-final.wav) bytes)"
+          else
+            echo "::error::❌ opening-final.wav の生成に失敗"
+            exit 1
+          fi
+          
+          echo "opening-file=opening-final.wav" >> $GITHUB_OUTPUT
+      
+      - name: Upload opening mixed audio artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opening-mixed-audio
+          path: opening-final.wav
+          retention-days: 7

@@ -1,0 +1,183 @@
+name: Audio Mixing Module - Final
+on:
+  workflow_call:
+    inputs:
+      opening-audio:
+        required: true
+        type: string
+      main-audio:
+        required: true
+        type: string
+      ending-audio:
+        required: true
+        type: string
+    outputs:
+      final-audio:
+        value: ${{ jobs.mix-final.outputs.url }}
+      metadata:
+        value: ${{ jobs.mix-final.outputs.metadata }}
+
+jobs:
+  mix-final:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.mixing.outputs.final-file }}
+      metadata: ${{ steps.mixing.outputs.metadata }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download opening mixed audio artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: opening-mixed-audio
+          path: artifacts/opening-mixed-audio
+      
+      - name: Download main mixed audio artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: main-mixed-audio
+          path: artifacts/main-mixed-audio
+      
+      - name: Download ending mixed audio artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ending-mixed-audio
+          path: artifacts/ending-mixed-audio
+      
+      - name: Download voice-uuid artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-uuid
+          path: artifacts/voice-uuid
+      
+      - name: List downloaded artifacts
+        run: |
+          echo "::group::📁 最終統合用アーティファクト"
+          echo "=== artifacts/ ==="
+          ls -la artifacts/ || echo "artifactsディレクトリが見つかりません"
+          echo ""
+          echo "=== 各アーティファクトの内容 ==="
+          for dir in artifacts/*/; do
+            if [ -d "$dir" ]; then
+              echo "--- $dir ---"
+              ls -la "$dir" || echo "ディレクトリが空です"
+              echo ""
+            fi
+          done
+          echo "::endgroup::"
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      
+      - name: Combine all sections into final audio
+        id: mixing
+        run: |
+          # 3つのセクションを時系列で結合し、最終調整
+          
+          # エラーハンドリング付きFFmpeg実行
+          safe_ffmpeg() {
+            local TEMP_LOG="ffmpeg_$(date +%s).log"
+            if ! ffmpeg "$@" 2>"$TEMP_LOG"; then
+              echo "::error::FFmpeg処理に失敗しました: $*"
+              echo "::error::FFmpegエラー出力:"
+              cat "$TEMP_LOG" | head -20
+              rm -f "$TEMP_LOG"
+              return 1
+            fi
+            rm -f "$TEMP_LOG"
+            return 0
+          }
+          
+          # アーティファクトからファイルをコピー
+          echo "📂 ミックス済み音声ファイルのコピー"
+          
+          if [ -f "artifacts/opening-mixed-audio/${{ inputs.opening-audio }}" ]; then
+            cp "artifacts/opening-mixed-audio/${{ inputs.opening-audio }}" opening-final.wav
+            echo "✅ opening-final.wav をコピーしました"
+          else
+            echo "::error::オープニング音声が見つかりません: artifacts/opening-mixed-audio/${{ inputs.opening-audio }}"
+            exit 1
+          fi
+          
+          if [ -f "artifacts/main-mixed-audio/${{ inputs.main-audio }}" ]; then
+            cp "artifacts/main-mixed-audio/${{ inputs.main-audio }}" main-final.wav
+            echo "✅ main-final.wav をコピーしました"
+          else
+            echo "::error::メイン音声が見つかりません: artifacts/main-mixed-audio/${{ inputs.main-audio }}"
+            exit 1
+          fi
+          
+          if [ -f "artifacts/ending-mixed-audio/${{ inputs.ending-audio }}" ]; then
+            cp "artifacts/ending-mixed-audio/${{ inputs.ending-audio }}" ending-final.wav
+            echo "✅ ending-final.wav をコピーしました"
+          else
+            echo "::error::エンディング音声が見つかりません: artifacts/ending-mixed-audio/${{ inputs.ending-audio }}"
+            exit 1
+          fi
+          
+          # 3つのセクションを連結し、最終調整
+          echo "🎵 最終ミックス開始（3セクション結合）"
+          echo "📁 連結するファイル:"
+          ls -la opening-final.wav main-final.wav ending-final.wav
+          
+          # 3つのセクションを時系列順に連結し、放送基準に正規化
+          safe_ffmpeg -i opening-final.wav \
+                      -i main-final.wav \
+                      -i ending-final.wav \
+                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined];
+                                      [combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
+                      -map "[normalized]" \
+                      -c:a mp3 \
+                      -b:a 320k \
+                      final-radio.mp3 || exit 1
+          
+          if [ -f "final-radio.mp3" ]; then
+            echo "✅ final-radio.mp3 生成成功 ($(stat -c%s final-radio.mp3) bytes)"
+          else
+            echo "::error::❌ final-radio.mp3 の生成に失敗"
+            exit 1
+          fi
+          
+          # 選択された音楽情報を取得してメタデータに含める
+          SELECTED_MUSIC_INFO="unknown"
+          if [ -f "artifacts/voice-uuid/USE_UUID.md" ]; then
+            SELECTED_MUSIC_INFO=$(grep "Selected Music File:" artifacts/voice-uuid/USE_UUID.md | cut -d' ' -f4- || echo "unknown")
+          fi
+          
+          # 最終音声の長さを取得
+          FINAL_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "final-radio.mp3" 2>/dev/null || echo "unknown")
+          
+          # メタデータ生成
+          echo "{
+            \"duration\": \"${FINAL_DURATION}s\",
+            \"selected_music\": \"$SELECTED_MUSIC_INFO\",
+            \"sections\": [
+              {\"name\": \"opening\", \"description\": \"音声+BGM+選択楽曲（クロスフェード）\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%→0\", \"intro\": \"6s\", \"crossfade\": \"楽曲との5秒クロスフェード\"},
+              {\"name\": \"main\", \"description\": \"音声+BGM\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
+              {\"name\": \"ending\", \"description\": \"音声+BGM\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
+            ],
+            \"processing\": {
+              \"workflow\": \"分割処理後統合\",
+              \"opening_job\": \"audio-mixing-opening\",
+              \"main_job\": \"audio-mixing-main\", 
+              \"ending_job\": \"audio-mixing-ending\",
+              \"final_job\": \"audio-mixing-final\"
+            },
+            \"audio_standard\": \"-23 LUFS\",
+            \"format\": \"MP3 320kbps\"
+          }" > metadata.json
+          
+          echo "final-file=final-radio.mp3" >> $GITHUB_OUTPUT
+          echo "metadata=metadata.json" >> $GITHUB_OUTPUT
+      
+      - name: Upload final audio artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-audio
+          path: |
+            final-radio.mp3
+            metadata.json
+          retention-days: 7
