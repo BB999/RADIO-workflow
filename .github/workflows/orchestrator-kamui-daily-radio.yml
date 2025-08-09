@@ -290,6 +290,20 @@ jobs:
           MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           
+          # 文字数計算
+          OPENING_COUNT=$(echo "$OPENING_TEXT" | wc -c)
+          MAIN_COUNT=$(echo "$MAIN_TEXT" | wc -c)
+          ENDING_COUNT=$(echo "$ENDING_TEXT" | wc -c)
+          TOTAL_COUNT=$((OPENING_COUNT + MAIN_COUNT + ENDING_COUNT))
+          
+          # 音声IDとアーティファクトから楽曲情報を取得
+          VOICE_ID="不明"
+          SELECTED_MUSIC="不明"
+          if [ -f "radio-workflow/temp/USE_UUID.md" ]; then
+            VOICE_ID=$(grep "Voice UUID:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f3 2>/dev/null || echo "不明")
+            SELECTED_MUSIC=$(grep "Selected Music File:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f4- 2>/dev/null || echo "不明")
+          fi
+          
           # PRボディを直接作成
           gh pr create \
             --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" \
@@ -300,16 +314,18 @@ jobs:
           - **時間**: 240秒（4分）
           - **音声品質**: -23 LUFS (放送基準)
           - **MC**: AI生成（20代女性）
+          - **使用音声ID**: ${VOICE_ID}
+          - **使用楽曲**: ${SELECTED_MUSIC}
 
-          ### 📝 生成された台本
+          ### 📝 生成された台本（合計文字数: ${TOTAL_COUNT}文字）
 
-          #### オープニング
+          #### オープニング（${OPENING_COUNT}文字）
           ${OPENING_TEXT}
 
-          #### メインコンテンツ
+          #### メインコンテンツ（${MAIN_COUNT}文字）
           ${MAIN_TEXT}
 
-          #### エンディング
+          #### エンディング（${ENDING_COUNT}文字）
           ${ENDING_TEXT}
 
           ### 📁 生成ファイル
