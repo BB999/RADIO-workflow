@@ -1,0 +1,22 @@
+{
+  "duration": "230.904000s",
+  "selected_music": "不明3・ねもぴ.mp3",
+  "sections": [
+    {"name": "opening", "description": "音声+BGM+選択楽曲（クロスフェード）", "bgm": "upbeat", "bgm_volume": "100%→50%→0", "intro": "6s", "crossfade": "楽曲との5秒クロスフェード"},
+    {"name": "main", "description": "音声+BGM（昼の神威日報）", "bgm": "talk-friendly", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "main2", "description": "音声+BGM（テックニュース）", "bgm": "tech-digital", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "main3", "description": "音声+BGM（夜の神威日報）", "bgm": "night-chill", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "ending", "description": "音声+BGM", "bgm": "warm-outro", "bgm_volume": "100%→50%→100%", "intro": "4s", "fade_out": "7s"}
+  ],
+  "processing": {
+    "workflow": "分割処理後統合",
+    "opening_job": "audio-mixing-opening",
+    "main_job": "audio-mixing-main",
+    "main2_job": "audio-mixing-main2",
+    "main3_job": "audio-mixing-main3",
+    "ending_job": "audio-mixing-ending",
+    "final_job": "audio-mixing-final"
+  },
+  "audio_standard": "-23 LUFS",
+  "format": "MP3 320kbps"
+}
