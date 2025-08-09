@@ -5,6 +5,12 @@ on:
       development-report:
         required: true
         type: string
+      tech-news:
+        required: true
+        type: string
+      evening-report:
+        required: true
+        type: string
       topic-focus:
         required: false
         type: string
@@ -13,6 +19,10 @@ on:
         value: ${{ jobs.generate.outputs.script-opening }}
       script-main:
         value: ${{ jobs.generate.outputs.script-main }}
+      script-main2:
+        value: ${{ jobs.generate.outputs.script-main2 }}
+      script-main3:
+        value: ${{ jobs.generate.outputs.script-main3 }}
       script-ending:
         value: ${{ jobs.generate.outputs.script-ending }}
       voice-config:
@@ -24,6 +34,8 @@ jobs:
     outputs:
       script-opening: ${{ steps.planning.outputs.script-opening }}
       script-main: ${{ steps.planning.outputs.script-main }}
+      script-main2: ${{ steps.planning.outputs.script-main2 }}
+      script-main3: ${{ steps.planning.outputs.script-main3 }}
       script-ending: ${{ steps.planning.outputs.script-ending }}
       voice-config: ${{ steps.planning.outputs.voice-config }}
     steps:
@@ -254,8 +266,14 @@ jobs:
           【パーソナリティ設定】
           $PERSONALITY_DATA
 
-          【開発進捗・最新情報】
+          【セクション1: 昼の神威日報】
           ${{ inputs.development-report }}
+
+          【セクション2: テックニュース】
+          ${{ inputs.tech-news }}
+
+          【セクション3: 夜の神威日報】
+          ${{ inputs.evening-report }}
 
           【強調ポイント】
           ${{ inputs.topic-focus || 'なし' }}
@@ -287,17 +305,19 @@ jobs:
           【要件】$(
             if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
               echo "
-          - オープニング: 1分（明るい挨拶、必ず今日の日付と番組名を紹介、最後に今日の楽曲「$SONG_NAME」by $ARTIST_NAME の紹介を含める）約300-400文字"
+          - オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、最後に今日の楽曲「$SONG_NAME」by $ARTIST_NAME の紹介を含める）約200-250文字"
             elif [ -n "$ARTIST_NAME" ]; then
               echo "
-          - オープニング: 1分（明るい挨拶、必ず今日の日付と番組名を紹介、最後に$ARTIST_NAME の楽曲の紹介を含める）約300-400文字"
+          - オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、最後に$ARTIST_NAME の楽曲の紹介を含める）約200-250文字"
             else
               echo "
-          - オープニング: 1分（明るい挨拶、必ず今日の日付と番組名を紹介、楽曲については詳細を言わずに「今日の楽曲をお楽しみください」程度で紹介）約300-400文字"
+          - オープニング: 30秒（明るい挨拶、必ず今日の日付と番組名を紹介、楽曲については詳細を言わずに「今日の楽曲をお楽しみください」程度で紹介）約200-250文字"
             fi
           )
-          - メイン: 2分（内容を分かりやすく解説、時事ニュースも織り交ぜる）約600-800文字  
-          - エンディング: 1分（まとめと次回予告）約300-400文字
+          - メイン1（昼の神威日報）: 50秒（開発進捗を楽しく解説）約300-350文字
+          - メイン2（テックニュース）: 50秒（テック情報を面白おかしく紹介）約300-350文字
+          - メイン3（夜の神威日報）: 50秒（1日の締めくくりの報告）約300-350文字
+          - エンディング: 30秒（まとめと次回予告）約200-250文字
           - パーソナリティ: radio-personality-data.mdの設定に従う
           - 一人称は「僕」、口癖や話し方の特徴を必ず反映
           - **時事ニュース**: メインパートで1〜2個の時事ネタに触れて、開発の話と絡める
@@ -318,9 +338,11 @@ jobs:
 
           **重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
           {
-            \"opening\": \"オープニング台本（300-400文字程度）\",
-            \"main\": \"メイン台本（600-800文字程度）\", 
-            \"ending\": \"エンディング台本（300-400文字程度）\"
+            \"opening\": \"オープニング台本（200-250文字程度）\",
+            \"main\": \"メイン1台本（昼の神威日報、300-350文字程度）\",
+            \"main2\": \"メイン2台本（テックニュース、300-350文字程度）\",
+            \"main3\": \"メイン3台本（夜の神威日報、300-350文字程度）\",
+            \"ending\": \"エンディング台本（200-250文字程度）\"
           }"
           
           echo "🚀 Starting Radio Script Generation..."
@@ -344,11 +366,13 @@ jobs:
                 # 各セクションの文字数チェック
                 OPENING_LENGTH=$(jq -r '.opening' "$WORK_DIR/scripts.json" | wc -c)
                 MAIN_LENGTH=$(jq -r '.main' "$WORK_DIR/scripts.json" | wc -c)
+                MAIN2_LENGTH=$(jq -r '.main2' "$WORK_DIR/scripts.json" | wc -c)
+                MAIN3_LENGTH=$(jq -r '.main3' "$WORK_DIR/scripts.json" | wc -c)
                 ENDING_LENGTH=$(jq -r '.ending' "$WORK_DIR/scripts.json" | wc -c)
                 
-                echo "📏 文字数チェック: opening=$OPENING_LENGTH, main=$MAIN_LENGTH, ending=$ENDING_LENGTH"
+                echo "📏 文字数チェック: opening=$OPENING_LENGTH, main=$MAIN_LENGTH, main2=$MAIN2_LENGTH, main3=$MAIN3_LENGTH, ending=$ENDING_LENGTH"
                 
-                if [ $OPENING_LENGTH -le 3000 ] && [ $MAIN_LENGTH -le 3000 ] && [ $ENDING_LENGTH -le 3000 ]; then
+                if [ $OPENING_LENGTH -le 3000 ] && [ $MAIN_LENGTH -le 3000 ] && [ $MAIN2_LENGTH -le 3000 ] && [ $MAIN3_LENGTH -le 3000 ] && [ $ENDING_LENGTH -le 3000 ]; then
                   echo "✅ 全セクションが3000文字以内です"
                   break
                 else
@@ -386,11 +410,15 @@ jobs:
               # 各セクションにSSMLフォーマットを適用
               OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/scripts.json")
               MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/scripts.json")
+              MAIN2_TEXT=$(jq -r '.main2' "$WORK_DIR/scripts.json")
+              MAIN3_TEXT=$(jq -r '.main3' "$WORK_DIR/scripts.json")
               ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/scripts.json")
               
               # 各セクションをファイルに保存してから処理（クォート問題を回避）
               echo "$OPENING_TEXT" > temp_opening.txt
               echo "$MAIN_TEXT" > temp_main.txt
+              echo "$MAIN2_TEXT" > temp_main2.txt
+              echo "$MAIN3_TEXT" > temp_main3.txt
               echo "$ENDING_TEXT" > temp_ending.txt
               
               # Node.jsでSSMLフォーマッターを実行（stdin使用でクォート問題を回避）
@@ -416,6 +444,28 @@ jobs:
                 });
               ")
               
+              MAIN2_SSML=$(cat temp_main2.txt | node -e "
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                let text = '';
+                process.stdin.on('data', chunk => text += chunk);
+                process.stdin.on('end', () => {
+                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
+                  console.log(result);
+                });
+              ")
+              
+              MAIN3_SSML=$(cat temp_main3.txt | node -e "
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                let text = '';
+                process.stdin.on('data', chunk => text += chunk);
+                process.stdin.on('end', () => {
+                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
+                  console.log(result);
+                });
+              ")
+              
               ENDING_SSML=$(cat temp_ending.txt | node -e "
                 const SSMLFormatter = require('./ssml_formatter.js');
                 const formatter = new SSMLFormatter();
@@ -428,11 +478,13 @@ jobs:
               ")
               
               # 一時ファイルを削除
-              rm -f temp_opening.txt temp_main.txt temp_ending.txt
+              rm -f temp_opening.txt temp_main.txt temp_main2.txt temp_main3.txt temp_ending.txt
               
               echo "✅ SSML formatting completed"
               echo "📏 Opening SSML length: ${#OPENING_SSML}"
-              echo "📏 Main SSML length: ${#MAIN_SSML}"  
+              echo "📏 Main SSML length: ${#MAIN_SSML}"
+              echo "📏 Main2 SSML length: ${#MAIN2_SSML}"
+              echo "📏 Main3 SSML length: ${#MAIN3_SSML}"
               echo "📏 Ending SSML length: ${#ENDING_SSML}"
               echo "::endgroup::"
               
@@ -450,6 +502,18 @@ jobs:
               } >> $GITHUB_OUTPUT
               
               {
+                echo "script-main2<<EOF"
+                echo "$MAIN2_SSML"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+              
+              {
+                echo "script-main3<<EOF"
+                echo "$MAIN3_SSML"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+              
+              {
                 echo "script-ending<<EOF"
                 echo "$ENDING_SSML"
                 echo "EOF"
@@ -458,12 +522,16 @@ jobs:
               echo "::warning::Invalid JSON format, using fallback scripts"
               echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
               echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
+              echo "script-main2=テックニュースもお届けできず申し訳ございません。" >> $GITHUB_OUTPUT
+              echo "script-main3=夜の神威日報もお休みとなります。" >> $GITHUB_OUTPUT
               echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
             fi
           else
             echo "::warning::Scripts JSON file not found, using fallback scripts"
             echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
             echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
+            echo "script-main2=テックニュースもお届けできず申し訳ございません。" >> $GITHUB_OUTPUT
+            echo "script-main3=夜の神威日報もお休みとなります。" >> $GITHUB_OUTPUT
             echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
           fi
           

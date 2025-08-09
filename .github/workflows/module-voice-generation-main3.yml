@@ -1,0 +1,146 @@
+name: Voice Generation Main3 (Minimal)
+on:
+  workflow_call:
+    inputs:
+      script-text:
+        required: true
+        type: string
+      voice-config:
+        required: true
+        type: string
+    outputs:
+      audio-url:
+        value: ${{ jobs.generate.outputs.url }}
+      audio-file:
+        value: ${{ jobs.generate.outputs.file }}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.voice.outputs.audio-url }}
+      file: ${{ steps.voice.outputs.audio-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      
+      - name: Download voice UUID artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-uuid
+          path: radio-workflow/temp
+      
+      - name: Generate voice with aivis-cloud-api
+        id: voice
+        run: |
+          echo "::group::🎤 音声生成 (メイン3: 夜の神威日報)"
+          echo "📝 入力テキスト: ${{ inputs.script-text }}"
+          echo "⚙️ 音声設定: ${{ inputs.voice-config }}"
+          echo "🚀 開始時刻: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # USE_UUID.mdから音声IDを読み込む
+          if [ -f "radio-workflow/temp/USE_UUID.md" ]; then
+            SELECTED_VOICE_ID=$(grep "Voice UUID:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f3)
+            echo "✅ USE_UUID.mdから音声IDを読み込みました: $SELECTED_VOICE_ID"
+          else
+            echo "::error::❌ USE_UUID.mdファイルが見つかりません"
+            exit 1
+          fi
+          
+          # aivis-cloud-api呼び出し（リトライ付き）
+          for i in {1..3}; do
+            echo "📞 Aivis API呼び出し (試行 $i/3)"
+            
+            # JSONペイロードを作成（エスケープ問題回避）
+            ESCAPED_TEXT=$(echo '${{ inputs.script-text }}' | sed 's/"/\\"/g' | tr '\n' ' ')
+            echo "{\"model_uuid\":\"$SELECTED_VOICE_ID\",\"text\":\"$ESCAPED_TEXT\",\"output_format\":\"wav\",\"speaking_rate\":1.0,\"emotional_intensity\":1.5}" > payload.json
+            
+            HTTP_CODE=$(curl -X POST https://api.aivis-project.com/v1/tts/synthesize \
+              -H "Authorization: Bearer ${{ secrets.AIVIS_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d @payload.json \
+              --output voice-main3.wav \
+              --write-out "%{http_code}" \
+              --show-error --silent)
+            
+            # 一時ファイル削除
+            rm -f payload.json
+            
+            echo "📊 HTTP ステータス: $HTTP_CODE"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ API呼び出し成功"
+              break
+            elif [ $i -eq 3 ]; then
+              echo "::error::❌ aivis-cloud-api call failed after 3 attempts (HTTP: $HTTP_CODE)"
+              # エラーレスポンスの内容を表示
+              if [ -s voice-main3.wav ]; then
+                echo "::error::エラーレスポンス内容:"
+                head -c 500 voice-main3.wav
+              fi
+              exit 1
+            else
+              echo "::warning::⚠️ aivis-cloud-api attempt $i failed (HTTP: $HTTP_CODE), retrying..."
+              sleep 30
+            fi
+          done
+          
+          # ファイル生成チェック
+          echo "📁 ファイル生成チェック"
+          if [ -f voice-main3.wav ]; then
+            FILE_SIZE=$(stat -c%s voice-main3.wav)
+            echo "📏 ファイルサイズ: $FILE_SIZE bytes"
+            
+            if [ $FILE_SIZE -eq 0 ]; then
+              echo "::error::❌ 生成された音声ファイルが空です"
+              exit 1
+            elif [ $FILE_SIZE -lt 1000 ]; then
+              echo "::warning::⚠️ 音声ファイルが小さすぎます (${FILE_SIZE} bytes)"
+              echo "::warning::ファイル内容をチェック:"
+              head -c 200 voice-main3.wav | hexdump -C | head -5
+            else
+              echo "✅ 音声ファイル生成成功 (${FILE_SIZE} bytes)"
+            fi
+            
+            # WAVファイルの簡易検証
+            if file voice-main3.wav | grep -q "WAVE"; then
+              echo "✅ WAVファイル形式確認済み"
+            else
+              echo "::warning::⚠️ WAVファイル形式ではない可能性があります"
+              file voice-main3.wav
+            fi
+            
+            # 音声ファイルを正規化（聞こえやすく調整）
+            echo "🔊 音声正規化処理"
+            ffmpeg -i voice-main3.wav \
+                   -filter_complex "[0]loudnorm=I=-20:LRA=7:TP=-1[normalized]" \
+                   -map "[normalized]" \
+                   -ar 44100 -ac 2 -c:a pcm_s16le \
+                   voice-main3-normalized.wav -y
+            
+            if [ -f voice-main3-normalized.wav ]; then
+              mv voice-main3-normalized.wav voice-main3.wav
+              echo "✅ 音声正規化完了"
+            else
+              echo "::warning::音声正規化に失敗、元ファイルを使用"
+            fi
+          else
+            echo "::error::❌ 音声ファイルが生成されませんでした"
+            exit 1
+          fi
+          
+          echo "audio-url=file://$(pwd)/voice-main3.wav" >> $GITHUB_OUTPUT
+          echo "audio-file=voice-main3.wav" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+      
+      - name: Upload voice artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-main3
+          path: voice-main3.wav
+          retention-days: 1

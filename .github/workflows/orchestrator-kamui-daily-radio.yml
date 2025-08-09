@@ -3,7 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       development-report:
-        description: '神威アプリの開発進捗・最新情報'
+        description: '神威アプリの開発進捗・最新情報（昼の神威日報）'
+        required: true
+        type: string
+      tech-news:
+        description: 'テックニュース情報（メイン2）'
+        required: true
+        type: string
+      evening-report:
+        description: '夜の神威日報情報（メイン3）'
         required: true
         type: string
       topic-focus:
@@ -130,6 +138,8 @@ jobs:
     uses: ./.github/workflows/module-radio-planning.yml
     with:
       development-report: ${{ inputs.development-report }}
+      tech-news: ${{ inputs.tech-news }}
+      evening-report: ${{ inputs.evening-report }}
       topic-focus: ${{ inputs.topic-focus }}
     secrets: inherit
 
@@ -149,6 +159,22 @@ jobs:
       voice-config: ${{ needs.planning.outputs.voice-config }}
     secrets: inherit
 
+  voice-main2:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-main2.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-main2 }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+    secrets: inherit
+
+  voice-main3:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-main3.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-main3 }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+    secrets: inherit
+
   voice-ending:
     needs: planning
     uses: ./.github/workflows/module-voice-generation-ending.yml
@@ -165,6 +191,16 @@ jobs:
   bgm-main:
     needs: planning
     uses: ./.github/workflows/module-bgm-generation-main.yml
+    secrets: inherit
+
+  bgm-main2:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-main2.yml
+    secrets: inherit
+
+  bgm-main3:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-main3.yml
     secrets: inherit
 
   bgm-ending:
@@ -190,6 +226,24 @@ jobs:
       bgm-main: ${{ needs.bgm-main.outputs.bgm-file }}
     secrets: inherit
 
+  audio-mixing-main2:
+    needs: [voice-main2, bgm-main2]
+    if: success()  # メイン2音声・BGM生成が成功した場合のみミキシング実行
+    uses: ./.github/workflows/module-audio-mixing-main2.yml
+    with:
+      voice-main2: ${{ needs.voice-main2.outputs.audio-file }}
+      bgm-main2: ${{ needs.bgm-main2.outputs.bgm-file }}
+    secrets: inherit
+
+  audio-mixing-main3:
+    needs: [voice-main3, bgm-main3]
+    if: success()  # メイン3音声・BGM生成が成功した場合のみミキシング実行
+    uses: ./.github/workflows/module-audio-mixing-main3.yml
+    with:
+      voice-main3: ${{ needs.voice-main3.outputs.audio-file }}
+      bgm-main3: ${{ needs.bgm-main3.outputs.bgm-file }}
+    secrets: inherit
+
   audio-mixing-ending:
     needs: [voice-ending, bgm-ending]
     if: success()  # エンディング音声・BGM生成が成功した場合のみミキシング実行
@@ -200,12 +254,14 @@ jobs:
     secrets: inherit
 
   audio-mixing-final:
-    needs: [audio-mixing-opening, audio-mixing-main, audio-mixing-ending]
+    needs: [audio-mixing-opening, audio-mixing-main, audio-mixing-main2, audio-mixing-main3, audio-mixing-ending]
     if: success()  # 全てのセクション音声ミキシングが成功した場合のみ最終結合実行
     uses: ./.github/workflows/module-audio-mixing-final.yml
     with:
       opening-audio: ${{ needs.audio-mixing-opening.outputs.mixed-audio }}
       main-audio: ${{ needs.audio-mixing-main.outputs.mixed-audio }}
+      main2-audio: ${{ needs.audio-mixing-main2.outputs.mixed-audio }}
+      main3-audio: ${{ needs.audio-mixing-main3.outputs.mixed-audio }}
       ending-audio: ${{ needs.audio-mixing-ending.outputs.mixed-audio }}
     secrets: inherit
 
@@ -312,13 +368,17 @@ jobs:
           # 台本の内容を取得してSSMLタグを除去
           OPENING_TEXT=$(echo "${{ needs.planning.outputs.script-opening }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
+          MAIN2_TEXT=$(echo "${{ needs.planning.outputs.script-main2 }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
+          MAIN3_TEXT=$(echo "${{ needs.planning.outputs.script-main3 }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           
           # 文字数計算（日本語対応）
           OPENING_COUNT=$(echo "$OPENING_TEXT" | wc -m)
           MAIN_COUNT=$(echo "$MAIN_TEXT" | wc -m)
+          MAIN2_COUNT=$(echo "$MAIN2_TEXT" | wc -m)
+          MAIN3_COUNT=$(echo "$MAIN3_TEXT" | wc -m)
           ENDING_COUNT=$(echo "$ENDING_TEXT" | wc -m)
-          TOTAL_COUNT=$((OPENING_COUNT + MAIN_COUNT + ENDING_COUNT))
+          TOTAL_COUNT=$((OPENING_COUNT + MAIN_COUNT + MAIN2_COUNT + MAIN3_COUNT + ENDING_COUNT))
           
           # 音声IDとアーティファクトから楽曲情報を取得
           VOICE_ID="不明"
@@ -359,8 +419,14 @@ jobs:
           #### オープニング（${OPENING_COUNT}文字）
           ${OPENING_TEXT}
 
-          #### メインコンテンツ（${MAIN_COUNT}文字）
+          #### メイン1：昼の神威日報（${MAIN_COUNT}文字）
           ${MAIN_TEXT}
+
+          #### メイン2：テックニュース（${MAIN2_COUNT}文字）
+          ${MAIN2_TEXT}
+
+          #### メイン3：夜の神威日報（${MAIN3_COUNT}文字）
+          ${MAIN3_TEXT}
 
           #### エンディング（${ENDING_COUNT}文字）
           ${ENDING_TEXT}
@@ -384,7 +450,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   summary:
-    needs: [planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing-final, create-pr]
+    needs: [planning, voice-opening, voice-main, voice-main2, voice-main3, voice-ending, bgm-opening, bgm-main, bgm-main2, bgm-main3, bgm-ending, audio-mixing-final, create-pr]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -398,9 +464,13 @@ jobs:
           | 台本生成 | ${{ needs.planning.result }} | ${{ needs.planning.result == 'success' && '✅' || '❌' }} |
           | 音声生成(開始) | ${{ needs.voice-opening.result }} | ${{ needs.voice-opening.result == 'success' && '✅' || needs.voice-opening.result == 'failure' && '❌' || '⚠️' }} |
           | 音声生成(本編) | ${{ needs.voice-main.result }} | ${{ needs.voice-main.result == 'success' && '✅' || needs.voice-main.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(テック) | ${{ needs.voice-main2.result }} | ${{ needs.voice-main2.result == 'success' && '✅' || needs.voice-main2.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(夜) | ${{ needs.voice-main3.result }} | ${{ needs.voice-main3.result == 'success' && '✅' || needs.voice-main3.result == 'failure' && '❌' || '⚠️' }} |
           | 音声生成(終了) | ${{ needs.voice-ending.result }} | ${{ needs.voice-ending.result == 'success' && '✅' || needs.voice-ending.result == 'failure' && '❌' || '⚠️' }} |
           | BGM生成(開始) | ${{ needs.bgm-opening.result }} | ${{ needs.bgm-opening.result == 'success' && '✅' || needs.bgm-opening.result == 'failure' && '❌' || '⚠️' }} |
           | BGM生成(本編) | ${{ needs.bgm-main.result }} | ${{ needs.bgm-main.result == 'success' && '✅' || needs.bgm-main.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(テック) | ${{ needs.bgm-main2.result }} | ${{ needs.bgm-main2.result == 'success' && '✅' || needs.bgm-main2.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(夜) | ${{ needs.bgm-main3.result }} | ${{ needs.bgm-main3.result == 'success' && '✅' || needs.bgm-main3.result == 'failure' && '❌' || '⚠️' }} |
           | BGM生成(終了) | ${{ needs.bgm-ending.result }} | ${{ needs.bgm-ending.result == 'success' && '✅' || needs.bgm-ending.result == 'failure' && '❌' || '⚠️' }} |
           | 音声合成 | ${{ needs.audio-mixing-final.result }} | ${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌' }} |
           | リリース作成 | ${{ needs.publish.result }} | ${{ needs.publish.result == 'success' && '✅' || '❌' }} |
@@ -408,11 +478,11 @@ jobs:
           ### 📊 統計情報
           - ワークフロー実行ID: ${{ github.run_id }}
           - 音声品質: -23 LUFS (放送基準)
-          - 並列処理: 6つのモジュールを同時実行
+          - 並列処理: 10個のモジュールを同時実行
           EOF
 
   line-notification:
-    needs: [api-check, planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing-final, create-pr, summary]
+    needs: [api-check, planning, voice-opening, voice-main, voice-main2, voice-main3, voice-ending, bgm-opening, bgm-main, bgm-main2, bgm-main3, bgm-ending, audio-mixing-final, create-pr, summary]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -427,9 +497,13 @@ jobs:
              [[ "${{ needs.planning.result }}" != "success" ]] || \
              [[ "${{ needs.voice-opening.result }}" != "success" ]] || \
              [[ "${{ needs.voice-main.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-main2.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-main3.result }}" != "success" ]] || \
              [[ "${{ needs.voice-ending.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-opening.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-main.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-main2.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-main3.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-ending.result }}" != "success" ]] || \
              [[ "${{ needs.audio-mixing-final.result }}" != "success" ]] || \
              [[ "${{ needs.create-pr.result }}" != "success" ]]; then
@@ -442,9 +516,13 @@ jobs:
           PLANNING_STATUS="${{ needs.planning.result == 'success' && '✅' || '❌ Claude API異常' }}"
           VOICE_OPENING_STATUS="${{ needs.voice-opening.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
           VOICE_MAIN_STATUS="${{ needs.voice-main.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_MAIN2_STATUS="${{ needs.voice-main2.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_MAIN3_STATUS="${{ needs.voice-main3.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
           VOICE_ENDING_STATUS="${{ needs.voice-ending.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
           BGM_OPENING_STATUS="${{ needs.bgm-opening.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
           BGM_MAIN_STATUS="${{ needs.bgm-main.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_MAIN2_STATUS="${{ needs.bgm-main2.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_MAIN3_STATUS="${{ needs.bgm-main3.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
           BGM_ENDING_STATUS="${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
           MIXING_STATUS="${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌ FFmpeg失敗' }}"
           PR_STATUS="${{ needs.create-pr.result == 'success' && '✅' || '❌ GitHub API失敗' }}"
@@ -461,7 +539,13 @@ jobs:
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニング音声生成エラー: AIVIS API失敗"
           fi
           if [[ "${{ needs.voice-main.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン音声生成エラー: AIVIS API失敗"
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 昼神威日報音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-main2.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 テックニュース音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-main3.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 夜神威日報音声生成エラー: AIVIS API失敗"
           fi
           if [[ "${{ needs.voice-ending.result }}" != "success" ]]; then
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディング音声生成エラー: AIVIS API失敗"
@@ -470,7 +554,13 @@ jobs:
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニングBGM生成エラー: Google Lyria API失敗"
           fi
           if [[ "${{ needs.bgm-main.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メインBGM生成エラー: Google Lyria API失敗"
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 昼神威日報BGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-main2.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 テックニュースBGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-main3.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 夜神威日報BGM生成エラー: Google Lyria API失敗"
           fi
           if [[ "${{ needs.bgm-ending.result }}" != "success" ]]; then
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディングBGM生成エラー: Google Lyria API失敗"
@@ -490,7 +580,7 @@ jobs:
               \"messages\": [
                 {
                   \"type\": \"text\",
-                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(本編): ${VOICE_MAIN_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(本編): ${BGM_MAIN_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・プルリク作成: ${PR_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(昼神威): ${VOICE_MAIN_STATUS}\n・音声生成(テック): ${VOICE_MAIN2_STATUS}\n・音声生成(夜神威): ${VOICE_MAIN3_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(昼神威): ${BGM_MAIN_STATUS}\n・BGM生成(テック): ${BGM_MAIN2_STATUS}\n・BGM生成(夜神威): ${BGM_MAIN3_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・プルリク作成: ${PR_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
                 }
               ]
             }"

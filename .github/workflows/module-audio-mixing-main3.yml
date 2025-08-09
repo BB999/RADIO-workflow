@@ -1,0 +1,186 @@
+name: Audio Mixing Module - Main3
+on:
+  workflow_call:
+    inputs:
+      voice-main3:
+        required: true
+        type: string
+      bgm-main3:
+        required: true
+        type: string
+    outputs:
+      mixed-audio:
+        value: ${{ jobs.mix-main.outputs.audio-file }}
+
+jobs:
+  mix-main:
+    runs-on: ubuntu-latest
+    outputs:
+      audio-file: ${{ steps.mixing.outputs.main-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download voice-main3 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-main3
+          path: artifacts/voice-main3
+      
+      - name: Download bgm-main3 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bgm-main3
+          path: artifacts/bgm-main3
+      
+      - name: List downloaded artifacts
+        run: |
+          echo "::group::📁 メイン用アーティファクト"
+          echo "=== artifacts/ ==="
+          ls -la artifacts/ || echo "artifactsディレクトリが見つかりません"
+          echo ""
+          echo "=== 各アーティファクトの内容 ==="
+          for dir in artifacts/*/; do
+            if [ -d "$dir" ]; then
+              echo "--- $dir ---"
+              ls -la "$dir" || echo "ディレクトリが空です"
+              echo ""
+            fi
+          done
+          echo "::endgroup::"
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      
+      - name: Mix main3 audio with BGM
+        id: mixing
+        run: |
+          # メイン3セクション（夜の神威日報）: 音声 + BGMのミックス
+          
+          # 音声の長さを取得する関数（エラーハンドリング付き）
+          get_duration() {
+            local file="$1"
+            if [ ! -f "$file" ]; then
+              echo "::warning::音声ファイルが見つかりません: $file、デフォルト値30秒を使用"
+              echo "30"
+              return 0
+            fi
+            local duration=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$file" 2>/dev/null)
+            if [ -z "$duration" ] || [ "$duration" = "N/A" ]; then
+              echo "::warning::音声ファイルの長さを取得できません: $file、デフォルト値30秒を使用"
+              echo "30"
+              return 0
+            fi
+            echo "$duration"
+          }
+          
+          # エラーハンドリング付きFFmpeg実行
+          safe_ffmpeg() {
+            local TEMP_LOG="ffmpeg_$(date +%s).log"
+            if ! ffmpeg "$@" 2>"$TEMP_LOG"; then
+              echo "::error::FFmpeg処理に失敗しました: $*"
+              echo "::error::FFmpegエラー出力:"
+              cat "$TEMP_LOG" | head -20
+              rm -f "$TEMP_LOG"
+              return 1
+            fi
+            rm -f "$TEMP_LOG"
+            return 0
+          }
+          
+          # アーティファクトからファイルをコピー
+          echo "📂 音声ファイルのコピー"
+          if [ -f "artifacts/voice-main3/${{ inputs.voice-main3 }}" ]; then
+            cp "artifacts/voice-main3/${{ inputs.voice-main3 }}" voice-main3.wav
+            echo "✅ voice-main3.wav をコピーしました"
+          else
+            echo "::warning::音声ファイルが見つかりません: artifacts/voice-main3/${{ inputs.voice-main3 }}"
+            safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -ar 44100 -ac 2 -c:a pcm_s16le voice-main3.wav || exit 1
+          fi
+          
+          echo "📂 BGMファイルのコピー"
+          if [ -f "artifacts/bgm-main3/${{ inputs.bgm-main3 }}" ]; then
+            cp "artifacts/bgm-main3/${{ inputs.bgm-main3 }}" bgm-main3-30s.wav
+            echo "✅ bgm-main3-30s.wav をコピーしました"
+          else
+            echo "::warning::BGMファイルが見つかりません: artifacts/bgm-main3/${{ inputs.bgm-main3 }}"
+            safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 30 -ar 44100 -ac 2 -c:a pcm_s16le bgm-main3-30s.wav || exit 1
+          fi
+          
+          # 音声ファイルの長さを取得
+          echo "📏 音声ファイルの長さを測定中..."
+          VOICE_MAIN_DURATION=$(get_duration voice-main3.wav)
+          echo "  メイン音声: ${VOICE_MAIN_DURATION}秒"
+          
+          # 必要なBGMの長さを計算
+          BGM_MAIN_NEEDED=$(awk "BEGIN {print int($VOICE_MAIN_DURATION + 9)}")         # 4秒イントロ + 音声 + 5秒フェードアウト
+          
+          echo "🎵 必要なBGMの長さ:"
+          echo "  メイン: ${BGM_MAIN_NEEDED}秒"
+          
+          # BGMを必要な長さにループ拡張（クロスフェードでスムーズなループ）
+          if [ $BGM_MAIN_NEEDED -gt 30 ]; then
+            echo "🔄 メインBGMを${BGM_MAIN_NEEDED}秒に拡張"
+            # 前処理：BGMの始まりと終わりにフェードを追加してプチフリを防止
+            safe_ffmpeg -i bgm-main3-30s.wav -filter_complex \
+              "[0:a]afade=t=in:ss=0:d=0.1,afade=t=out:st=29.9:d=0.1[clean]" \
+              -map "[clean]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-clean.wav -y || exit 1
+            
+            # 2秒クロスフェードでスムーズなループ
+            LOOPS_NEEDED=$(awk "BEGIN {print int($BGM_MAIN_NEEDED / 28) + 1}")
+            safe_ffmpeg -i bgm-clean.wav -filter_complex \
+              "[0:a]atrim=0:28[part];
+               [part]aloop=loop=$LOOPS_NEEDED:size=44100*28[base];
+               [0:a][base]acrossfade=d=2:c1=tri:c2=tri,atrim=0:$BGM_MAIN_NEEDED[looped]" \
+              -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-main3-extended.wav -y || exit 1
+            mv bgm-main3-extended.wav bgm-main3-30s.wav
+            rm -f bgm-clean.wav
+          else
+            # 30秒以下でも始まりのプチフリを防止
+            safe_ffmpeg -i bgm-main3-30s.wav -filter_complex \
+              "[0:a]afade=t=in:ss=0:d=0.1[clean]" \
+              -map "[clean]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-temp.wav -y || exit 1
+            mv bgm-temp.wav bgm-main3-30s.wav
+          fi
+          
+          # メイン: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後BGMフェードアウト（5秒）
+          VOICE_MAIN_END_WITH_DELAY=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 4}")
+          FADE_START_MAIN=$(awk "BEGIN {print $VOICE_MAIN_END_WITH_DELAY}")
+          TOTAL_MAIN_DURATION=$(awk "BEGIN {print $VOICE_MAIN_DURATION + 9}")
+          
+          echo "🎵 メインセクションのミキシング開始"
+          # メイン用の緩やかな音量変化
+          MAIN_FADE_DOWN_START=4
+          MAIN_FADE_DOWN_END=4.5
+          
+          echo "  音声終了（遅延考慮）: ${VOICE_MAIN_END_WITH_DELAY}秒"
+          echo "  フェードアウト開始: ${FADE_START_MAIN}秒"
+          
+          safe_ffmpeg -i voice-main3.wav \
+                      -i bgm-main3-30s.wav \
+                      -filter_complex "[0]aresample=44100,adelay=4s:all=1[voice_delayed];
+                                      [1]aresample=44100,volume='if(lt(t,$MAIN_FADE_DOWN_START),1,if(lt(t,$MAIN_FADE_DOWN_END),1-0.5*(t-$MAIN_FADE_DOWN_START)/0.5,0.5))':eval=frame,
+                                      afade=t=out:st=${FADE_START_MAIN}:d=5[bgm2];
+                                      [voice_delayed][bgm2]amix=inputs=2[main]" \
+                      -map "[main]" \
+                      -t ${TOTAL_MAIN_DURATION} \
+                      -ar 44100 -ac 2 -c:a pcm_s16le \
+                      main3-mixed.wav || exit 1
+          
+          if [ -f "main3-mixed.wav" ]; then
+            echo "✅ main3-mixed.wav 生成成功 ($(stat -c%s main3-mixed.wav) bytes)"
+          else
+            echo "::error::❌ main3-mixed.wav の生成に失敗"
+            exit 1
+          fi
+          
+          echo "main-file=main3-mixed.wav" >> $GITHUB_OUTPUT
+      
+      - name: Upload main3 mixed audio artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: main3-mixed-audio
+          path: main3-mixed.wav
+          retention-days: 7
