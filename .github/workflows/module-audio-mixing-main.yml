@@ -120,14 +120,29 @@ jobs:
           echo "🎵 必要なBGMの長さ:"
           echo "  メイン: ${BGM_MAIN_NEEDED}秒"
           
-          # BGMを必要な長さにループ拡張（シームレスループ）
+          # BGMを必要な長さにループ拡張（クロスフェードでスムーズなループ）
           if [ $BGM_MAIN_NEEDED -gt 30 ]; then
             echo "🔄 メインBGMを${BGM_MAIN_NEEDED}秒に拡張"
-            # シンプルなaloop使用でシームレスなループ
+            # 前処理：BGMの始まりと終わりにフェードを追加してプチフリを防止
             safe_ffmpeg -i bgm-main-30s.wav -filter_complex \
-              "[0:a]aloop=loop=-1:size=44100*30,atrim=0:$BGM_MAIN_NEEDED[looped]" \
+              "[0:a]afade=t=in:ss=0:d=0.1,afade=t=out:st=29.9:d=0.1[clean]" \
+              -map "[clean]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-clean.wav -y || exit 1
+            
+            # 2秒クロスフェードでスムーズなループ
+            LOOPS_NEEDED=$(awk "BEGIN {print int($BGM_MAIN_NEEDED / 28) + 1}")
+            safe_ffmpeg -i bgm-clean.wav -filter_complex \
+              "[0:a]atrim=0:28[part];
+               [part]aloop=loop=$LOOPS_NEEDED:size=44100*28[base];
+               [0:a][base]acrossfade=d=2:c1=tri:c2=tri,atrim=0:$BGM_MAIN_NEEDED[looped]" \
               -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-main-extended.wav -y || exit 1
             mv bgm-main-extended.wav bgm-main-30s.wav
+            rm -f bgm-clean.wav
+          else
+            # 30秒以下でも始まりのプチフリを防止
+            safe_ffmpeg -i bgm-main-30s.wav -filter_complex \
+              "[0:a]afade=t=in:ss=0:d=0.1[clean]" \
+              -map "[clean]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-temp.wav -y || exit 1
+            mv bgm-temp.wav bgm-main-30s.wav
           fi
           
           # メイン: BGM4秒イントロ（最大音量）→音声開始時50%→音声終了後BGMフェードアウト（5秒）

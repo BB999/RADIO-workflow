@@ -323,9 +323,22 @@ jobs:
           # 音声IDとアーティファクトから楽曲情報を取得
           VOICE_ID="不明"
           SELECTED_MUSIC="不明"
+          ARTIST_NAME="不明"
+          SONG_NAME="不明"
           if [ -f "radio-output/USE_UUID.md" ]; then
             VOICE_ID=$(grep "Voice UUID:" radio-output/USE_UUID.md | cut -d' ' -f3 2>/dev/null || echo "不明")
-            SELECTED_MUSIC=$(grep "Selected Music File:" radio-output/USE_UUID.md | cut -d' ' -f4- 2>/dev/null || echo "不明")
+            SELECTED_MUSIC_FILE=$(grep "Selected Music File:" radio-output/USE_UUID.md | cut -d' ' -f4- 2>/dev/null || echo "不明")
+            ARTIST_NAME=$(grep "Artist:" radio-output/USE_UUID.md | cut -d' ' -f2- 2>/dev/null || echo "不明")
+            SONG_NAME=$(grep "Song:" radio-output/USE_UUID.md | cut -d' ' -f2- 2>/dev/null || echo "不明")
+            
+            # 曲名情報を整理（アーティスト名と楽曲名が取得できた場合）
+            if [ "$ARTIST_NAME" != "不明" ] && [ "$SONG_NAME" != "不明" ]; then
+              SELECTED_MUSIC="${ARTIST_NAME} - ${SONG_NAME}"
+            elif [ "$SONG_NAME" != "不明" ]; then
+              SELECTED_MUSIC="${SONG_NAME}"
+            else
+              SELECTED_MUSIC="$SELECTED_MUSIC_FILE"
+            fi
           fi
           
           # PRボディを直接作成

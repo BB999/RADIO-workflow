@@ -118,16 +118,31 @@ jobs:
             exit 1
           fi
           
-          # 3つのセクションを連結し、最終調整
-          echo "🎵 最終ミックス開始（3セクション結合）"
-          echo "📁 連結するファイル:"
-          ls -la opening-final.wav main-final.wav ending-final.wav
+          # セクション間用の無音ファイルを作成（1〜2秒のランダム）
+          echo "🔇 セクション間無音ファイルを作成"
           
-          # 3つのセクションを時系列順に連結し、放送基準に正規化
+          # 1つ目の無音区間（1〜2秒のランダム）
+          SILENCE_1=$(awk "BEGIN {srand(); print 1 + rand()}")
+          echo "  1つ目の無音: ${SILENCE_1}秒"
+          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_1 -ar 44100 -ac 2 -c:a pcm_s16le section-break-1.wav || exit 1
+          
+          # 2つ目の無音区間（1〜2秒のランダム）
+          SILENCE_2=$(awk "BEGIN {srand(); print 1 + rand()}")
+          echo "  2つ目の無音: ${SILENCE_2}秒"
+          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_2 -ar 44100 -ac 2 -c:a pcm_s16le section-break-2.wav || exit 1
+          
+          # 3つのセクションを無音区間付きで連結し、最終調整
+          echo "🎵 最終ミックス開始（3セクション + ランダム無音区間結合）"
+          echo "📁 連結するファイル:"
+          ls -la opening-final.wav section-break-1.wav main-final.wav section-break-2.wav ending-final.wav
+          
+          # 3つのセクションを時系列順に連結（セクション間にランダム無音を挿入）し、放送基準に正規化
           safe_ffmpeg -i opening-final.wav \
+                      -i section-break-1.wav \
                       -i main-final.wav \
+                      -i section-break-2.wav \
                       -i ending-final.wav \
-                      -filter_complex "[0][1][2]concat=n=3:v=0:a=1[combined];
+                      -filter_complex "[0][1][2][3][4]concat=n=5:v=0:a=1[combined];
                                       [combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
                       -c:a mp3 \

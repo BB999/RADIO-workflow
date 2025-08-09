@@ -162,14 +162,29 @@ jobs:
           echo "🎵 必要なBGMの長さ:"
           echo "  オープニング: ${BGM_OPENING_NEEDED}秒"
           
-          # BGMを必要な長さにループ拡張（シームレスループ）
+          # BGMを必要な長さにループ拡張（クロスフェードでスムーズなループ）
           if [ $BGM_OPENING_NEEDED -gt 30 ]; then
             echo "🔄 オープニングBGMを${BGM_OPENING_NEEDED}秒に拡張"
-            # シンプルなaloop使用でシームレスなループ
+            # 前処理：BGMの始まりと終わりにフェードを追加してプチフリを防止
             safe_ffmpeg -i bgm-opening-30s.wav -filter_complex \
-              "[0:a]aloop=loop=-1:size=44100*30,atrim=0:$BGM_OPENING_NEEDED[looped]" \
+              "[0:a]afade=t=in:ss=0:d=0.1,afade=t=out:st=29.9:d=0.1[clean]" \
+              -map "[clean]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-clean.wav -y || exit 1
+            
+            # 2秒クロスフェードでスムーズなループ
+            LOOPS_NEEDED=$(awk "BEGIN {print int($BGM_OPENING_NEEDED / 28) + 1}")
+            safe_ffmpeg -i bgm-clean.wav -filter_complex \
+              "[0:a]atrim=0:28[part];
+               [part]aloop=loop=$LOOPS_NEEDED:size=44100*28[base];
+               [0:a][base]acrossfade=d=2:c1=tri:c2=tri,atrim=0:$BGM_OPENING_NEEDED[looped]" \
               -map "[looped]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-opening-extended.wav -y || exit 1
             mv bgm-opening-extended.wav bgm-opening-30s.wav
+            rm -f bgm-clean.wav
+          else
+            # 30秒以下でも始まりのプチフリを防止
+            safe_ffmpeg -i bgm-opening-30s.wav -filter_complex \
+              "[0:a]afade=t=in:ss=0:d=0.1[clean]" \
+              -map "[clean]" -ar 44100 -ac 2 -c:a pcm_s16le bgm-temp.wav -y || exit 1
+            mv bgm-temp.wav bgm-opening-30s.wav
           fi
           
           # オープニングセクション: BGM6秒→音声+BGM→クロスフェード用にBGM継続
@@ -213,12 +228,12 @@ jobs:
           # 最大40秒に制限
           if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
             MUSIC_TOTAL_DURATION=40
-            MUSIC_FADEOUT_START=37  # 40秒 - 3秒フェードアウト
+            MUSIC_FADEOUT_START=35  # 40秒 - 5秒フェードアウト
             echo "  楽曲を40秒に制限します"
           else
             MUSIC_TOTAL_DURATION=$MUSIC_DURATION
-            if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
-              MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION - 3}")
+            if [ $(awk "BEGIN {print ($MUSIC_DURATION > 5)}") -eq 1 ]; then
+              MUSIC_FADEOUT_START=$(awk "BEGIN {print $MUSIC_DURATION - 5}")
             else
               MUSIC_FADEOUT_START=$MUSIC_DURATION
             fi
@@ -226,20 +241,20 @@ jobs:
           fi
           
           # 楽曲セクションの作成（音量制御：セリフ中30%→セリフ終了後100%）
-          # クロスフェード5秒でセリフ終了を計算（オープニングセリフの最後5秒でクロスフェード開始）
-          VOICE_CROSSFADE_END=5  # クロスフェード中のセリフ終了タイミング（楽曲セクション基準）
+          # クロスフェード1秒でセリフ終了を計算（オープニングセリフの最後1秒でクロスフェード開始）
+          VOICE_CROSSFADE_END=1  # クロスフェード中のセリフ終了タイミング（楽曲セクション基準）
           
-          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 4)}") -eq 1 ]; then
-            # 楽曲が4秒以上の場合：ラジオ標準音量正規化→音量制御→フェードアウト
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 5)}") -eq 1 ]; then
+            # 楽曲が5秒以上の場合：ラジオ標準音量正規化→音量制御→フェードアウト
             safe_ffmpeg -i selected-music.mp3 \
                         -filter_complex "[0]aresample=44100,loudnorm=I=-23:LRA=7:TP=-1[normalized];
-                                        [normalized]volume='if(lt(t,${VOICE_CROSSFADE_END}),0.3,1)':eval=frame,afade=t=out:st=${MUSIC_FADEOUT_START}:d=3[music_faded]" \
+                                        [normalized]volume='if(lt(t,${VOICE_CROSSFADE_END}),0.3,1)':eval=frame,afade=t=out:st=${MUSIC_FADEOUT_START}:d=5[music_faded]" \
                         -map "[music_faded]" \
                         -t ${MUSIC_TOTAL_DURATION} \
                         -ar 44100 -ac 2 -c:a pcm_s16le \
                         music-mixed.wav || exit 1
           else
-            # 楽曲が4秒以下の場合：ラジオ標準音量正規化→音量制御
+            # 楽曲が5秒以下の場合：ラジオ標準音量正規化→音量制御
             safe_ffmpeg -i selected-music.mp3 \
                         -filter_complex "[0]aresample=44100,loudnorm=I=-23:LRA=7:TP=-1[normalized];
                                         [normalized]volume='if(lt(t,${VOICE_CROSSFADE_END}),0.3,1)':eval=frame[music]" \
@@ -279,7 +294,7 @@ jobs:
           safe_ffmpeg -i opening-voice-only.wav \
                       -i opening-bgm-only.wav \
                       -i music-mixed.wav \
-                      -filter_complex "[1][2]acrossfade=d=5:c1=tri:c2=tri[bgm_music_cross];
+                      -filter_complex "[1][2]acrossfade=d=1:c1=tri:c2=tri[bgm_music_cross];
                                       [0][bgm_music_cross]amix=inputs=2[opening_complete]" \
                       -map "[opening_complete]" \
                       -c:a pcm_s16le \
