@@ -214,8 +214,8 @@ jobs:
           INPUT_LENGTH=$(echo "$INPUT_TEXT" | wc -c)
           echo "📏 開発進捗データ長: ${INPUT_LENGTH}文字"
           
-          if [ "$INPUT_LENGTH" -le 1000 ]; then
-            echo "✅ 開発進捗: 短いデータのため直接使用"
+          if [ "$INPUT_LENGTH" -le 5000 ]; then
+            echo "✅ 開発進捗: データが5000文字以下のため直接使用"
             PROCESSED_DEVELOPMENT_REPORT="$INPUT_TEXT"
           else
             echo "⚡ 開発進捗: 段階的処理実行"
@@ -235,7 +235,7 @@ jobs:
             
             SUMMARY1=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < dev_part1_prompt.txt) || {
               echo "::error::開発進捗パート1要約でエラーが発生しました"
               exit 1
@@ -250,7 +250,7 @@ jobs:
             
             SUMMARY2=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < dev_part2_prompt.txt) || {
               echo "::error::開発進捗パート2要約でエラーが発生しました"
               exit 1
@@ -269,7 +269,7 @@ jobs:
             
             PROCESSED_DEVELOPMENT_REPORT=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < dev_merge_prompt.txt) || {
               echo "::error::開発進捗要約統合でエラーが発生しました"
               exit 1
@@ -286,8 +286,8 @@ jobs:
           INPUT_LENGTH=$(echo "$INPUT_TEXT" | wc -c)
           echo "📏 テックニュースデータ長: ${INPUT_LENGTH}文字"
           
-          if [ "$INPUT_LENGTH" -le 1000 ]; then
-            echo "✅ テックニュース: 短いデータのため直接使用"
+          if [ "$INPUT_LENGTH" -le 5000 ]; then
+            echo "✅ テックニュース: データが5000文字以下のため直接使用"
             PROCESSED_TECH_NEWS="$INPUT_TEXT"
           else
             echo "⚡ テックニュース: 段階的処理実行"
@@ -307,7 +307,7 @@ jobs:
             
             SUMMARY1=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < tech_part1_prompt.txt) || {
               echo "::error::テックニュースパート1要約でエラーが発生しました"
               exit 1
@@ -322,7 +322,7 @@ jobs:
             
             SUMMARY2=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < tech_part2_prompt.txt) || {
               echo "::error::テックニュースパート2要約でエラーが発生しました"
               exit 1
@@ -341,7 +341,7 @@ jobs:
             
             PROCESSED_TECH_NEWS=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < tech_merge_prompt.txt) || {
               echo "::error::テックニュース要約統合でエラーが発生しました"
               exit 1
@@ -358,8 +358,8 @@ jobs:
           INPUT_LENGTH=$(echo "$INPUT_TEXT" | wc -c)
           echo "📏 夜の神威日報データ長: ${INPUT_LENGTH}文字"
           
-          if [ "$INPUT_LENGTH" -le 1000 ]; then
-            echo "✅ 夜の神威日報: 短いデータのため直接使用"
+          if [ "$INPUT_LENGTH" -le 5000 ]; then
+            echo "✅ 夜の神威日報: データが5000文字以下のため直接使用"
             PROCESSED_EVENING_REPORT="$INPUT_TEXT"
           else
             echo "⚡ 夜の神威日報: 段階的処理実行"
@@ -379,7 +379,7 @@ jobs:
             
             SUMMARY1=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < evening_part1_prompt.txt) || {
               echo "::error::夜の神威日報パート1要約でエラーが発生しました"
               exit 1
@@ -394,7 +394,7 @@ jobs:
             
             SUMMARY2=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < evening_part2_prompt.txt) || {
               echo "::error::夜の神威日報パート2要約でエラーが発生しました"
               exit 1
@@ -413,7 +413,7 @@ jobs:
             
             PROCESSED_EVENING_REPORT=$(npx @anthropic-ai/claude-code \
               --allowedTools "none" \
-              --max-turns 2 \
+              --max-turns 5 \
               < evening_merge_prompt.txt) || {
               echo "::error::夜の神威日報要約統合でエラーが発生しました"
               exit 1
