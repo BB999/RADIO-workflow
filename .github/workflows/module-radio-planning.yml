@@ -182,6 +182,131 @@ jobs:
           path: radio-workflow/temp/USE_UUID.md
           retention-days: 1
 
+  preprocess-development-report:
+    needs: planning-setup
+    runs-on: ubuntu-latest
+    outputs:
+      processed-report: ${{ steps.process.outputs.processed-report }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Process development report in stages
+        id: process
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "🔄 development-report段階的処理開始"
+          
+          # 入力データの長さをチェック
+          INPUT_TEXT="${{ inputs.development-report }}"
+          INPUT_LENGTH=$(echo "$INPUT_TEXT" | wc -c)
+          echo "📏 入力データ長: ${INPUT_LENGTH}文字"
+          
+          # 文字数が1000文字以下なら直接使用
+          if [ "$INPUT_LENGTH" -le 1000 ]; then
+            echo "✅ 短いデータのため直接使用します"
+            PROCESSED_REPORT="$INPUT_TEXT"
+          else
+            echo "⚡ 長いデータのため段階的処理を実行します"
+            
+            # データを2つに分割（改行で分割）
+            echo "$INPUT_TEXT" > temp_full.txt
+            TOTAL_LINES=$(wc -l < temp_full.txt)
+            HALF_LINES=$((TOTAL_LINES / 2))
+            
+            head -n "$HALF_LINES" temp_full.txt > temp_part1.txt
+            tail -n +"$((HALF_LINES + 1))" temp_full.txt > temp_part2.txt
+            
+            echo "📂 パート1 (${HALF_LINES}行):"
+            head -3 temp_part1.txt
+            echo "..."
+            echo "📂 パート2 ($((TOTAL_LINES - HALF_LINES))行):"
+            head -3 temp_part2.txt
+            echo "..."
+            
+            # パート1を要約
+            echo "🤖 パート1要約開始"
+            cat > part1_prompt.txt << 'PROMPT_EOF'
+          以下の神威アプリ開発進捗情報を、ラジオ台本用に1000文字以内で要約してください。
+          重要な機能追加、バグ修正、技術実装の要点のみを含めてください：
+          
+          PROMPT_EOF
+            cat temp_part1.txt >> part1_prompt.txt
+            
+            SUMMARY1=$(npx @anthropic-ai/claude-code \
+              --allowedTools "none" \
+              --max-turns 2 \
+              < part1_prompt.txt) || {
+              echo "::error::パート1要約でエラーが発生しました"
+              exit 1
+            }
+            
+            echo "✅ パート1要約完了 ($(echo "$SUMMARY1" | wc -c)文字)"
+            
+            # パート2を要約
+            echo "🤖 パート2要約開始"
+            cat > part2_prompt.txt << 'PROMPT_EOF'
+          以下の神威アプリ開発進捗情報を、ラジオ台本用に1000文字以内で要約してください。
+          重要な機能追加、バグ修正、技術実装の要点のみを含めてください：
+          
+          PROMPT_EOF
+            cat temp_part2.txt >> part2_prompt.txt
+            
+            SUMMARY2=$(npx @anthropic-ai/claude-code \
+              --allowedTools "none" \
+              --max-turns 2 \
+              < part2_prompt.txt) || {
+              echo "::error::パート2要約でエラーが発生しました"
+              exit 1
+            }
+            
+            echo "✅ パート2要約完了 ($(echo "$SUMMARY2" | wc -c)文字)"
+            
+            # 2つの要約を統合
+            echo "🔀 要約統合開始"
+            cat > merge_prompt.txt << 'PROMPT_EOF'
+          以下2つの神威アプリ開発進捗要約を、ラジオ台本用に1000文字以内で統合してください。
+          重複を避け、最も重要なポイントを含めてください：
+          
+          【要約1】
+          PROMPT_EOF
+            echo "$SUMMARY1" >> merge_prompt.txt
+            echo "" >> merge_prompt.txt
+            echo "【要約2】" >> merge_prompt.txt
+            echo "$SUMMARY2" >> merge_prompt.txt
+            
+            PROCESSED_REPORT=$(npx @anthropic-ai/claude-code \
+              --allowedTools "none" \
+              --max-turns 2 \
+              < merge_prompt.txt) || {
+              echo "::error::要約統合でエラーが発生しました"
+              exit 1
+            }
+            
+            echo "✅ 要約統合完了 ($(echo "$PROCESSED_REPORT" | wc -c)文字)"
+            
+            # 一時ファイルをクリーンアップ
+            rm -f temp_*.txt *_prompt.txt
+          fi
+          
+          echo "📝 最終処理結果:"
+          echo "$PROCESSED_REPORT"
+          
+          {
+            echo "processed-report<<EOF"
+            echo "$PROCESSED_REPORT"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
   script-opening:
     needs: planning-setup
     runs-on: ubuntu-latest
@@ -237,9 +362,9 @@ jobs:
             < opening_prompt.txt)
 
           # SSML処理
-          if [ -f "ssml_formatter.js" ]; then
+          if [ -f "radio-workflow/ssml_formatter.js" ]; then
             OPENING_SSML=$(echo "$OPENING_SCRIPT" | node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
+              const SSMLFormatter = require('./radio-workflow/ssml_formatter.js');
               const formatter = new SSMLFormatter();
               let text = '';
               process.stdin.on('data', chunk => text += chunk);
@@ -259,7 +384,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
   script-main:
-    needs: planning-setup
+    needs: [planning-setup, preprocess-development-report]
     runs-on: ubuntu-latest
     outputs:
       script-text: ${{ steps.generate.outputs.script-text }}
@@ -290,7 +415,7 @@ jobs:
           ${{ needs.planning-setup.outputs.personality-data }}
 
           【セクション内容】
-          ${{ inputs.development-report }}
+          ${{ needs.preprocess-development-report.outputs.processed-report }}
 
           【強調ポイント】
           ${{ inputs.topic-focus || 'なし' }}
@@ -315,9 +440,9 @@ jobs:
             < main_prompt.txt)
 
           # SSML処理
-          if [ -f "ssml_formatter.js" ]; then
+          if [ -f "radio-workflow/ssml_formatter.js" ]; then
             MAIN_SSML=$(echo "$MAIN_SCRIPT" | node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
+              const SSMLFormatter = require('./radio-workflow/ssml_formatter.js');
               const formatter = new SSMLFormatter();
               let text = '';
               process.stdin.on('data', chunk => text += chunk);
@@ -390,9 +515,9 @@ jobs:
             < main2_prompt.txt)
 
           # SSML処理
-          if [ -f "ssml_formatter.js" ]; then
+          if [ -f "radio-workflow/ssml_formatter.js" ]; then
             MAIN2_SSML=$(echo "$MAIN2_SCRIPT" | node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
+              const SSMLFormatter = require('./radio-workflow/ssml_formatter.js');
               const formatter = new SSMLFormatter();
               let text = '';
               process.stdin.on('data', chunk => text += chunk);
@@ -465,9 +590,9 @@ jobs:
             < main3_prompt.txt)
 
           # SSML処理
-          if [ -f "ssml_formatter.js" ]; then
+          if [ -f "radio-workflow/ssml_formatter.js" ]; then
             MAIN3_SSML=$(echo "$MAIN3_SCRIPT" | node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
+              const SSMLFormatter = require('./radio-workflow/ssml_formatter.js');
               const formatter = new SSMLFormatter();
               let text = '';
               process.stdin.on('data', chunk => text += chunk);
@@ -537,9 +662,9 @@ jobs:
             < ending_prompt.txt)
 
           # SSML処理
-          if [ -f "ssml_formatter.js" ]; then
+          if [ -f "radio-workflow/ssml_formatter.js" ]; then
             ENDING_SSML=$(echo "$ENDING_SCRIPT" | node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
+              const SSMLFormatter = require('./radio-workflow/ssml_formatter.js');
               const formatter = new SSMLFormatter();
               let text = '';
               process.stdin.on('data', chunk => text += chunk);
