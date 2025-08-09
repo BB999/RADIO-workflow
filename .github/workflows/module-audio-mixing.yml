@@ -442,6 +442,45 @@ jobs:
             exit 1
           fi
           
+          # 音声ファイルの音量正規化（聞こえやすく調整）
+          echo "🔊 音声ファイルの音量正規化"
+          
+          # オープニング音声を正規化
+          if [ -f "voice-opening.wav" ]; then
+            echo "  オープニング音声を正規化中..."
+            safe_ffmpeg -i voice-opening.wav \
+                        -filter_complex "[0]loudnorm=I=-20:LRA=7:TP=-1[normalized]" \
+                        -map "[normalized]" \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        voice-opening-normalized.wav || exit 1
+            mv voice-opening-normalized.wav voice-opening.wav
+            echo "  ✅ オープニング音声正規化完了"
+          fi
+          
+          # メイン音声を正規化
+          if [ -f "voice-main.wav" ]; then
+            echo "  メイン音声を正規化中..."
+            safe_ffmpeg -i voice-main.wav \
+                        -filter_complex "[0]loudnorm=I=-20:LRA=7:TP=-1[normalized]" \
+                        -map "[normalized]" \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        voice-main-normalized.wav || exit 1
+            mv voice-main-normalized.wav voice-main.wav
+            echo "  ✅ メイン音声正規化完了"
+          fi
+          
+          # エンディング音声を正規化
+          if [ -f "voice-ending.wav" ]; then
+            echo "  エンディング音声を正規化中..."
+            safe_ffmpeg -i voice-ending.wav \
+                        -filter_complex "[0]loudnorm=I=-20:LRA=7:TP=-1[normalized]" \
+                        -map "[normalized]" \
+                        -ar 44100 -ac 2 -c:a pcm_s16le \
+                        voice-ending-normalized.wav || exit 1
+            mv voice-ending-normalized.wav voice-ending.wav
+            echo "  ✅ エンディング音声正規化完了"
+          fi
+          
           # 1秒の無音ファイルを作成
           echo "🔇 無音ファイルを作成"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -ar 44100 -ac 2 -c:a pcm_s16le silence-1s.wav || exit 1
