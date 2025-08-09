@@ -171,10 +171,10 @@ jobs:
             
             # ffmpegでループ拡張
             sudo apt-get update && sudo apt-get install -y ffmpeg
-            if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-30s.wav" -y; then
+            if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main2-30s.wav" -y; then
               echo "✅ BGMループ拡張成功"
               echo "music-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
-              echo "music-file=bgm-main-30s.wav" >> $GITHUB_OUTPUT
+              echo "music-file=bgm-main2-30s.wav" >> $GITHUB_OUTPUT
             else
               echo "::error::❌ ffmpeg処理失敗"
               exit 1
