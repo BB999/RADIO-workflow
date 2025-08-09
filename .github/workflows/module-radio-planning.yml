@@ -262,56 +262,56 @@ jobs:
           
           # プロンプトをファイルに保存（長い文字列を避けるため）
           PROMPT_FILE="radio_prompt.txt"
-          cat > "$PROMPT_FILE" <<'HEREDOC_END'
-以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
-
-【パーソナリティ設定】
-PERSONALITY_DATA_PLACEHOLDER
-
-【セクション1: 昼の神威日報】
-DEVELOPMENT_REPORT_PLACEHOLDER
-
-【セクション2: テックニュース】
-TECH_NEWS_PLACEHOLDER
-
-【セクション3: 夜の神威日報】
-EVENING_REPORT_PLACEHOLDER
-
-【強調ポイント】
-TOPIC_FOCUS_PLACEHOLDER
-
-【今日の天気と時事ニュース】
-NEWS_CONTENT_PLACEHOLDER
-
-【今日のランダム要素】
-- 特別トーク要素: RANDOM_ELEMENT_PLACEHOLDER
-- オープニングスタイル: OPENING_PATTERN_PLACEHOLDER
-- エンディングスタイル: ENDING_PATTERN_PLACEHOLDER
-- キャラクターモード: CHARACTER_MODE_PLACEHOLDER
-
-【今日の楽曲】
-MUSIC_INFO_PLACEHOLDER
-
-【要件】
-OPENING_REQUIREMENT_PLACEHOLDER
-- メイン1（昼の神威日報）: 50秒（開発進捗を楽しく解説）約300-350文字
-- メイン2（テックニュース）: 50秒（テック情報を面白おかしく紹介）約300-350文字
-- メイン3（夜の神威日報）: 50秒（1日の締めくくりの報告）約300-350文字
-- エンディング: 30秒（まとめと次回予告）約200-250文字
-- パーソナリティ: radio-personality-data.mdの設定に従う
-- 一人称は「僕」、口癖や話し方の特徴を必ず反映
-
-MUSIC_INTRO_PLACEHOLDER
-
-重要: 以下のJSONを radio-scripts/scripts.json ファイルに保存してください：
-{
-  "opening": "オープニング台本（200-250文字程度）",
-  "main": "メイン1台本（昼の神威日報、300-350文字程度）",
-  "main2": "メイン2台本（テックニュース、300-350文字程度）",  
-  "main3": "メイン3台本（夜の神威日報、300-350文字程度）",
-  "ending": "エンディング台本（200-250文字程度）"
-}
-HEREDOC_END
+          
+          # 基本プロンプトを作成
+          echo "以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：" > "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【パーソナリティ設定】" >> "$PROMPT_FILE"
+          echo "PERSONALITY_DATA_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【セクション1: 昼の神威日報】" >> "$PROMPT_FILE"
+          echo "DEVELOPMENT_REPORT_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【セクション2: テックニュース】" >> "$PROMPT_FILE"
+          echo "TECH_NEWS_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【セクション3: 夜の神威日報】" >> "$PROMPT_FILE"
+          echo "EVENING_REPORT_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【強調ポイント】" >> "$PROMPT_FILE"
+          echo "TOPIC_FOCUS_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【今日の天気と時事ニュース】" >> "$PROMPT_FILE"
+          echo "NEWS_CONTENT_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【今日のランダム要素】" >> "$PROMPT_FILE"
+          echo "- 特別トーク要素: RANDOM_ELEMENT_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "- オープニングスタイル: OPENING_PATTERN_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "- エンディングスタイル: ENDING_PATTERN_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "- キャラクターモード: CHARACTER_MODE_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【今日の楽曲】" >> "$PROMPT_FILE"
+          echo "MUSIC_INFO_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "【要件】" >> "$PROMPT_FILE"
+          echo "OPENING_REQUIREMENT_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "- メイン1（昼の神威日報）: 50秒（開発進捗を楽しく解説）約300-350文字" >> "$PROMPT_FILE"
+          echo "- メイン2（テックニュース）: 50秒（テック情報を面白おかしく紹介）約300-350文字" >> "$PROMPT_FILE"
+          echo "- メイン3（夜の神威日報）: 50秒（1日の締めくくりの報告）約300-350文字" >> "$PROMPT_FILE"
+          echo "- エンディング: 30秒（まとめと次回予告）約200-250文字" >> "$PROMPT_FILE"
+          echo "- パーソナリティ: radio-personality-data.mdの設定に従う" >> "$PROMPT_FILE"
+          echo "- 一人称は「僕」、口癖や話し方の特徴を必ず反映" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "MUSIC_INTRO_PLACEHOLDER" >> "$PROMPT_FILE"
+          echo "" >> "$PROMPT_FILE"
+          echo "重要: 以下のJSONを radio-scripts/scripts.json ファイルに保存してください：" >> "$PROMPT_FILE"
+          echo "{" >> "$PROMPT_FILE"
+          echo '  "opening": "オープニング台本（200-250文字程度）",' >> "$PROMPT_FILE"
+          echo '  "main": "メイン1台本（昼の神威日報、300-350文字程度）",' >> "$PROMPT_FILE"
+          echo '  "main2": "メイン2台本（テックニュース、300-350文字程度）",' >> "$PROMPT_FILE"
+          echo '  "main3": "メイン3台本（夜の神威日報、300-350文字程度）",' >> "$PROMPT_FILE"
+          echo '  "ending": "エンディング台本（200-250文字程度）"' >> "$PROMPT_FILE"
+          echo "}" >> "$PROMPT_FILE"
 
           # プレースホルダーを実際の値で置換
           sed -i "s|PERSONALITY_DATA_PLACEHOLDER|$PERSONALITY_DATA|g" "$PROMPT_FILE"
