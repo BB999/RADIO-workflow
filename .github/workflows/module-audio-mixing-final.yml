@@ -8,6 +8,9 @@ on:
       main-audio:
         required: true
         type: string
+      jingle-audio:
+        required: true
+        type: string
       ending-audio:
         required: true
         type: string
@@ -45,6 +48,12 @@ jobs:
           name: ending-mixed-audio
           path: artifacts/ending-mixed-audio
       
+      - name: Download jingle mixed audio artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: jingle-mixed
+          path: artifacts/jingle-mixed
+      
       - name: Download voice-uuid artifact
         uses: actions/download-artifact@v4
         with:
@@ -75,7 +84,7 @@ jobs:
       - name: Combine all sections into final audio
         id: mixing
         run: |
-          # 3つのセクションを時系列で結合し、最終調整
+          # 4つのセクションを時系列で結合し、最終調整（オープニング→無音→メイン→ジングル→エンディング）
           
           # エラーハンドリング付きFFmpeg実行
           safe_ffmpeg() {
@@ -118,31 +127,46 @@ jobs:
             exit 1
           fi
           
+          if [ -f "artifacts/jingle-mixed/${{ inputs.jingle-audio }}" ]; then
+            cp "artifacts/jingle-mixed/${{ inputs.jingle-audio }}" jingle-final.wav
+            echo "✅ jingle-final.wav をコピーしました"
+          else
+            echo "::error::ジングル音声が見つかりません: artifacts/jingle-mixed/${{ inputs.jingle-audio }}"
+            exit 1
+          fi
+          
           # セクション間用の無音ファイルを作成（1〜2秒のランダム）
           echo "🔇 セクション間無音ファイルを作成"
           
-          # 1つ目の無音区間（1〜2秒のランダム）
+          # 1つ目の無音区間（オープニング→メイン間、1〜2秒のランダム）
           SILENCE_1=$(awk "BEGIN {srand(); print 1 + rand()}")
-          echo "  1つ目の無音: ${SILENCE_1}秒"
+          echo "  1つ目の無音（オープニング→メイン）: ${SILENCE_1}秒"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_1 -ar 44100 -ac 2 -c:a pcm_s16le section-break-1.wav || exit 1
           
-          # 2つ目の無音区間（1〜2秒のランダム）
-          SILENCE_2=$(awk "BEGIN {srand(); print 1 + rand()}")
-          echo "  2つ目の無音: ${SILENCE_2}秒"
+          # 2つ目の無音区間（メイン→ジングル間、0.5秒固定）
+          SILENCE_2=0.5
+          echo "  2つ目の無音（メイン→ジングル）: ${SILENCE_2}秒"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_2 -ar 44100 -ac 2 -c:a pcm_s16le section-break-2.wav || exit 1
           
-          # 3つのセクションを無音区間付きで連結し、最終調整
-          echo "🎵 最終ミックス開始（3セクション + ランダム無音区間結合）"
-          echo "📁 連結するファイル:"
-          ls -la opening-final.wav section-break-1.wav main-final.wav section-break-2.wav ending-final.wav
+          # 3つ目の無音区間（ジングル→エンディング間、0.5秒固定）
+          SILENCE_3=0.5
+          echo "  3つ目の無音（ジングル→エンディング）: ${SILENCE_3}秒"
+          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_3 -ar 44100 -ac 2 -c:a pcm_s16le section-break-3.wav || exit 1
           
-          # 3つのセクションを時系列順に連結（セクション間にランダム無音を挿入）し、放送基準に正規化
+          # 4つのセクションを無音区間付きで連結し、最終調整
+          echo "🎵 最終ミックス開始（4セクション + 無音区間結合）"
+          echo "📁 連結するファイル:"
+          ls -la opening-final.wav section-break-1.wav main-final.wav section-break-2.wav jingle-final.wav section-break-3.wav ending-final.wav
+          
+          # オープニング→無音→メイン→ジングル→エンディングの順に連結し、放送基準に正規化
           safe_ffmpeg -i opening-final.wav \
                       -i section-break-1.wav \
                       -i main-final.wav \
                       -i section-break-2.wav \
+                      -i jingle-final.wav \
+                      -i section-break-3.wav \
                       -i ending-final.wav \
-                      -filter_complex "[0][1][2][3][4]concat=n=5:v=0:a=1[combined];
+                      -filter_complex "[0][1][2][3][4][5][6]concat=n=7:v=0:a=1[combined];
                                       [combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
                       -c:a mp3 \
@@ -158,8 +182,10 @@ jobs:
           
           # 選択された音楽情報を取得してメタデータに含める
           SELECTED_MUSIC_INFO="unknown"
+          SELECTED_JINGLE_INFO="unknown"
           if [ -f "artifacts/voice-uuid/USE_UUID.md" ]; then
             SELECTED_MUSIC_INFO=$(grep "Selected Music File:" artifacts/voice-uuid/USE_UUID.md | cut -d' ' -f4- || echo "unknown")
+            SELECTED_JINGLE_INFO=$(grep "Selected Jingle BGM File:" artifacts/voice-uuid/USE_UUID.md | cut -d' ' -f5- || echo "unknown")
           fi
           
           # 最終音声の長さを取得
@@ -169,18 +195,22 @@ jobs:
           echo "{
             \"duration\": \"${FINAL_DURATION}s\",
             \"selected_music\": \"$SELECTED_MUSIC_INFO\",
+            \"selected_jingle\": \"$SELECTED_JINGLE_INFO\",
             \"sections\": [
               {\"name\": \"opening\", \"description\": \"音声+BGM+選択楽曲（クロスフェード）\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%→0\", \"intro\": \"6s\", \"crossfade\": \"楽曲との5秒クロスフェード\"},
               {\"name\": \"main\", \"description\": \"音声+BGM\", \"bgm\": \"talk-friendly\", \"bgm_volume\": \"100%→50%\", \"intro\": \"4s\", \"fade_out\": \"5s\"},
+              {\"name\": \"jingle\", \"description\": \"ジングル音声+SE（5秒遅延）\", \"bgm\": \"jingle-se\", \"bgm_volume\": \"40%\", \"voice_delay\": \"5s\", \"fade_out\": \"2s\"},
               {\"name\": \"ending\", \"description\": \"音声+BGM\", \"bgm\": \"warm-outro\", \"bgm_volume\": \"100%→50%→100%\", \"intro\": \"4s\", \"fade_out\": \"7s\"}
             ],
             \"processing\": {
               \"workflow\": \"分割処理後統合\",
               \"opening_job\": \"audio-mixing-opening\",
-              \"main_job\": \"audio-mixing-main\", 
+              \"main_job\": \"audio-mixing-main\",
+              \"jingle_job\": \"audio-mixing-jingle\",
               \"ending_job\": \"audio-mixing-ending\",
               \"final_job\": \"audio-mixing-final\"
             },
+            \"sequence\": \"opening → silence(${SILENCE_1}s) → main → silence(${SILENCE_2}s) → jingle → silence(${SILENCE_3}s) → ending\",
             \"audio_standard\": \"-23 LUFS\",
             \"format\": \"MP3 320kbps\"
           }" > metadata.json

@@ -22,6 +22,8 @@ on:
         value: ${{ jobs.generate.outputs.script-opening }}
       script-main:
         value: ${{ jobs.generate.outputs.script-main }}
+      script-jingle:
+        value: ${{ jobs.generate.outputs.script-jingle }}
       script-ending:
         value: ${{ jobs.generate.outputs.script-ending }}
       voice-config:
@@ -33,6 +35,7 @@ jobs:
     outputs:
       script-opening: ${{ steps.planning.outputs.script-opening }}
       script-main: ${{ steps.planning.outputs.script-main }}
+      script-jingle: ${{ steps.planning.outputs.script-jingle }}
       script-ending: ${{ steps.planning.outputs.script-ending }}
       voice-config: ${{ steps.planning.outputs.voice-config }}
     steps:
@@ -317,6 +320,7 @@ jobs:
             fi
           )
           - メイン: 2分（内容を分かりやすく解説、時事ニュースも織り交ぜる）約600-800文字  
+          - ジングル: 「かむらじ」のみ（この文字だけ）
           - エンディング: 1分（まとめと次回予告）約300-400文字
           - パーソナリティ: radio-personality-data.mdの設定に従う
           - 一人称は「僕」、口癖や話し方の特徴を必ず反映
@@ -340,6 +344,7 @@ jobs:
           {
             \"opening\": \"オープニング台本（300-400文字程度）\",
             \"main\": \"メイン台本（600-800文字程度）\", 
+            \"jingle\": \"かむらじ\",
             \"ending\": \"エンディング台本（300-400文字程度）\"
           }"
           
@@ -406,11 +411,13 @@ jobs:
               # 各セクションにSSMLフォーマットを適用
               OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/scripts.json")
               MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/scripts.json")
+              JINGLE_TEXT=$(jq -r '.jingle' "$WORK_DIR/scripts.json")
               ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/scripts.json")
               
               # 各セクションをファイルに保存してから処理（クォート問題を回避）
               echo "$OPENING_TEXT" > temp_opening.txt
               echo "$MAIN_TEXT" > temp_main.txt
+              echo "$JINGLE_TEXT" > temp_jingle.txt
               echo "$ENDING_TEXT" > temp_ending.txt
               
               # Node.jsでSSMLフォーマッターを実行（stdin使用でクォート問題を回避）
@@ -436,6 +443,9 @@ jobs:
                 });
               ")
               
+              # ジングルは短いのでSSMLフォーマット不要（そのまま使用）
+              JINGLE_SSML="$JINGLE_TEXT"
+              
               ENDING_SSML=$(cat temp_ending.txt | node -e "
                 const SSMLFormatter = require('./ssml_formatter.js');
                 const formatter = new SSMLFormatter();
@@ -448,11 +458,12 @@ jobs:
               ")
               
               # 一時ファイルを削除
-              rm -f temp_opening.txt temp_main.txt temp_ending.txt
+              rm -f temp_opening.txt temp_main.txt temp_jingle.txt temp_ending.txt
               
               echo "✅ SSML formatting completed"
               echo "📏 Opening SSML length: ${#OPENING_SSML}"
-              echo "📏 Main SSML length: ${#MAIN_SSML}"  
+              echo "📏 Main SSML length: ${#MAIN_SSML}"
+              echo "📏 Jingle SSML length: ${#JINGLE_SSML}"  
               echo "📏 Ending SSML length: ${#ENDING_SSML}"
               echo "::endgroup::"
               
@@ -470,6 +481,12 @@ jobs:
               } >> $GITHUB_OUTPUT
               
               {
+                echo "script-jingle<<EOF"
+                echo "$JINGLE_SSML"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+              
+              {
                 echo "script-ending<<EOF"
                 echo "$ENDING_SSML"
                 echo "EOF"
@@ -478,12 +495,14 @@ jobs:
               echo "::warning::Invalid JSON format, using fallback scripts"
               echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
               echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
+              echo "script-jingle=かむらじ" >> $GITHUB_OUTPUT
               echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
             fi
           else
             echo "::warning::Scripts JSON file not found, using fallback scripts"
             echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
             echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
+            echo "script-jingle=かむらじ" >> $GITHUB_OUTPUT
             echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
           fi
           

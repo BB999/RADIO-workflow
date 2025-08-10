@@ -1,0 +1,117 @@
+name: BGM Generation Jingle
+on:
+  workflow_call:
+    outputs:
+      bgm-url:
+        value: ${{ jobs.generate.outputs.url }}
+      bgm-file:
+        value: ${{ jobs.generate.outputs.file }}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.bgm.outputs.music-url }}
+      file: ${{ steps.bgm.outputs.music-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      
+      - name: Select and process random jingle BGM
+        id: bgm
+        run: |
+          echo "::group::🎵 ジングルBGM選択・音量調整"
+          echo "🚀 開始時刻: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # Jingle SEフォルダからランダムにmp3を選択
+          JINGLE_DIR="radio-workflow/Jingle SE"
+          
+          # ファイル存在確認
+          if [ ! -d "$JINGLE_DIR" ]; then
+            echo "::error::❌ ジングルSEフォルダが見つかりません: $JINGLE_DIR"
+            exit 1
+          fi
+          
+          # MP3ファイル一覧取得
+          JINGLE_FILES=("$JINGLE_DIR"/*.mp3)
+          
+          if [ ${#JINGLE_FILES[@]} -eq 0 ]; then
+            echo "::error::❌ ジングルSEフォルダにMP3ファイルが見つかりません"
+            exit 1
+          fi
+          
+          # ランダム選択
+          RANDOM_INDEX=$((RANDOM % ${#JINGLE_FILES[@]}))
+          SELECTED_JINGLE="${JINGLE_FILES[$RANDOM_INDEX]}"
+          
+          echo "🎯 選択されたジングルBGM: $SELECTED_JINGLE"
+          echo "📊 利用可能ファイル数: ${#JINGLE_FILES[@]}"
+          
+          # ファイル情報表示
+          ls -la "$SELECTED_JINGLE"
+          file "$SELECTED_JINGLE"
+          
+          # 音声情報を取得
+          echo "🔍 音声ファイル詳細情報:"
+          ffprobe -v quiet -print_format json -show_format -show_streams "$SELECTED_JINGLE" || true
+          
+          # 音量正規化とフォーマット統一
+          echo "🔊 音量正規化・フォーマット統一処理"
+          
+          # 最初に基本的な情報を取得
+          DURATION=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 "$SELECTED_JINGLE" 2>/dev/null || echo "unknown")
+          echo "⏱️ 元ファイル長さ: ${DURATION}秒"
+          
+          # 正規化処理（ラウドネス基準-20 LUFS、BGM用に調整）
+          ffmpeg -i "$SELECTED_JINGLE" \
+                 -filter_complex "
+                   [0:a]loudnorm=I=-20:LRA=7:TP=-1:linear=true:dual_mono=true[normalized];
+                   [normalized]volume=0.6[adjusted]
+                 " \
+                 -map "[adjusted]" \
+                 -ar 44100 -ac 2 -c:a pcm_s16le \
+                 bgm-jingle.wav -y
+          
+          # 正規化後の確認
+          if [ -f bgm-jingle.wav ]; then
+            NORMALIZED_SIZE=$(stat -c%s bgm-jingle.wav)
+            echo "✅ 正規化完了"
+            echo "📏 正規化後ファイルサイズ: ${NORMALIZED_SIZE} bytes"
+            
+            # 正規化後の音声情報
+            NEW_DURATION=$(ffprobe -v quiet -show_entries format=duration -of csv=p=0 bgm-jingle.wav 2>/dev/null || echo "unknown")
+            echo "⏱️ 正規化後長さ: ${NEW_DURATION}秒"
+            
+            # WAVファイル形式確認
+            if file bgm-jingle.wav | grep -q "WAVE"; then
+              echo "✅ WAV形式確認済み"
+            else
+              echo "::warning::⚠️ WAV形式でない可能性があります"
+              file bgm-jingle.wav
+            fi
+            
+            # USE_UUID.mdに選択された楽曲情報を記録
+            JINGLE_BASENAME=$(basename "$SELECTED_JINGLE")
+            echo "Selected Jingle BGM File: $JINGLE_BASENAME" >> radio-workflow/temp/USE_UUID.md || true
+            echo "Original Jingle Path: $SELECTED_JINGLE" >> radio-workflow/temp/USE_UUID.md || true
+            
+          else
+            echo "::error::❌ BGM正規化に失敗しました"
+            exit 1
+          fi
+          
+          echo "music-url=file://$(pwd)/bgm-jingle.wav" >> $GITHUB_OUTPUT
+          echo "music-file=bgm-jingle.wav" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+      
+      - name: Upload jingle BGM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgm-jingle
+          path: bgm-jingle.wav
+          retention-days: 1
