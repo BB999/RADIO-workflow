@@ -125,8 +125,21 @@ jobs:
                 }
               }" 2>&1)
             
-            # エラーチェック
-            if [ $? -eq 0 ] && [ -n "$GEMINI_RESULT" ]; then
+            # エラーチェック（トークン不足検出を含む）
+            CURL_EXIT_CODE=$?
+            if [ $CURL_EXIT_CODE -eq 0 ] && [ -n "$GEMINI_RESULT" ]; then
+              # HTTP エラーコードをチェック
+              HTTP_ERROR=$(echo "$GEMINI_RESULT" | jq -r '.error.code // empty' 2>/dev/null)
+              ERROR_MESSAGE=$(echo "$GEMINI_RESULT" | jq -r '.error.message // empty' 2>/dev/null)
+              
+              # トークン不足・クォータ超過の検出
+              if [[ "$HTTP_ERROR" == "429" ]] || [[ "$ERROR_MESSAGE" =~ (quota|limit|insufficient|exceeded) ]]; then
+                echo "::error::🚫 Gemini API トークン不足またはクォータ超過を検出"
+                echo "::error::エラーメッセージ: $ERROR_MESSAGE"
+                echo "::error::Gemini APIトークンを補充してから再実行してください"
+                exit 1
+              fi
+              
               # レスポンスからテキストを抽出
               PROCESSED_CONTENT=$(echo "$GEMINI_RESULT" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null || echo "")
               
@@ -136,6 +149,7 @@ jobs:
                 break
               else
                 echo "::warning::⚠️ Gemini API から空の応答 (試行 $RETRY_COUNT/3)"
+                echo "::warning::エラー詳細: $GEMINI_RESULT" | head -10
               fi
             else
               echo "::warning::⚠️ Gemini API 呼び出し失敗 (試行 $RETRY_COUNT/3)"
@@ -167,32 +181,33 @@ jobs:
           # マークダウンのコードブロックを削除（```json と ``` を除去）
           CLEANED_CONTENT=$(echo "$PROCESSED_CONTENT" | sed 's/^```json//' | sed 's/^```$//' | sed '/^$/d')
           
-          # JSONの妥当性チェック
-          if echo "$CLEANED_CONTENT" | jq . > /dev/null 2>&1; then
+          # JSONの妥当性チェック（フォールバック処理の場合はスキップ）
+          if [ "$SUCCESS" == "true" ] && echo "$CLEANED_CONTENT" | jq . > /dev/null 2>&1; then
             echo "✅ 有効なJSON形式を確認"
             PROCESSED_CONTENT="$CLEANED_CONTENT"
-            
-            # 各フィールドを抽出
-            SUMMARY=$(echo "$PROCESSED_CONTENT" | jq -r '.summary // "要約の生成に失敗"')
-            MAIN_HIGHLIGHTS=$(echo "$PROCESSED_CONTENT" | jq -r '.main_highlights // []' | jq -c .)
-            TECHNICAL_FOCUS=$(echo "$PROCESSED_CONTENT" | jq -r '.technical_focus // "技術情報なし"')
-            USER_IMPACT=$(echo "$PROCESSED_CONTENT" | jq -r '.user_impact // "影響情報なし"')
-            NEXT_PREVIEW=$(echo "$PROCESSED_CONTENT" | jq -r '.next_preview // "次回予告なし"')
-            RADIO_HOOKS=$(echo "$PROCESSED_CONTENT" | jq -r '.radio_hooks // []' | jq -c .)
-            TONE=$(echo "$PROCESSED_CONTENT" | jq -r '.tone // "informative"')
-            TALK_TIME=$(echo "$PROCESSED_CONTENT" | jq -r '.estimated_talk_time // "60"')
-            
-            echo "📊 抽出した情報:"
-            echo "  要約: $SUMMARY"
-            echo "  トーン: $TONE"
-            echo "  推定時間: ${TALK_TIME}秒"
-            
           else
+            # JSON不正の場合はエラーで停止
             echo "::error::❌ Gemini APIから有効なJSON形式の応答を受信できませんでした"
-            echo "::error::応答内容の先頭500文字:"
-            echo "$PROCESSED_CONTENT" | head -c 500
+            echo "::error::問題のあるJSON（最初の500文字）:"
+            echo "$CLEANED_CONTENT" | head -c 500
             exit 1
+            
           fi
+          
+          # 各フィールドを抽出
+          SUMMARY=$(echo "$PROCESSED_CONTENT" | jq -r '.summary // "要約の生成に失敗"')
+          MAIN_HIGHLIGHTS=$(echo "$PROCESSED_CONTENT" | jq -r '.main_highlights // []' | jq -c .)
+          TECHNICAL_FOCUS=$(echo "$PROCESSED_CONTENT" | jq -r '.technical_focus // "技術情報なし"')
+          USER_IMPACT=$(echo "$PROCESSED_CONTENT" | jq -r '.user_impact // "影響情報なし"')
+          NEXT_PREVIEW=$(echo "$PROCESSED_CONTENT" | jq -r '.next_preview // "次回予告なし"')
+          RADIO_HOOKS=$(echo "$PROCESSED_CONTENT" | jq -r '.radio_hooks // []' | jq -c .)
+          TONE=$(echo "$PROCESSED_CONTENT" | jq -r '.tone // "informative"')
+          TALK_TIME=$(echo "$PROCESSED_CONTENT" | jq -r '.estimated_talk_time // "120"')
+          
+          echo "📊 抽出した情報:"
+          echo "  要約: $SUMMARY"
+          echo "  トーン: $TONE"
+          echo "  推定時間: ${TALK_TIME}秒"
           
           # 結果をファイルに保存（echoコマンドで構築）
           {
