@@ -125,10 +125,20 @@ jobs:
             exit 1
           fi
 
-  planning:
+  input-processing:
     needs: api-check
+    uses: ./.github/workflows/module-input-processing.yml
+    with:
+      development-report: ${{ inputs.development-report }}
+      topic-focus: ${{ inputs.topic-focus }}
+    secrets: inherit
+
+  planning:
+    needs: input-processing
     uses: ./.github/workflows/module-radio-planning.yml
     with:
+      processed-summary: ${{ needs.input-processing.outputs.processed-summary }}
+      use-processed-input: true
       development-report: ${{ inputs.development-report }}
       topic-focus: ${{ inputs.topic-focus }}
     secrets: inherit
@@ -412,7 +422,7 @@ jobs:
           EOF
 
   line-notification:
-    needs: [api-check, planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing-final, create-pr, summary]
+    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-ending, bgm-opening, bgm-main, bgm-ending, audio-mixing-final, create-pr, summary]
     if: always()
     runs-on: ubuntu-latest
     steps:

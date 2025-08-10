@@ -1,0 +1,226 @@
+name: Input Processing with Gemini CLI
+on:
+  workflow_call:
+    inputs:
+      development-report:
+        required: true
+        type: string
+      topic-focus:
+        required: false
+        type: string
+    outputs:
+      processed-summary:
+        value: ${{ jobs.process.outputs.summary }}
+      structured-content:
+        value: ${{ jobs.process.outputs.content }}
+      metadata:
+        value: ${{ jobs.process.outputs.metadata }}
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    outputs:
+      summary: ${{ steps.gemini.outputs.summary }}
+      content: ${{ steps.gemini.outputs.structured-content }}
+      metadata: ${{ steps.gemini.outputs.metadata }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Gemini CLI
+        run: |
+          echo "📦 Gemini CLI のインストール"
+          npm install -g @google-ai/generativelanguage-cli
+      
+      - name: Process large input with Gemini CLI
+        id: gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API }}
+        run: |
+          echo "::group::🧠 大容量入力処理開始 with Gemini"
+          echo "開始時刻: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # 入力サイズの確認
+          INPUT_LENGTH=$(echo "${{ inputs.development-report }}" | wc -c)
+          echo "📏 入力文字数: $INPUT_LENGTH 文字"
+          
+          # Gemini API キーの確認
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY が設定されていません"
+            exit 1
+          fi
+          echo "✅ Gemini API キーが設定されています"
+          
+          # プロンプトの構築
+          cat << 'EOF' > input-processing-prompt.txt
+あなたは日本のラジオ番組の構成作家です。以下の大容量の開発進捗レポートを分析し、4分間のラジオ番組に適した内容に構造化してください。
+
+【入力情報】
+開発進捗: ${{ inputs.development-report }}
+強調ポイント: ${{ inputs.topic-focus || 'なし' }}
+
+【出力要件】
+以下のJSON形式で出力してください：
+
+```json
+{
+  "summary": "全体の要約（200文字以内）",
+  "main_highlights": [
+    "重要な進捗1（50文字以内）",
+    "重要な進捗2（50文字以内）", 
+    "重要な進捗3（50文字以内）"
+  ],
+  "technical_focus": "技術的なハイライト（100文字以内）",
+  "user_impact": "ユーザーへの影響（100文字以内）",
+  "next_preview": "次回予告できる内容（80文字以内）",
+  "radio_hooks": [
+    "リスナーの関心を引く要素1",
+    "リスナーの関心を引く要素2"
+  ],
+  "tone": "bright|serious|exciting|informative",
+  "estimated_talk_time": "秒数（数字のみ）"
+}
+```
+
+【重要な指示】
+1. ラジオリスナーが理解しやすい平易な日本語を使用
+2. 技術的すぎる内容は一般向けに翻訳
+3. 4分間の番組に収まる情報量に調整
+4. 聞き手の興味を引く「フック」を必ず含める
+5. JSON形式以外は出力しない
+
+処理してください。
+EOF
+
+          echo "🚀 Gemini CLI で大容量入力を処理中..."
+          echo "📝 プロンプト長: $(cat input-processing-prompt.txt | wc -c) 文字"
+          
+          # Gemini CLI実行
+          GEMINI_RESULT=$(curl -s -X POST \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"contents\": [{
+                \"parts\": [{
+                  \"text\": \"$(cat input-processing-prompt.txt | sed 's/"/\\"/g' | tr -d '\n')\"
+                }]
+              }],
+              \"generationConfig\": {
+                \"temperature\": 0.7,
+                \"maxOutputTokens\": 2048
+              }
+            }" 2>&1) || {
+              echo "::error::❌ Gemini API 呼び出し失敗"
+              echo "::error::エラー詳細:"
+              echo "$GEMINI_RESULT" | head -20
+              exit 1
+          }
+          
+          echo "🎯 Gemini 処理結果（最初の1000文字）:"
+          echo "$GEMINI_RESULT" | head -c 1000
+          echo ""
+          
+          # レスポンスからテキストを抽出
+          PROCESSED_CONTENT=$(echo "$GEMINI_RESULT" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null || echo "")
+          
+          if [ -z "$PROCESSED_CONTENT" ] || [ "$PROCESSED_CONTENT" = "null" ]; then
+            echo "::error::❌ Gemini からの応答が空です"
+            echo "::error::生の応答:"
+            echo "$GEMINI_RESULT"
+            exit 1
+          fi
+          
+          echo "✅ 構造化されたコンテンツを取得"
+          echo "📄 処理結果の長さ: $(echo "$PROCESSED_CONTENT" | wc -c) 文字"
+          
+          # JSONの妥当性チェック
+          if echo "$PROCESSED_CONTENT" | jq . > /dev/null 2>&1; then
+            echo "✅ 有効なJSON形式を確認"
+            
+            # 各フィールドを抽出
+            SUMMARY=$(echo "$PROCESSED_CONTENT" | jq -r '.summary // "要約の生成に失敗"')
+            MAIN_HIGHLIGHTS=$(echo "$PROCESSED_CONTENT" | jq -r '.main_highlights // []' | jq -c .)
+            TECHNICAL_FOCUS=$(echo "$PROCESSED_CONTENT" | jq -r '.technical_focus // "技術情報なし"')
+            USER_IMPACT=$(echo "$PROCESSED_CONTENT" | jq -r '.user_impact // "影響情報なし"')
+            NEXT_PREVIEW=$(echo "$PROCESSED_CONTENT" | jq -r '.next_preview // "次回予告なし"')
+            RADIO_HOOKS=$(echo "$PROCESSED_CONTENT" | jq -r '.radio_hooks // []' | jq -c .)
+            TONE=$(echo "$PROCESSED_CONTENT" | jq -r '.tone // "informative"')
+            TALK_TIME=$(echo "$PROCESSED_CONTENT" | jq -r '.estimated_talk_time // "60"')
+            
+            echo "📊 抽出した情報:"
+            echo "  要約: $SUMMARY"
+            echo "  トーン: $TONE"
+            echo "  推定時間: ${TALK_TIME}秒"
+            
+          else
+            echo "::warning::⚠️ JSON形式ではありませんが、テキストとして処理を続行"
+            SUMMARY="$PROCESSED_CONTENT"
+            MAIN_HIGHLIGHTS='["情報処理完了"]'
+            TECHNICAL_FOCUS="詳細は本文参照"
+            USER_IMPACT="アプリ改善"
+            NEXT_PREVIEW="続報をお待ちください"
+            RADIO_HOOKS='["最新情報", "開発進捗"]'
+            TONE="informative"
+            TALK_TIME="90"
+          fi
+          
+          # 結果をファイルに保存
+          cat << EOF > processed-input.json
+{
+  "summary": "$SUMMARY",
+  "main_highlights": $MAIN_HIGHLIGHTS,
+  "technical_focus": "$TECHNICAL_FOCUS", 
+  "user_impact": "$USER_IMPACT",
+  "next_preview": "$NEXT_PREVIEW",
+  "radio_hooks": $RADIO_HOOKS,
+  "tone": "$TONE",
+  "estimated_talk_time": "$TALK_TIME",
+  "processing_info": {
+    "original_length": $INPUT_LENGTH,
+    "processed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "processing_model": "gemini-2.0-flash-exp"
+  }
+}
+EOF
+          
+          # 台本生成用の統合サマリーを作成
+          RADIO_SUMMARY="【要約】$SUMMARY
+
+【主要進捗】
+$(echo "$MAIN_HIGHLIGHTS" | jq -r '.[]' | sed 's/^/- /')
+
+【技術ハイライト】$TECHNICAL_FOCUS
+
+【ユーザーへの影響】$USER_IMPACT
+
+【次回予告】$NEXT_PREVIEW
+
+【推奨トーン】$TONE（推定${TALK_TIME}秒）"
+          
+          # GitHub Outputsに設定
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$RADIO_SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "structured-content<<EOF" >> $GITHUB_OUTPUT
+          cat processed-input.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "metadata={\"original_length\": $INPUT_LENGTH, \"processed_length\": $(echo \"$RADIO_SUMMARY\" | wc -c), \"model\": \"gemini-2.0-flash-exp\"}" >> $GITHUB_OUTPUT
+          
+          echo "::endgroup::"
+          echo "✅ 入力処理完了！"
+      
+      - name: Upload processed content artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed-input
+          path: |
+            processed-input.json
+            input-processing-prompt.txt
+          retention-days: 7

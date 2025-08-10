@@ -3,11 +3,20 @@ on:
   workflow_call:
     inputs:
       development-report:
-        required: true
+        required: false
         type: string
       topic-focus:
         required: false
         type: string
+      processed-summary:
+        description: 'Gemini CLIで処理済みの構造化されたサマリー'
+        required: false
+        type: string
+      use-processed-input:
+        description: '処理済み入力を使用するかどうか'
+        required: false
+        type: boolean
+        default: false
     outputs:
       script-opening:
         value: ${{ jobs.generate.outputs.script-opening }}
@@ -48,6 +57,8 @@ jobs:
         id: planning
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          USE_PROCESSED_INPUT: ${{ inputs.use-processed-input }}
+          PROCESSED_SUMMARY: ${{ inputs.processed-summary }}
         run: |
           echo "::group::📋 Radio Script Generation"
           echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
@@ -248,17 +259,29 @@ jobs:
           
           echo "::endgroup::"
           
-          # プロンプトの構築（音楽選択後に実行）
+          # プロンプトの構築（処理済み入力対応）
+          echo "🔄 入力データの準備中..."
+          
+          # 処理済み入力を使用するかチェック
+          if [ "$USE_PROCESSED_INPUT" = "true" ] && [ -n "$PROCESSED_SUMMARY" ]; then
+            echo "✅ Gemini処理済み入力を使用します"
+            CONTENT_SOURCE="【Gemini処理済み構造化情報】
+$PROCESSED_SUMMARY"
+          else
+            echo "📝 元の入力データを使用します"
+            CONTENT_SOURCE="【開発進捗・最新情報】
+${{ inputs.development-report }}
+
+【強調ポイント】
+${{ inputs.topic-focus || 'なし' }}"
+          fi
+          
           PROMPT="以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
 
           【パーソナリティ設定】
           $PERSONALITY_DATA
 
-          【開発進捗・最新情報】
-          ${{ inputs.development-report }}
-
-          【強調ポイント】
-          ${{ inputs.topic-focus || 'なし' }}
+          $CONTENT_SOURCE
 
           【今日の天気と時事ニュース】
           $NEWS_CONTENT
