@@ -75,21 +75,16 @@ jobs:
           # Claude Code CLIの実行（環境変数から直接MCPサービスを使用）
           echo "🤖 Claude Code CLI実行開始"
           
-          # MCP設定をインラインで作成
-          cat << 'EOF' > temp-mcp-config.json
-{
-  "mcpServers": {
-    "t2m-google-lyria": {
-      "type": "http",
-      "url": "${MCP_LYRIA_URL}",
-      "description": "Google Lyria Text-to-Music Generation"
-    }
-  }
-}
-EOF
-          
-          # 環境変数を展開してMCP設定を作成
-          envsubst < temp-mcp-config.json > mcp-config.json
+          # MCP設定を作成
+          echo '{
+            "mcpServers": {
+              "t2m-google-lyria": {
+                "type": "http",
+                "url": "'${MCP_LYRIA_URL}'",
+                "description": "Google Lyria Text-to-Music Generation"
+              }
+            }
+          }' > mcp-config.json
           
           # Claude Codeの実行とエラーハンドリング
           echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
