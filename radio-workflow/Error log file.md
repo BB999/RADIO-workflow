@@ -1,8 +1,8 @@
 # Kamuicode Workflow エラー修正ログ
 
-## 2025-08-10: module-input-processing.yml YAMLシンタックスエラー
+## 2025-08-10: module-input-processing.yml YAMLシンタックスエラー（複数回修正）
 
-### エラー内容
+### エラー内容（1回目）
 ```
 Invalid workflow file: .github/workflows/orchestrator-kamui-daily-radio.yml#L130
 error parsing called workflow
@@ -11,31 +11,57 @@ error parsing called workflow
 : You have an error in your yaml syntax on line 61
 ```
 
-### 原因
-- heredoc (`cat << 'EOF'`) 内で GitHub Actions の変数展開 `${{ inputs.development-report }}` を直接使用していた
-- シングルクォート付きheredoc (`'EOF'`) は変数展開を無効にするが、GitHub Actions変数は事前に展開される必要がある
+### エラー内容（2回目）
+```
+: You have an error in your yaml syntax on line 64
+```
 
-### 修正内容
+### 原因
+1. heredoc (`cat << 'EOF'`) 内で GitHub Actions の変数展開 `${{ inputs.development-report }}` を直接使用
+2. heredoc内のバッククォート（\`\`\`）がYAMLパーサーを混乱させる
+3. YAMLのインデントとheredocの組み合わせによる構文解析エラー
+
+### 最終的な修正内容
 ```yaml
 # 修正前
 cat << 'EOF' > input-processing-prompt.txt
 開発進捗: ${{ inputs.development-report }}
 強調ポイント: ${{ inputs.topic-focus || 'なし' }}
+```json
+{...}
+```
 EOF
 
-# 修正後
+# 修正後（最終版）
 DEVELOPMENT_REPORT="${{ inputs.development-report }}"
 TOPIC_FOCUS="${{ inputs.topic-focus }}"
 
-cat << EOF > input-processing-prompt.txt
-開発進捗: $DEVELOPMENT_REPORT
-強調ポイント: ${TOPIC_FOCUS:-なし}
-EOF
+cat << 'PROMPT_EOF' > input-processing-prompt.txt
+開発進捗: ${DEVELOPMENT_REPORT}
+強調ポイント: ${TOPIC_FOCUS}
+PROMPT_EOF
+
+# 変数を置換
+sed -i "s|\${DEVELOPMENT_REPORT}|$DEVELOPMENT_REPORT|g" input-processing-prompt.txt
+sed -i "s|\${TOPIC_FOCUS}|${TOPIC_FOCUS:-なし}|g" input-processing-prompt.txt
 ```
 
 ### 修正のポイント
-1. GitHub Actions変数を事前にシェル変数に格納
-2. heredocのクォートを削除（`'EOF'` → `EOF`）して変数展開を有効化
+1. heredocのタグを`EOF`から`PROMPT_EOF`に変更（予約語との衝突回避）
+2. シングルクォート付きheredoc（`'PROMPT_EOF'`）で変数展開を無効化
+3. 変数をプレースホルダーとして記述し、sedで後から置換
+4. バッククォートを含むマークダウンを安全に処理
+
+### 修正結果
+**最初の修正**: ❌ 失敗（line 61エラー）
+- heredoc内でGitHub Actions変数を直接使用していた
+
+**2回目の修正**: ❌ 失敗（line 64エラー）  
+- heredocのクォートを外したが、バッククォートがパーサーを混乱させた
+
+**最終修正**: ✅ 成功
+- シングルクォート付きheredocで変数展開を無効化
+- sedコマンドで後から変数を置換する方式に変更
 3. デフォルト値は Bashの `${VAR:-default}` 構文を使用
 
 ### 教訓

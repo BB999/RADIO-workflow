@@ -60,12 +60,12 @@ jobs:
           DEVELOPMENT_REPORT="${{ inputs.development-report }}"
           TOPIC_FOCUS="${{ inputs.topic-focus }}"
           
-          cat << EOF > input-processing-prompt.txt
+          cat << 'PROMPT_EOF' > input-processing-prompt.txt
 あなたは日本のラジオ番組の構成作家です。以下の大容量の開発進捗レポートを分析し、4分間のラジオ番組に適した内容に構造化してください。
 
 【入力情報】
-開発進捗: $DEVELOPMENT_REPORT
-強調ポイント: ${TOPIC_FOCUS:-なし}
+開発進捗: ${DEVELOPMENT_REPORT}
+強調ポイント: ${TOPIC_FOCUS}
 
 【出力要件】
 以下のJSON形式で出力してください：
@@ -98,7 +98,11 @@ jobs:
 5. JSON形式以外は出力しない
 
 処理してください。
-EOF
+PROMPT_EOF
+          
+          # 変数を置換してプロンプトファイルを更新
+          sed -i "s|\${DEVELOPMENT_REPORT}|$DEVELOPMENT_REPORT|g" input-processing-prompt.txt
+          sed -i "s|\${TOPIC_FOCUS}|${TOPIC_FOCUS:-なし}|g" input-processing-prompt.txt
 
           echo "🚀 Gemini CLI で大容量入力を処理中..."
           echo "📝 プロンプト長: $(cat input-processing-prompt.txt | wc -c) 文字"
