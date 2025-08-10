@@ -191,7 +191,6 @@ jobs:
     secrets: inherit
 
   bgm-jingle:
-    runs-on: ubuntu-latest
     uses: ./.github/workflows/module-bgm-generation-jingle.yml
     secrets: inherit
 
