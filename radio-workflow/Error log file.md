@@ -141,6 +141,33 @@ npm error 404  '@google-ai/generativelanguage-cli@*' is not in this registry.
 
 ---
 
+## 2025-08-10: Gemini APIレスポンスのJSONパースエラー
+
+### エラー内容
+```
+Error: ❌ Gemini APIから有効なJSON形式の応答を受信できませんでした
+```
+
+### 原因
+- Gemini APIが返すJSONがマークダウンのコードブロック（\`\`\`json）で囲まれている
+- jqコマンドがコードブロックを含んだままパースしようとして失敗
+
+### 修正内容
+```bash
+# 修正前
+if echo "$PROCESSED_CONTENT" | jq . > /dev/null 2>&1; then
+
+# 修正後
+# マークダウンのコードブロックを削除
+CLEANED_CONTENT=$(echo "$PROCESSED_CONTENT" | sed 's/^```json//' | sed 's/^```$//' | sed '/^$/d')
+if echo "$CLEANED_CONTENT" | jq . > /dev/null 2>&1; then
+```
+
+### 修正結果
+✅ 成功（期待）- コードブロックを除去してからJSONパース
+
+---
+
 ## その他の修正履歴
 
 ### 2025-08-10: BGM生成ワークフローのシンタックスエラー

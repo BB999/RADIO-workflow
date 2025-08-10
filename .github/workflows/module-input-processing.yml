@@ -164,9 +164,13 @@ jobs:
           echo "✅ 構造化されたコンテンツを取得"
           echo "📄 処理結果の長さ: $(echo "$PROCESSED_CONTENT" | wc -c) 文字"
           
+          # マークダウンのコードブロックを削除（```json と ``` を除去）
+          CLEANED_CONTENT=$(echo "$PROCESSED_CONTENT" | sed 's/^```json//' | sed 's/^```$//' | sed '/^$/d')
+          
           # JSONの妥当性チェック
-          if echo "$PROCESSED_CONTENT" | jq . > /dev/null 2>&1; then
+          if echo "$CLEANED_CONTENT" | jq . > /dev/null 2>&1; then
             echo "✅ 有効なJSON形式を確認"
+            PROCESSED_CONTENT="$CLEANED_CONTENT"
             
             # 各フィールドを抽出
             SUMMARY=$(echo "$PROCESSED_CONTENT" | jq -r '.summary // "要約の生成に失敗"')
