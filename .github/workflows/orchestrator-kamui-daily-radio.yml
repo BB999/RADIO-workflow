@@ -417,6 +417,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send LINE notification
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
           COMPLETION_TIME=$(date "+%Y/%m/%d %H:%M:%S")
           STATUS_EMOJI="✅"
@@ -482,11 +485,18 @@ jobs:
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 プルリク作成エラー: GitHub API失敗"
           fi
           
+          # LINE APIが設定されているか確認
+          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
+            echo "::warning::LINE通知設定がありません。スキップします。"
+            echo "LINE_CHANNEL_ACCESS_TOKEN または LINE_USER_ID が設定されていません"
+            exit 0
+          fi
+          
           curl -X POST https://api.line.me/v2/bot/message/push \
             -H 'Content-Type: application/json' \
-            -H 'Authorization: Bearer ${{ secrets.LINE_BOT_CHANNEL_ACCESS_TOKEN }}' \
+            -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
             -d "{
-              \"to\": \"${{ secrets.LINE_USER_ID }}\",
+              \"to\": \"${LINE_USER_ID}\",
               \"messages\": [
                 {
                   \"type\": \"text\",

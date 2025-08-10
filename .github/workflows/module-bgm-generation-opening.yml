@@ -31,13 +31,17 @@ jobs:
         id: bgm
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          MCP_LYRIA_URL: ${{ secrets.MCP_LYRIA_URL }}
         run: |
           echo "::group::🎵 Opening BGM Generation with Google Lyria"
           echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
           
-          # MCP設定の確認
-          MCP_CONFIG_PATH=".claude/mcp-kamuicode.json"
-          MCP_CONFIG_ABS_PATH="$(pwd)/$MCP_CONFIG_PATH"
+          # MCP Lyria URLの確認
+          if [ -z "$MCP_LYRIA_URL" ]; then
+            echo "::error::MCP_LYRIA_URL is not set in GitHub Secrets"
+            exit 1
+          fi
+          echo "✅ MCP Lyria URL is configured"
           
           # BGM生成リトライループ（最大3回）
           SUCCESS=false
@@ -64,32 +68,38 @@ jobs:
           echo "🚀 Starting Opening BGM Generation..."
           echo "📝 Prompt length: ${#PROMPT}"
           
-          echo "📋 MCP Configuration Check:"
+          echo "📋 Environment Check:"
           echo "Working directory: $(pwd)"
-          echo "MCP config path: $MCP_CONFIG_PATH"
-          echo "MCP config absolute path: $MCP_CONFIG_ABS_PATH"
+          echo "MCP Lyria URL configured: Yes"
           
-          # MCP設定ファイルの存在確認
-          if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
-            echo "✅ MCP config file exists"
-          else
-            echo "::warning::⚠️ MCP config file not found, proceeding without kamuicode"
-          fi
-          
-          # Claude Code CLIの実行
+          # Claude Code CLIの実行（環境変数から直接MCPサービスを使用）
           echo "🤖 Claude Code CLI実行開始"
-          if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
-            echo "✅ MCP設定ファイルが見つかりました"
-            
-            # Claude Codeの実行とエラーハンドリング
-            echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
-            BGM_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
-              --mcp-config="$MCP_CONFIG_ABS_PATH" \
-              --allowedTools "mcp__t2m-google-lyria__lyria_generate,Bash" \
-              --max-turns 5 \
-              --print \
-              --verbose \
-              "$PROMPT" 2>&1) || {
+          
+          # MCP設定をインラインで作成
+          cat << 'EOF' > temp-mcp-config.json
+{
+  "mcpServers": {
+    "t2m-google-lyria": {
+      "type": "http",
+      "url": "${MCP_LYRIA_URL}",
+      "description": "Google Lyria Text-to-Music Generation"
+    }
+  }
+}
+EOF
+          
+          # 環境変数を展開してMCP設定を作成
+          envsubst < temp-mcp-config.json > mcp-config.json
+          
+          # Claude Codeの実行とエラーハンドリング
+          echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
+          BGM_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
+            --mcp-config="$(pwd)/mcp-config.json" \
+            --allowedTools "mcp__t2m-google-lyria__lyria_generate,Bash" \
+            --max-turns 5 \
+            --print \
+            --verbose \
+            "$PROMPT" 2>&1) || {
                 CLAUDE_EXIT_CODE=$?
                 echo "::error::❌ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
                 if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
