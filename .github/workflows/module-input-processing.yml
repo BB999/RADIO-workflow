@@ -100,40 +100,62 @@ EOF
           echo "🚀 Gemini CLI で大容量入力を処理中..."
           echo "📝 プロンプト長: $(cat input-processing-prompt.txt | wc -c) 文字"
           
-          # Gemini CLI実行
-          GEMINI_RESULT=$(curl -s -X POST \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=$GEMINI_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"contents\": [{
-                \"parts\": [{
-                  \"text\": \"$(cat input-processing-prompt.txt | sed 's/"/\\"/g' | tr -d '\n')\"
-                }]
-              }],
-              \"generationConfig\": {
-                \"temperature\": 0.7,
-                \"maxOutputTokens\": 2048
-              }
-            }" 2>&1) || {
-              echo "::error::❌ Gemini API 呼び出し失敗"
-              echo "::error::エラー詳細:"
-              echo "$GEMINI_RESULT" | head -20
-              exit 1
-          }
+          # Gemini API リトライループ (最大3回)
+          SUCCESS=false
+          for RETRY_COUNT in {1..3}; do
+            echo "🔄 Gemini API 呼び出し試行 $RETRY_COUNT/3"
+            
+            # Gemini CLI実行
+            GEMINI_RESULT=$(curl -s -X POST \
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=$GEMINI_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"contents\": [{
+                  \"parts\": [{
+                    \"text\": \"$(cat input-processing-prompt.txt | sed 's/"/\\"/g' | tr -d '\n')\"
+                  }]
+                }],
+                \"generationConfig\": {
+                  \"temperature\": 0.7,
+                  \"maxOutputTokens\": 2048
+                }
+              }" 2>&1)
+            
+            # エラーチェック
+            if [ $? -eq 0 ] && [ -n "$GEMINI_RESULT" ]; then
+              # レスポンスからテキストを抽出
+              PROCESSED_CONTENT=$(echo "$GEMINI_RESULT" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null || echo "")
+              
+              if [ -n "$PROCESSED_CONTENT" ] && [ "$PROCESSED_CONTENT" != "null" ]; then
+                echo "✅ Gemini API 成功 (試行 $RETRY_COUNT/3)"
+                SUCCESS=true
+                break
+              else
+                echo "::warning::⚠️ Gemini API から空の応答 (試行 $RETRY_COUNT/3)"
+              fi
+            else
+              echo "::warning::⚠️ Gemini API 呼び出し失敗 (試行 $RETRY_COUNT/3)"
+              echo "エラー詳細: $GEMINI_RESULT" | head -20
+            fi
+            
+            # リトライ前の待機
+            if [ $RETRY_COUNT -lt 3 ]; then
+              echo "⏳ 10秒後に再試行します..."
+              sleep 10
+            fi
+          done
           
-          echo "🎯 Gemini 処理結果（最初の1000文字）:"
-          echo "$GEMINI_RESULT" | head -c 1000
-          echo ""
-          
-          # レスポンスからテキストを抽出
-          PROCESSED_CONTENT=$(echo "$GEMINI_RESULT" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null || echo "")
-          
-          if [ -z "$PROCESSED_CONTENT" ] || [ "$PROCESSED_CONTENT" = "null" ]; then
-            echo "::error::❌ Gemini からの応答が空です"
-            echo "::error::生の応答:"
-            echo "$GEMINI_RESULT"
+          # 最終的な成功チェック
+          if [ "$SUCCESS" != "true" ]; then
+            echo "::error::❌ Gemini API が3回の試行後も失敗しました"
+            echo "::error::最後のエラー詳細:"
+            echo "$GEMINI_RESULT" | head -50
             exit 1
           fi
+          
+          echo "🎯 Gemini 処理結果（最初の1000文字）:"
+          echo "$PROCESSED_CONTENT" | head -c 1000
+          echo ""
           
           echo "✅ 構造化されたコンテンツを取得"
           echo "📄 処理結果の長さ: $(echo "$PROCESSED_CONTENT" | wc -c) 文字"
@@ -158,15 +180,10 @@ EOF
             echo "  推定時間: ${TALK_TIME}秒"
             
           else
-            echo "::warning::⚠️ JSON形式ではありませんが、テキストとして処理を続行"
-            SUMMARY="$PROCESSED_CONTENT"
-            MAIN_HIGHLIGHTS='["情報処理完了"]'
-            TECHNICAL_FOCUS="詳細は本文参照"
-            USER_IMPACT="アプリ改善"
-            NEXT_PREVIEW="続報をお待ちください"
-            RADIO_HOOKS='["最新情報", "開発進捗"]'
-            TONE="informative"
-            TALK_TIME="90"
+            echo "::error::❌ Gemini APIから有効なJSON形式の応答を受信できませんでした"
+            echo "::error::応答内容の先頭500文字:"
+            echo "$PROCESSED_CONTENT" | head -c 500
+            exit 1
           fi
           
           # 結果をファイルに保存
