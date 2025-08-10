@@ -57,12 +57,15 @@ jobs:
           echo "✅ Gemini API キーが設定されています"
           
           # プロンプトの構築
-          cat << 'EOF' > input-processing-prompt.txt
+          DEVELOPMENT_REPORT="${{ inputs.development-report }}"
+          TOPIC_FOCUS="${{ inputs.topic-focus }}"
+          
+          cat << EOF > input-processing-prompt.txt
 あなたは日本のラジオ番組の構成作家です。以下の大容量の開発進捗レポートを分析し、4分間のラジオ番組に適した内容に構造化してください。
 
 【入力情報】
-開発進捗: ${{ inputs.development-report }}
-強調ポイント: ${{ inputs.topic-focus || 'なし' }}
+開発進捗: $DEVELOPMENT_REPORT
+強調ポイント: ${TOPIC_FOCUS:-なし}
 
 【出力要件】
 以下のJSON形式で出力してください：
