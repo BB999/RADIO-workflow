@@ -127,6 +127,7 @@ jobs:
 
   input-processing:
     needs: api-check
+    if: false  # 一時的に無効化（Gemini APIトークン不足のため）
     uses: ./.github/workflows/module-input-processing.yml
     with:
       development-report: ${{ inputs.development-report }}
@@ -134,11 +135,11 @@ jobs:
     secrets: inherit
 
   planning:
-    needs: input-processing
+    needs: api-check  # input-processing を一時的に無効化したため api-check に直接依存
     uses: ./.github/workflows/module-radio-planning.yml
     with:
-      processed-summary: ${{ needs.input-processing.outputs.processed-summary }}
-      use-processed-input: true
+      processed-summary: ""  # 空の値を渡す
+      use-processed-input: false  # 処理済み入力を使用しない
       development-report: ${{ inputs.development-report }}
       topic-focus: ${{ inputs.topic-focus }}
     secrets: inherit
