@@ -78,6 +78,33 @@ sed -i "s|\${TOPIC_FOCUS}|${TOPIC_FOCUS:-なし}|g" input-processing-prompt.txt
 
 ---
 
+## 2025-08-10: module-radio-planning.yml YAMLシンタックスエラー
+
+### エラー内容
+```
+Invalid workflow file: .github/workflows/module-radio-planning.yml#L269
+You have an error in your yaml syntax on line 269
+```
+
+### 原因
+- 複数行の文字列を変数に代入する際、改行がYAMLパーサーを混乱させた
+- `CONTENT_SOURCE="【タイトル】\n$VARIABLE"` の形式が問題
+
+### 修正内容
+```bash
+# 修正前
+CONTENT_SOURCE="【Gemini処理済み構造化情報】
+$PROCESSED_SUMMARY"
+
+# 修正後
+CONTENT_SOURCE=$(printf "【Gemini処理済み構造化情報】\n%s" "$PROCESSED_SUMMARY")
+```
+
+### 修正結果
+✅ 成功（期待）- `printf`コマンドで安全に複数行文字列を構築
+
+---
+
 ## その他の修正履歴
 
 ### 2025-08-10: BGM生成ワークフローのシンタックスエラー

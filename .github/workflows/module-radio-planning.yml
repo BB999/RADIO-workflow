@@ -265,15 +265,12 @@ jobs:
           # 処理済み入力を使用するかチェック
           if [ "$USE_PROCESSED_INPUT" = "true" ] && [ -n "$PROCESSED_SUMMARY" ]; then
             echo "✅ Gemini処理済み入力を使用します"
-            CONTENT_SOURCE="【Gemini処理済み構造化情報】
-$PROCESSED_SUMMARY"
+            CONTENT_SOURCE=$(printf "【Gemini処理済み構造化情報】\n%s" "$PROCESSED_SUMMARY")
           else
             echo "📝 元の入力データを使用します"
-            CONTENT_SOURCE="【開発進捗・最新情報】
-${{ inputs.development-report }}
-
-【強調ポイント】
-${{ inputs.topic-focus || 'なし' }}"
+            DEVELOPMENT_INPUT="${{ inputs.development-report }}"
+            TOPIC_INPUT="${{ inputs.topic-focus }}"
+            CONTENT_SOURCE=$(printf "【開発進捗・最新情報】\n%s\n\n【強調ポイント】\n%s" "$DEVELOPMENT_INPUT" "${TOPIC_INPUT:-なし}")
           fi
           
           PROMPT="以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
