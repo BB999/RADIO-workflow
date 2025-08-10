@@ -47,9 +47,9 @@ jobs:
           SUCCESS=false
           for RETRY_COUNT in {1..3}; do
             echo "🔄 BGM生成試行 $RETRY_COUNT/3"
-          
-          # プロンプトの構築
-          PROMPT="以下のオープニングBGMを生成してください：
+            
+            # プロンプトの構築
+            PROMPT="以下のオープニングBGMを生成してください：
 
           【BGM要件】
           - 長さ: 30秒（ループ用ベース音楽）
@@ -106,19 +106,13 @@ jobs:
                 echo "CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:0:20}..."
                 BGM_RESULT=""
               }
-          else
-            echo "::warning::⚠️ MCP設定ファイルが見つかりません: $MCP_CONFIG_ABS_PATH"
-            echo "::warning::現在のディレクトリ内容:"
-            ls -la || true
-            BGM_RESULT=""
-          fi
           
-          echo "🎵 BGM生成結果 (最初の500文字):"
-          echo "$BGM_RESULT" | head -c 500
-          echo ""
-          
-          # 結果からURLまたはファイル名を抽出
-          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(wav|mp3|m4a)' | head -1)
+            echo "🎵 BGM生成結果 (最初の500文字):"
+            echo "$BGM_RESULT" | head -c 500
+            echo ""
+            
+            # 結果からURLまたはファイル名を抽出
+            MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(wav|mp3|m4a)' | head -1)
           # Claude Codeの出力からファイル名を抽出（バッククォートで囲まれたファイル名を検索）
           CLAUDE_FILE=$(echo "$BGM_RESULT" | grep -oP '`lyria_output_[^`]+\.wav`' | sed 's/`//g' | head -1)
           if [ ! -z "$CLAUDE_FILE" ]; then
@@ -259,11 +253,11 @@ jobs:
             echo "::error::現在のディレクトリ内容:"
             ls -la || true
             echo "::error::MCP設定ファイル確認:"
-            if [ -f "$MCP_CONFIG_ABS_PATH" ]; then
-              echo "::error::MCP設定ファイルが存在します: $MCP_CONFIG_ABS_PATH"
-              head -20 "$MCP_CONFIG_ABS_PATH" || true
+            if [ -f "mcp-config.json" ]; then
+              echo "::error::MCP設定ファイルが存在します: mcp-config.json"
+              head -20 "mcp-config.json" || true
             else
-              echo "::error::MCP設定ファイルが見つかりません: $MCP_CONFIG_ABS_PATH"
+              echo "::error::MCP設定ファイルが見つかりません: mcp-config.json"
             fi
             exit 1
           fi

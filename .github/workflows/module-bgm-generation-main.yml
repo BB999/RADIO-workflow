@@ -36,7 +36,7 @@ jobs:
           # BGM生成リトライ処理（最大3回）
           for RETRY_COUNT in {1..3}; do
             echo "🔄 BGM生成試行 $RETRY_COUNT/3"
-          echo "::group::🎵 Main BGM Generation with Google Lyria"
+            echo "::group::🎵 Main BGM Generation with Google Lyria"
           echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
           
           # MCP Lyria URLの確認
@@ -104,12 +104,6 @@ jobs:
                 echo "CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:0:20}..."
                 BGM_RESULT=""
               }
-          else
-            echo "::warning::⚠️ MCP設定ファイルが見つかりません: $MCP_CONFIG_ABS_PATH"
-            echo "::warning::現在のディレクトリ内容:"
-            ls -la || true
-            BGM_RESULT=""
-          fi
           
           echo "🎵 BGM生成結果 (最初の500文字):"
           echo "$BGM_RESULT" | head -c 500
