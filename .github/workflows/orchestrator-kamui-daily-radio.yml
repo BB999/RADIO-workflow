@@ -191,6 +191,7 @@ jobs:
     secrets: inherit
 
   bgm-jingle:
+    needs: planning
     uses: ./.github/workflows/module-bgm-generation-jingle.yml
     secrets: inherit
 
