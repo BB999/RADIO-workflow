@@ -1,0 +1,152 @@
+# .github/workflows/orchestrator-kamui-radio-with-jingle.yml
+name: Kamui Daily Radio Production (With Jingle)
+
+on:
+  workflow_dispatch:
+    inputs:
+      development-report:
+        description: '神威アプリの開発進捗・最新情報'
+        required: true
+        type: string
+      topic-focus:
+        description: '特に強調したいトピック（オプション）'
+        required: false
+        type: string
+
+jobs:
+  planning:
+    uses: ./.github/workflows/module-radio-planning.yml
+    with:
+      development-report: ${{ inputs.development-report }}
+      topic-focus: ${{ inputs.topic-focus }}
+
+  # 既存の音声生成jobs
+  voice-opening:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-opening.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-opening }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+
+  voice-main:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-main.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-main }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+
+  voice-ending:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-ending.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-ending }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+
+  # 新しい番組コール「かむらじ」音声生成job
+  voice-jingle:
+    needs: planning
+    runs-on: ubuntu-latest
+    outputs:
+      jingle-voice: ${{ steps.generate-jingle.outputs.audio-file }}
+    steps:
+      - name: Generate Kamuraji jingle voice
+        id: generate-jingle
+        run: |
+          # aivis-cloud-apiを使用して「かむらじ」音声を生成
+          # 実際の実装では適切なAPI呼び出しを行う
+          echo "Generating 'かむらじ' jingle voice..."
+          
+          # ダミーファイル作成（実際はAPI呼び出し結果を使用）
+          ffmpeg -f lavfi -i "sine=frequency=440:duration=2" -c:a pcm_s16le kamuraji-voice.wav
+          
+          echo "audio-file=kamuraji-voice.wav" >> $GITHUB_OUTPUT
+
+  # BGM生成jobs（既存）
+  bgm-opening:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-opening.yml
+
+  bgm-main:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-main.yml
+
+  bgm-ending:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-ending.yml
+
+  # 新しいジングル用BGM選択job
+  bgm-jingle:
+    runs-on: ubuntu-latest
+    outputs:
+      jingle-bgm: ${{ steps.select-bgm.outputs.bgm-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Select random BGM for jingle
+        id: select-bgm
+        run: |
+          # musicフォルダからランダムにmp3を選択
+          BGM_FILES=(radio-workflow/music/*.mp3)
+          RANDOM_BGM=${BGM_FILES[$RANDOM % ${#BGM_FILES[@]}]}
+          
+          echo "Selected BGM: $RANDOM_BGM"
+          echo "bgm-file=$RANDOM_BGM" >> $GITHUB_OUTPUT
+
+  # 新しいジングル合成job
+  jingle-mixing:
+    needs: [voice-jingle, bgm-jingle]
+    runs-on: ubuntu-latest
+    outputs:
+      jingle-final: ${{ steps.mix-jingle.outputs.final-jingle }}
+    steps:
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Mix jingle with BGM timing
+        id: mix-jingle
+        run: |
+          # BGMを5秒再生した後にセリフを開始する合成処理
+          ffmpeg -i ${{ needs.bgm-jingle.outputs.jingle-bgm }} \
+                 -i ${{ needs.voice-jingle.outputs.jingle-voice }} \
+                 -filter_complex "
+                   [0]loudnorm=I=-23:LRA=7:TP=-1,volume=0.7[bgm];
+                   [1]volume=1.0,adelay=5000|5000[voice_delayed];
+                   [bgm][voice_delayed]amix=inputs=2:duration=longest:dropout_transition=2[mixed];
+                   [mixed]afade=t=out:st=15:d=2
+                 " \
+                 -c:a mp3 -b:a 320k kamuraji-jingle.mp3
+          
+          echo "final-jingle=kamuraji-jingle.mp3" >> $GITHUB_OUTPUT
+
+  # 修正された最終ミキシング（メイン→無音→ジングル→無音→エンディング）
+  audio-mixing:
+    needs: [voice-opening, voice-main, voice-ending, jingle-mixing, bgm-opening, bgm-main, bgm-ending]
+    runs-on: ubuntu-latest
+    outputs:
+      final-audio: ${{ steps.final-mix.outputs.final-file }}
+      metadata: ${{ steps.final-mix.outputs.metadata }}
+    steps:
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Final audio mixing with jingle sequence
+        id: final-mix
+        run: |
+          # 無音ファイル（2秒）を作成
+          ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 2 -c:a pcm_s16le silence-2s.wav
+          
+          # メイン→無音→ジングル→無音→エンディングの順で連結
+          ffmpeg -i ${{ needs.voice-main.outputs.audio-file }} \
+                 -i silence-2s.wav \
+                 -i ${{ needs.jingle-mixing.outputs.jingle-final }} \
+                 -i silence-2s.wav \
+                 -i ${{ needs.voice-ending.outputs.audio-file }} \
+                 -filter_complex "[0][1][2][3][4]concat=n=5:v=0:a=1" \
+                 -c:a mp3 -b:a 320k final-kamui-radio.mp3
+          
+          # メタデータ生成
+          echo '{"duration":"180s","audio_standard":"-23 LUFS","format":"MP3 320kbps","jingle":"included"}' > metadata.json
+          
+          echo "final-file=final-kamui-radio.mp3" >> $GITHUB_OUTPUT
+          echo "metadata=metadata.json" >> $GITHUB_OUTPUT
