@@ -95,7 +95,7 @@ jobs:
           # 複雑なミキシング処理
           ffmpeg -i "$BGM_FILE" -i "$VOICE_FILE" \
                  -filter_complex "
-                   [0:a]volume=0.4,apad[bgm_padded];
+                   [0:a]volume=0.7,apad[bgm_padded];
                    [1:a]adelay=5000|5000,volume=1.0[voice_delayed];
                    [bgm_padded][voice_delayed]amix=inputs=2:duration=longest:dropout_transition=0.5[mixed];
                    [mixed]afade=t=out:st=$(echo "$TOTAL_DURATION - 2" | bc -l):d=2[faded]

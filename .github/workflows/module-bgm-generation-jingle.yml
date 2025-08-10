@@ -70,10 +70,9 @@ jobs:
           # 正規化処理（ラウドネス基準-20 LUFS、BGM用に調整）
           ffmpeg -i "$SELECTED_JINGLE" \
                  -filter_complex "
-                   [0:a]loudnorm=I=-20:LRA=7:TP=-1:linear=true:dual_mono=true[normalized];
-                   [normalized]volume=0.6[adjusted]
+                   [0:a]loudnorm=I=-20:LRA=7:TP=-1:linear=true:dual_mono=true[normalized]
                  " \
-                 -map "[adjusted]" \
+                 -map "[normalized]" \
                  -ar 44100 -ac 2 -c:a pcm_s16le \
                  bgm-jingle.wav -y
           
