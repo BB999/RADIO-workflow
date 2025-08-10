@@ -189,47 +189,42 @@ jobs:
             exit 1
           fi
           
-          # 結果をファイルに保存
-          cat << EOF > processed-input.json
-{
-  "summary": "$SUMMARY",
-  "main_highlights": $MAIN_HIGHLIGHTS,
-  "technical_focus": "$TECHNICAL_FOCUS", 
-  "user_impact": "$USER_IMPACT",
-  "next_preview": "$NEXT_PREVIEW",
-  "radio_hooks": $RADIO_HOOKS,
-  "tone": "$TONE",
-  "estimated_talk_time": "$TALK_TIME",
-  "processing_info": {
-    "original_length": $INPUT_LENGTH,
-    "processed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "processing_model": "gemini-2.0-flash-exp"
-  }
-}
-EOF
+          # 結果をファイルに保存（echoコマンドで構築）
+          {
+            echo '{'
+            echo "  \"summary\": \"$SUMMARY\","
+            echo "  \"main_highlights\": $MAIN_HIGHLIGHTS,"
+            echo "  \"technical_focus\": \"$TECHNICAL_FOCUS\","
+            echo "  \"user_impact\": \"$USER_IMPACT\","
+            echo "  \"next_preview\": \"$NEXT_PREVIEW\","
+            echo "  \"radio_hooks\": $RADIO_HOOKS,"
+            echo "  \"tone\": \"$TONE\","
+            echo "  \"estimated_talk_time\": \"$TALK_TIME\","
+            echo '  "processing_info": {'
+            echo "    \"original_length\": $INPUT_LENGTH,"
+            echo "    \"processed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+            echo '    "processing_model": "gemini-2.0-flash-exp"'
+            echo '  }'
+            echo '}'
+          } > processed-input.json
           
           # 台本生成用の統合サマリーを作成
-          RADIO_SUMMARY="【要約】$SUMMARY
-
-【主要進捗】
-$(echo "$MAIN_HIGHLIGHTS" | jq -r '.[]' | sed 's/^/- /')
-
-【技術ハイライト】$TECHNICAL_FOCUS
-
-【ユーザーへの影響】$USER_IMPACT
-
-【次回予告】$NEXT_PREVIEW
-
-【推奨トーン】$TONE（推定${TALK_TIME}秒）"
+          HIGHLIGHTS_LIST=$(echo "$MAIN_HIGHLIGHTS" | jq -r '.[]' | sed 's/^/- /')
+          RADIO_SUMMARY=$(printf "【要約】%s\n\n【主要進捗】\n%s\n\n【技術ハイライト】%s\n\n【ユーザーへの影響】%s\n\n【次回予告】%s\n\n【推奨トーン】%s（推定%s秒）" \
+            "$SUMMARY" "$HIGHLIGHTS_LIST" "$TECHNICAL_FOCUS" "$USER_IMPACT" "$NEXT_PREVIEW" "$TONE" "$TALK_TIME")
           
-          # GitHub Outputsに設定
-          echo "summary<<EOF" >> $GITHUB_OUTPUT
-          echo "$RADIO_SUMMARY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # GitHub Outputsに設定（改行を含む場合の安全な方法）
+          {
+            echo "summary<<GITHUB_OUTPUT_EOF"
+            echo "$RADIO_SUMMARY"
+            echo "GITHUB_OUTPUT_EOF"
+          } >> $GITHUB_OUTPUT
           
-          echo "structured-content<<EOF" >> $GITHUB_OUTPUT
-          cat processed-input.json >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "structured-content<<GITHUB_OUTPUT_EOF"
+            cat processed-input.json
+            echo "GITHUB_OUTPUT_EOF"
+          } >> $GITHUB_OUTPUT
           
           echo "metadata={\"original_length\": $INPUT_LENGTH, \"processed_length\": $(echo \"$RADIO_SUMMARY\" | wc -c), \"model\": \"gemini-2.0-flash-exp\"}" >> $GITHUB_OUTPUT
           

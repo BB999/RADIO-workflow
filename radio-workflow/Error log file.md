@@ -62,10 +62,15 @@ sed -i "s|\${TOPIC_FOCUS}|${TOPIC_FOCUS:-なし}|g" input-processing-prompt.txt
 **3回目の修正**: ❌ 失敗（line 64エラー）
 - heredocタグを変更したが、YAMLパーサーがheredoc自体を正しく処理できない
 
-**最終修正（4回目）**: ✅ 成功（期待）
-- heredocを完全に廃止
+**4回目の修正**: ✅ 成功
+- heredocを完全に廃止（プロンプト部分）
 - echoコマンドの連続実行で構築
 - シングルクォートで特殊文字をエスケープ
+
+**5回目の修正（line 194エラー）**: ✅ 成功（期待）
+- JSONファイル保存部分のheredocも廃止
+- GitHub Outputsのheredocタグを`GITHUB_OUTPUT_EOF`に変更
+- すべてのheredocを排除
 3. デフォルト値は Bashの `${VAR:-default}` 構文を使用
 
 ### 教訓
@@ -101,7 +106,7 @@ CONTENT_SOURCE=$(printf "【Gemini処理済み構造化情報】\n%s" "$PROCESSE
 ```
 
 ### 修正結果
-✅ 成功（期待）- `printf`コマンドで安全に複数行文字列を構築
+✅ 成功 - `printf`コマンドで安全に複数行文字列を構築
 
 ---
 
