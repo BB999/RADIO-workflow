@@ -1,0 +1,33 @@
+{
+  "duration": "246.648000s",
+  "selected_music": "不明3・ねもぴ.mp3",
+  "selected_jingle": "",
+  "files": {
+    "audio": "final-radio.mp3",
+    "video": "final-radio-video.mp4",
+    "video_size_mb": "17.14"
+  },
+  "video_specs": {
+    "codec": "H.264",
+    "resolution": "静止画ベース（元画像サイズ）",
+    "audio_codec": "AAC 192kbps",
+    "source_image": "radio-workflow/image/title.png"
+  },
+  "sections": [
+    {"name": "opening", "description": "音声+BGM+選択楽曲（クロスフェード）", "bgm": "upbeat", "bgm_volume": "100%→50%→0", "intro": "6s", "crossfade": "楽曲との5秒クロスフェード"},
+    {"name": "main", "description": "音声+BGM", "bgm": "talk-friendly", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "jingle", "description": "ジングル音声+SE（5秒遅延）", "bgm": "jingle-se", "bgm_volume": "70%", "voice_delay": "5s", "fade_out": "2s"},
+    {"name": "ending", "description": "音声+BGM", "bgm": "warm-outro", "bgm_volume": "100%→50%→100%", "intro": "4s", "fade_out": "7s"}
+  ],
+  "processing": {
+    "workflow": "分割処理後統合",
+    "opening_job": "audio-mixing-opening",
+    "main_job": "audio-mixing-main",
+    "jingle_job": "audio-mixing-jingle",
+    "ending_job": "audio-mixing-ending",
+    "final_job": "audio-mixing-final"
+  },
+  "sequence": "opening → silence(1.08936s) → main → silence(0.5s) → jingle → silence(0.5s) → ending",
+  "audio_standard": "-23 LUFS",
+  "format": "MP3 320kbps + MP4 H.264/AAC"
+}
