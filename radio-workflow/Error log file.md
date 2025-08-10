@@ -110,6 +110,37 @@ CONTENT_SOURCE=$(printf "【Gemini処理済み構造化情報】\n%s" "$PROCESSE
 
 ---
 
+## 2025-08-10: Gemini CLI パッケージ名エラー
+
+### エラー内容
+```
+npm error code E404
+npm error 404 Not Found - GET https://registry.npmjs.org/@google-ai%2fgenerativelanguage-cli - Not found
+npm error 404  '@google-ai/generativelanguage-cli@*' is not in this registry.
+```
+
+### 原因
+- Gemini CLIパッケージ（`@google-ai/generativelanguage-cli`）は存在しない
+- Gemini APIは直接REST APIを使用する必要がある
+
+### 修正内容
+```yaml
+# 修正前
+- name: Install Gemini CLI
+  run: |
+    npm install -g @google-ai/generativelanguage-cli
+
+# 修正後
+- name: Setup Gemini API
+  run: |
+    echo "✅ Gemini API を直接使用します（追加パッケージ不要）"
+```
+
+### 修正結果
+✅ 成功 - Gemini APIをcurlで直接呼び出す方式に変更
+
+---
+
 ## その他の修正履歴
 
 ### 2025-08-10: BGM生成ワークフローのシンタックスエラー
