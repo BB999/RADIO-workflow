@@ -187,20 +187,63 @@ jobs:
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
-          if [ -f "$WORK_DIR/opening.json" ] && jq empty "$WORK_DIR/opening.json" 2>/dev/null; then
+          if [ -f "$WORK_DIR/opening.json" ]; then
+            echo "📄 opening.json ファイルが存在"
+            
+            # JSONの検証
+            if ! jq empty "$WORK_DIR/opening.json" 2>/dev/null; then
+              echo "::error::opening.json が無効なJSONフォーマットです"
+              echo "::error::ファイル内容:"
+              cat "$WORK_DIR/opening.json" | head -10
+              exit 1
+            fi
+            
             OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/opening.json")
+            
+            if [ -z "$OPENING_TEXT" ] || [ "$OPENING_TEXT" = "null" ]; then
+              echo "::error::opening.json に 'opening' フィールドが見つかりません"
+              echo "::error::JSONファイル内容:"
+              cat "$WORK_DIR/opening.json"
+              exit 1
+            fi
+            
+            echo "📝 取得したテキスト（最初の100文字）: ${OPENING_TEXT:0:100}..."
             
             # SSMLフォーマッターを使用して処理
             echo "🎛️ SSMLフォーマット処理開始"
+            
+            if [ ! -f "radio-workflow/ssml_formatter.js" ]; then
+              echo "::error::ssml_formatter.js が見つかりません"
+              exit 1
+            fi
+            
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
+            # Node.jsのバージョン確認
+            node --version
+            
+            # SSMLフォーマッター実行（エラーハンドリング付き）
             FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
-              const formatter = new SSMLFormatter();
-              const text = process.argv[1];
-              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
-              console.log(formatted);
-            " "$OPENING_TEXT")
+              try {
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                const text = process.argv[1];
+                if (!text) {
+                  console.error('Error: Empty text provided');
+                  process.exit(1);
+                }
+                const preset = formatter.getPreset ? formatter.getPreset('normal') : {};
+                const formatted = formatter.formatWithBreaks(text, preset);
+                console.log(formatted);
+              } catch (e) {
+                console.error('Error in SSML formatting:', e.message);
+                process.exit(1);
+              }
+            " "$OPENING_TEXT" 2>&1) || {
+              echo "::error::SSMLフォーマッター実行エラー"
+              echo "::error::エラー出力: $FORMATTED_TEXT"
+              exit 1
+            }
             
             # 固有名詞置き換え
             FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
@@ -212,7 +255,9 @@ jobs:
             echo "voice-config=default" >> $GITHUB_OUTPUT
             echo "✅ Opening script generated successfully with SSML formatting"
           else
-            echo "::error::Opening script generation failed"
+            echo "::error::Opening script generation failed - opening.json ファイルが作成されませんでした"
+            echo "::error::作業ディレクトリの内容:"
+            ls -la "$WORK_DIR/" || echo "作業ディレクトリが存在しません"
             exit 1
           fi
           echo "::endgroup::"
@@ -277,20 +322,54 @@ jobs:
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
-          if [ -f "$WORK_DIR/main.json" ] && jq empty "$WORK_DIR/main.json" 2>/dev/null; then
+          if [ -f "$WORK_DIR/main.json" ]; then
+            echo "📄 main.json ファイルが存在"
+            
+            # JSONの検証
+            if ! jq empty "$WORK_DIR/main.json" 2>/dev/null; then
+              echo "::error::main.json が無効なJSONフォーマットです"
+              echo "::error::ファイル内容:"
+              cat "$WORK_DIR/main.json" | head -10
+              exit 1
+            fi
+            
             MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/main.json")
+            
+            if [ -z "$MAIN_TEXT" ] || [ "$MAIN_TEXT" = "null" ]; then
+              echo "::error::main.json に 'main' フィールドが見つかりません"
+              echo "::error::JSONファイル内容:"
+              cat "$WORK_DIR/main.json"
+              exit 1
+            fi
+            
+            echo "📝 取得したテキスト（最初の100文字）: ${MAIN_TEXT:0:100}..."
             
             # SSMLフォーマッターを使用して処理
             echo "🎛️ SSMLフォーマット処理開始"
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
+            # SSMLフォーマッター実行（エラーハンドリング付き）
             FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
-              const formatter = new SSMLFormatter();
-              const text = process.argv[1];
-              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
-              console.log(formatted);
-            " "$MAIN_TEXT")
+              try {
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                const text = process.argv[1];
+                if (!text) {
+                  console.error('Error: Empty text provided');
+                  process.exit(1);
+                }
+                const preset = formatter.getPreset ? formatter.getPreset('normal') : {};
+                const formatted = formatter.formatWithBreaks(text, preset);
+                console.log(formatted);
+              } catch (e) {
+                console.error('Error in SSML formatting:', e.message);
+                process.exit(1);
+              }
+            " "$MAIN_TEXT" 2>&1) || {
+              echo "::error::SSMLフォーマッター実行エラー"
+              echo "::error::エラー出力: $FORMATTED_TEXT"
+              exit 1
+            }
             
             # 固有名詞置き換え
             FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
@@ -301,7 +380,9 @@ jobs:
             
             echo "✅ Main part1 script generated successfully with SSML formatting"
           else
-            echo "::error::Main part1 script generation failed"
+            echo "::error::Main part1 script generation failed - main.json ファイルが作成されませんでした"
+            echo "::error::作業ディレクトリの内容:"
+            ls -la "$WORK_DIR/" || echo "作業ディレクトリが存在しません"
             exit 1
           fi
           echo "::endgroup::"
@@ -366,20 +447,54 @@ jobs:
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
-          if [ -f "$WORK_DIR/main_part2.json" ] && jq empty "$WORK_DIR/main_part2.json" 2>/dev/null; then
+          if [ -f "$WORK_DIR/main_part2.json" ]; then
+            echo "📄 main_part2.json ファイルが存在"
+            
+            # JSONの検証
+            if ! jq empty "$WORK_DIR/main_part2.json" 2>/dev/null; then
+              echo "::error::main_part2.json が無効なJSONフォーマットです"
+              echo "::error::ファイル内容:"
+              cat "$WORK_DIR/main_part2.json" | head -10
+              exit 1
+            fi
+            
             MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/main_part2.json")
+            
+            if [ -z "$MAIN_PART2_TEXT" ] || [ "$MAIN_PART2_TEXT" = "null" ]; then
+              echo "::error::main_part2.json に 'main_part2' フィールドが見つかりません"
+              echo "::error::JSONファイル内容:"
+              cat "$WORK_DIR/main_part2.json"
+              exit 1
+            fi
+            
+            echo "📝 取得したテキスト（最初の100文字）: ${MAIN_PART2_TEXT:0:100}..."
             
             # SSMLフォーマッターを使用して処理
             echo "🎛️ SSMLフォーマット処理開始"
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
+            # SSMLフォーマッター実行（エラーハンドリング付き）
             FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
-              const formatter = new SSMLFormatter();
-              const text = process.argv[1];
-              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
-              console.log(formatted);
-            " "$MAIN_PART2_TEXT")
+              try {
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                const text = process.argv[1];
+                if (!text) {
+                  console.error('Error: Empty text provided');
+                  process.exit(1);
+                }
+                const preset = formatter.getPreset ? formatter.getPreset('normal') : {};
+                const formatted = formatter.formatWithBreaks(text, preset);
+                console.log(formatted);
+              } catch (e) {
+                console.error('Error in SSML formatting:', e.message);
+                process.exit(1);
+              }
+            " "$MAIN_PART2_TEXT" 2>&1) || {
+              echo "::error::SSMLフォーマッター実行エラー"
+              echo "::error::エラー出力: $FORMATTED_TEXT"
+              exit 1
+            }
             
             # 固有名詞置き換え
             FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
@@ -390,7 +505,9 @@ jobs:
             
             echo "✅ Main part2 script generated successfully with SSML formatting"
           else
-            echo "::error::Main part2 script generation failed"
+            echo "::error::Main part2 script generation failed - main_part2.json ファイルが作成されませんでした"
+            echo "::error::作業ディレクトリの内容:"
+            ls -la "$WORK_DIR/" || echo "作業ディレクトリが存在しません"
             exit 1
           fi
           echo "::endgroup::"
@@ -462,20 +579,54 @@ jobs:
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
-          if [ -f "$WORK_DIR/ending.json" ] && jq empty "$WORK_DIR/ending.json" 2>/dev/null; then
+          if [ -f "$WORK_DIR/ending.json" ]; then
+            echo "📄 ending.json ファイルが存在"
+            
+            # JSONの検証
+            if ! jq empty "$WORK_DIR/ending.json" 2>/dev/null; then
+              echo "::error::ending.json が無効なJSONフォーマットです"
+              echo "::error::ファイル内容:"
+              cat "$WORK_DIR/ending.json" | head -10
+              exit 1
+            fi
+            
             ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/ending.json")
+            
+            if [ -z "$ENDING_TEXT" ] || [ "$ENDING_TEXT" = "null" ]; then
+              echo "::error::ending.json に 'ending' フィールドが見つかりません"
+              echo "::error::JSONファイル内容:"
+              cat "$WORK_DIR/ending.json"
+              exit 1
+            fi
+            
+            echo "📝 取得したテキスト（最初の100文字）: ${ENDING_TEXT:0:100}..."
             
             # SSMLフォーマッターを使用して処理
             echo "🎛️ SSMLフォーマット処理開始"
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
+            # SSMLフォーマッター実行（エラーハンドリング付き）
             FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
-              const SSMLFormatter = require('./ssml_formatter.js');
-              const formatter = new SSMLFormatter();
-              const text = process.argv[1];
-              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
-              console.log(formatted);
-            " "$ENDING_TEXT")
+              try {
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                const text = process.argv[1];
+                if (!text) {
+                  console.error('Error: Empty text provided');
+                  process.exit(1);
+                }
+                const preset = formatter.getPreset ? formatter.getPreset('normal') : {};
+                const formatted = formatter.formatWithBreaks(text, preset);
+                console.log(formatted);
+              } catch (e) {
+                console.error('Error in SSML formatting:', e.message);
+                process.exit(1);
+              }
+            " "$ENDING_TEXT" 2>&1) || {
+              echo "::error::SSMLフォーマッター実行エラー"
+              echo "::error::エラー出力: $FORMATTED_TEXT"
+              exit 1
+            }
             
             # 固有名詞置き換え
             FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
@@ -486,7 +637,9 @@ jobs:
             
             echo "✅ Ending script generated successfully with SSML formatting"
           else
-            echo "::error::Ending script generation failed"
+            echo "::error::Ending script generation failed - ending.json ファイルが作成されませんでした"
+            echo "::error::作業ディレクトリの内容:"
+            ls -la "$WORK_DIR/" || echo "作業ディレクトリが存在しません"
             exit 1
           fi
           echo "::endgroup::"
