@@ -71,10 +71,11 @@ jobs:
             exit 1
           fi
           
-          # ランダムに音楽ファイルを選択
-          SELECTED_INDEX=$((RANDOM % ${#MUSIC_FILES[@]}))
+          # ランダムに音楽ファイルを選択（時刻ベースのシード使用）
+          MUSIC_SEED=$(($(date +%s%N | cut -b10-19) + $$ + RANDOM))
+          SELECTED_INDEX=$((MUSIC_SEED % ${#MUSIC_FILES[@]}))
           SELECTED_MUSIC_FILE="${MUSIC_FILES[$SELECTED_INDEX]}"
-          echo "🎯 選択された音楽ファイル: $SELECTED_MUSIC_FILE"
+          echo "🎯 選択された音楽ファイル: $SELECTED_MUSIC_FILE (シード: $MUSIC_SEED)"
           
           # radio-workflow/UUID.mdから音声IDをランダム選択
           if [ -f "radio-workflow/UUID.md" ]; then
@@ -93,10 +94,11 @@ jobs:
               exit 1
             fi
             
-            # ランダムにUUIDを選択
-            UUID_INDEX=$((RANDOM % ${#VOICE_UUIDS[@]}))
+            # ランダムにUUIDを選択（時刻ベースのシード使用）
+            UUID_SEED=$(($(date +%s%N | cut -b10-19) + $$ + RANDOM))
+            UUID_INDEX=$((UUID_SEED % ${#VOICE_UUIDS[@]}))
             DEFAULT_VOICE_ID="${VOICE_UUIDS[$UUID_INDEX]}"
-            echo "🎯 選択された音声UUID: $DEFAULT_VOICE_ID"
+            echo "🎯 選択された音声UUID: $DEFAULT_VOICE_ID (シード: $UUID_SEED)"
           else
             echo "::error::UUID.mdファイルが見つかりません"
             exit 1
@@ -172,8 +174,8 @@ jobs:
           パーソナリティ: $PERSONALITY_DATA
 
           要件: 1分（300-400文字）
-          構成: 明るい挨拶 → 番組紹介 → 最後に楽曲紹介
-          楽曲紹介文（必ず最後に入れる）: $MUSIC_INTRO
+          構成: 明るい挨拶 → 番組紹介 → 最後に楽曲紹介(必ず絶対に最後に入れる)
+          楽曲紹介文（必ず絶対最後に入れる）: $MUSIC_INTRO
           
           以下のJSONを $WORK_DIR/opening.json に保存してください：
           {\"opening\": \"台本テキスト（楽曲紹介で終わる）\"}"
