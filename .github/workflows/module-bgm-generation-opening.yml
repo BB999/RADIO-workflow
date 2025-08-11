@@ -256,71 +256,27 @@ jobs:
               echo "::warning::⚠️ 有効なURLが見つかりません"
             fi
           fi
-          elif [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
-            echo "✅ HTTPS URLからダウンロード: $MUSIC_URL"
-            
-            # ダウンロードとファイルチェック
-            if curl -L "$MUSIC_URL" -o "$MUSIC_FILE" --max-time 60; then
-              if [ -s "$MUSIC_FILE" ]; then
-                FILE_SIZE=$(stat -c%s "$MUSIC_FILE")
-                echo "✅ BGMファイルダウンロード成功 (${FILE_SIZE} bytes)"
-                
-                # 音声ファイルの簡易検証
-                file "$MUSIC_FILE"
-                
-                # ファイル内容をチェック（XMLエラーかどうか）
-                echo "📄 ファイル内容（最初の200文字）:"
-                head -c 200 "$MUSIC_FILE" || true
-                echo ""
-                
-                # XMLファイルの場合はエラーとして扱う
-                if file "$MUSIC_FILE" | grep -q "XML"; then
-                  echo "::error::❌ ダウンロードしたファイルがXMLエラーレスポンスです"
-                  echo "::error::ファイル全体の内容:"
-                  cat "$MUSIC_FILE"
-                  exit 1
-                fi
-                
-                # ffmpegでループ拡張
-                sudo apt-get update && sudo apt-get install -y ffmpeg
-                if ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-opening-30s.wav" -y; then
-                  echo "✅ BGMループ拡張成功"
-                  echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
-                  echo "music-file=bgm-opening-30s.wav" >> $GITHUB_OUTPUT
-                else
-                  echo "::error::❌ ffmpeg処理失敗"
-                  exit 1
-                fi
-              else
-                echo "::warning::⚠️ ダウンロードされたファイルが空です"
-              fi
-            else
-              echo "::warning::⚠️ BGMファイルのダウンロードに失敗しました"
-            fi
-          else
-            echo "::warning::⚠️ 有効なURLまたはファイルが見つかりません"
-          fi
           
-            # BGM生成成功チェック
-            if [ -f "bgm-opening-30s.wav" ] && [ -s "bgm-opening-30s.wav" ]; then
-              echo "✅ BGM生成成功（試行 $RETRY_COUNT/3）"
-              SUCCESS=true
-              break
-            else
-              echo "::warning::⚠️ BGM生成失敗（試行 $RETRY_COUNT/3）"
-              echo "::warning::詳細なエラーログ:"
-              echo "::warning::Claude Code実行結果: $BGM_RESULT"
-              echo "::warning::抽出されたURL: '$MUSIC_URL'"
-              echo "::warning::ダウンロードされたファイル: '$DOWNLOADED_FILE'"
-              
-              # ファイルをクリーンアップ
-              rm -f bgm-opening-30s.wav lyria_output_*.wav *.wav 2>/dev/null || true
-              
-              if [ $RETRY_COUNT -lt 3 ]; then
-                echo "🔄 30秒後に再試行します..."
-                sleep 30
-              fi
+          # BGM生成成功チェック
+          if [ -f "bgm-opening-30s.wav" ] && [ -s "bgm-opening-30s.wav" ]; then
+            echo "✅ BGM生成成功（試行 $RETRY_COUNT/3）"
+            SUCCESS=true
+            break
+          else
+            echo "::warning::⚠️ BGM生成失敗（試行 $RETRY_COUNT/3）"
+            echo "::warning::詳細なエラーログ:"
+            echo "::warning::Claude Code実行結果: $BGM_RESULT"
+            echo "::warning::抽出されたURL: '$MUSIC_URL'"
+            echo "::warning::ダウンロードされたファイル: '$DOWNLOADED_FILE'"
+            
+            # ファイルをクリーンアップ
+            rm -f bgm-opening-30s.wav lyria_output_*.wav *.wav 2>/dev/null || true
+            
+            if [ $RETRY_COUNT -lt 3 ]; then
+              echo "🔄 30秒後に再試行します..."
+              sleep 30
             fi
+          fi
           done
           
           # 最終結果チェック
