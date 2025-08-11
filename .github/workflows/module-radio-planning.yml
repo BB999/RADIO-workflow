@@ -79,8 +79,31 @@ jobs:
           SELECTED_MUSIC_FILE="${MUSIC_FILES[$SELECTED_INDEX]}"
           echo "🎯 選択された音楽ファイル: $SELECTED_MUSIC_FILE"
           
-          # デフォルト音声IDを設定
-          DEFAULT_VOICE_ID="3c37646f-3881-5374-2a83-149267990abc"
+          # radio-workflow/UUID.mdから音声IDをランダム選択
+          if [ -f "radio-workflow/UUID.md" ]; then
+            # 空行を除いてUUIDを配列に読み込み
+            declare -a VOICE_UUIDS=()
+            while IFS= read -r uuid; do
+              if [ -n "$uuid" ]; then
+                VOICE_UUIDS+=("$uuid")
+                echo "  - 発見UUID: $uuid"
+              fi
+            done < "radio-workflow/UUID.md"
+            
+            # UUIDが存在するかチェック
+            if [ ${#VOICE_UUIDS[@]} -eq 0 ]; then
+              echo "::error::有効なUUIDが見つかりません"
+              exit 1
+            fi
+            
+            # ランダムにUUIDを選択
+            UUID_INDEX=$((RANDOM % ${#VOICE_UUIDS[@]}))
+            DEFAULT_VOICE_ID="${VOICE_UUIDS[$UUID_INDEX]}"
+            echo "🎯 選択された音声UUID: $DEFAULT_VOICE_ID"
+          else
+            echo "::error::UUID.mdファイルが見つかりません"
+            exit 1
+          fi
           
           # USE_UUID.mdファイルを作成
           mkdir -p radio-workflow/temp
