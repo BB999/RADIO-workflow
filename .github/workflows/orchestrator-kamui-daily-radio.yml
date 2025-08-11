@@ -151,6 +151,7 @@ jobs:
 
   voice-opening:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-voice-generation-opening.yml
     with:
       script-text: ${{ needs.planning.outputs.script-opening }}
@@ -159,6 +160,7 @@ jobs:
 
   voice-main:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-voice-generation-main.yml
     with:
       script-text: ${{ needs.planning.outputs.script-main }}
@@ -167,6 +169,7 @@ jobs:
 
   voice-main-part2:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-voice-generation-main-part2.yml
     with:
       script-text: ${{ needs.planning.outputs.script-main-part2 }}
@@ -175,6 +178,7 @@ jobs:
 
   voice-ending:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-voice-generation-ending.yml
     with:
       script-text: ${{ needs.planning.outputs.script-ending }}
@@ -183,6 +187,7 @@ jobs:
 
   voice-jingle:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-voice-generation-jingle.yml
     with:
       script-text: ${{ needs.planning.outputs.script-jingle }}
@@ -191,21 +196,25 @@ jobs:
 
   bgm-opening:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-bgm-generation-opening.yml
     secrets: inherit
 
   bgm-main:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-bgm-generation-main.yml
     secrets: inherit
 
   bgm-main-part2:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-bgm-generation-main-part2.yml
     secrets: inherit
 
   bgm-ending:
     needs: planning
+    if: needs.planning.result == 'success'
     uses: ./.github/workflows/module-bgm-generation-ending.yml
     secrets: inherit
 
