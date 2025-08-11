@@ -6,10 +6,6 @@ on:
         description: '神威アプリの開発進捗・最新情報'
         required: true
         type: string
-      topic-focus:
-        description: '特に強調したいトピック（オプション）'
-        required: false
-        type: string
 
 permissions:
   contents: write  # リリース作成に必要
@@ -141,7 +137,6 @@ jobs:
       processed-summary: ""  # 空の値を渡す
       use-processed-input: false  # 処理済み入力を使用しない
       development-report: ${{ inputs.development-report }}
-      topic-focus: ${{ inputs.topic-focus }}
     secrets: inherit
 
   voice-opening:
@@ -304,7 +299,6 @@ jobs:
             神威アプリの最新開発情報をお届けします。
             
             **開発進捗**: ${{ inputs.development-report }}
-            **強調ポイント**: ${{ inputs.topic-focus || 'なし' }}
             
             🎵 Generated with [Claude Code](https://claude.ai/code)
           files: |
@@ -352,7 +346,6 @@ jobs:
           - 音声ファイル: final-radio.mp3 (240秒、-23 LUFS)
           - メタデータ: metadata.json
           - 開発進捗: ${{ inputs.development-report }}
-          - 強調ポイント: ${{ inputs.topic-focus || 'なし' }}
           
           🤖 Generated with [Claude Code](https://claude.ai/code)
           

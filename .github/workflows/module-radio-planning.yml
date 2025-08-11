@@ -5,9 +5,6 @@ on:
       development-report:
         required: false
         type: string
-      topic-focus:
-        required: false
-        type: string
       processed-summary:
         description: 'Gemini CLIで処理済みの構造化されたサマリー'
         required: false
@@ -309,7 +306,6 @@ jobs:
 
           パーソナリティ: $PERSONALITY_DATA
           進捗情報: $DEV_REPORT_PART1
-          強調ポイント: ${{ inputs.topic-focus }}
 
           要件: 3分（900-1200文字）、開発進捗の主要ポイント解説
           
@@ -434,7 +430,6 @@ jobs:
 
           パーソナリティ: $PERSONALITY_DATA
           進捗情報: $DEV_REPORT_PART2
-          強調ポイント: ${{ inputs.topic-focus }}
 
           要件: 3分（900-1200文字）、時事ニュースや追加情報、リスナーメッセージ
           
