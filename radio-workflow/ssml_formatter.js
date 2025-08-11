@@ -8,9 +8,9 @@ class SSMLFormatter {
         this.breakDurations = {
             period: 0.9,        // 句点「。」
             comma: 0.4,         // 読点「、」
-            exclamation: 1.0,   // 感嘆符「！」
+            exclamation: 0.8,   // 感嘆符「！」
             question: 1.0,      // 疑問符「？」
-            lineBreak: 1.5,     // 改行
+            lineBreak: 1.1,     // 改行
             dialogue: 1.3,      // セリフ切り替わり
             ellipsis: 1.5,      // 「……」「…」
             colon: 0.5,         // 「：」

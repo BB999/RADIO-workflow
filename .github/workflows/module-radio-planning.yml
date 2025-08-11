@@ -174,10 +174,12 @@ jobs:
 
           パーソナリティ: $PERSONALITY_DATA
 
-          要件: 1分（300-400文字）、明るい挨拶と番組紹介、楽曲紹介「$MUSIC_INTRO」
+          要件: 1分（300-400文字）
+          構成: 明るい挨拶 → 番組紹介 → 最後に楽曲紹介
+          楽曲紹介文（必ず最後に入れる）: $MUSIC_INTRO
           
           以下のJSONを $WORK_DIR/opening.json に保存してください：
-          {\"opening\": \"台本テキスト\"}"
+          {\"opening\": \"台本テキスト（楽曲紹介で終わる）\"}"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
@@ -200,8 +202,11 @@ jobs:
               console.log(formatted);
             " "$OPENING_TEXT")
             
+            # 固有名詞置き換え
+            FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
+            
             echo "script-opening<<EOF" >> $GITHUB_OUTPUT
-            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
+            echo "$FINAL_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "voice-config=default" >> $GITHUB_OUTPUT
@@ -287,8 +292,11 @@ jobs:
               console.log(formatted);
             " "$MAIN_TEXT")
             
+            # 固有名詞置き換え
+            FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
+            
             echo "script-main<<EOF" >> $GITHUB_OUTPUT
-            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
+            echo "$FINAL_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "✅ Main part1 script generated successfully with SSML formatting"
@@ -373,8 +381,11 @@ jobs:
               console.log(formatted);
             " "$MAIN_PART2_TEXT")
             
+            # 固有名詞置き換え
+            FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
+            
             echo "script-main-part2<<EOF" >> $GITHUB_OUTPUT
-            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
+            echo "$FINAL_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "✅ Main part2 script generated successfully with SSML formatting"
@@ -466,8 +477,11 @@ jobs:
               console.log(formatted);
             " "$ENDING_TEXT")
             
+            # 固有名詞置き換え
+            FINAL_TEXT=$(echo "$FORMATTED_TEXT" | sed 's/神威日報/かむいにっぽう/g' | sed 's/神威/カムイ/g')
+            
             echo "script-ending<<EOF" >> $GITHUB_OUTPUT
-            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
+            echo "$FINAL_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "✅ Ending script generated successfully with SSML formatting"

@@ -369,13 +369,17 @@ jobs:
           # 台本の内容を取得してSSMLタグを除去
           OPENING_TEXT=$(echo "${{ needs.planning.outputs.script-opening }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
+          MAIN_PART2_TEXT=$(echo "${{ needs.planning.outputs.script-main-part2 }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
+          JINGLE_TEXT=$(echo "${{ needs.planning.outputs.script-jingle }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
           
           # 文字数計算（日本語対応）
           OPENING_COUNT=$(echo "$OPENING_TEXT" | wc -m)
           MAIN_COUNT=$(echo "$MAIN_TEXT" | wc -m)
+          MAIN_PART2_COUNT=$(echo "$MAIN_PART2_TEXT" | wc -m)
+          JINGLE_COUNT=$(echo "$JINGLE_TEXT" | wc -m)
           ENDING_COUNT=$(echo "$ENDING_TEXT" | wc -m)
-          TOTAL_COUNT=$((OPENING_COUNT + MAIN_COUNT + ENDING_COUNT))
+          TOTAL_COUNT=$((OPENING_COUNT + MAIN_COUNT + MAIN_PART2_COUNT + JINGLE_COUNT + ENDING_COUNT))
           
           # 音声IDとアーティファクトから楽曲情報を取得
           VOICE_ID="不明"
@@ -416,8 +420,14 @@ jobs:
           #### オープニング（${OPENING_COUNT}文字）
           ${OPENING_TEXT}
 
-          #### メインコンテンツ（${MAIN_COUNT}文字）
+          #### メイン前半（${MAIN_COUNT}文字）
           ${MAIN_TEXT}
+
+          #### ジングル（${JINGLE_COUNT}文字）
+          ${JINGLE_TEXT}
+
+          #### メイン後半（${MAIN_PART2_COUNT}文字）
+          ${MAIN_PART2_TEXT}
 
           #### エンディング（${ENDING_COUNT}文字）
           ${ENDING_TEXT}
