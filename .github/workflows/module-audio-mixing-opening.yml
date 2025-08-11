@@ -225,11 +225,11 @@ jobs:
           MUSIC_DURATION=$(get_duration selected-music.mp3)
           echo "  楽曲の長さ: ${MUSIC_DURATION}秒"
           
-          # 最大40秒に制限
-          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 40)}") -eq 1 ]; then
-            MUSIC_TOTAL_DURATION=40
-            MUSIC_FADEOUT_START=35  # 40秒 - 5秒フェードアウト
-            echo "  楽曲を40秒に制限します"
+          # 最大60秒に制限
+          if [ $(awk "BEGIN {print ($MUSIC_DURATION > 60)}") -eq 1 ]; then
+            MUSIC_TOTAL_DURATION=60
+            MUSIC_FADEOUT_START=55  # 60秒 - 5秒フェードアウト
+            echo "  楽曲を60秒に制限します"
           else
             MUSIC_TOTAL_DURATION=$MUSIC_DURATION
             if [ $(awk "BEGIN {print ($MUSIC_DURATION > 5)}") -eq 1 ]; then
