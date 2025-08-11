@@ -1,4 +1,4 @@
-name: Radio Planning Module - Split Version (Minimal)
+name: Radio Planning Module - Fine Split Version (Minimal)
 on:
   workflow_call:
     inputs:
@@ -19,26 +19,24 @@ on:
         default: false
     outputs:
       script-opening:
-        value: ${{ jobs.generate-part1.outputs.script-opening }}
+        value: ${{ jobs.generate-opening.outputs.script-opening }}
       script-main:
-        value: ${{ jobs.generate-part1.outputs.script-main }}
+        value: ${{ jobs.generate-main.outputs.script-main }}
       script-main-part2:
-        value: ${{ jobs.generate-part2.outputs.script-main-part2 }}
+        value: ${{ jobs.generate-main-part2.outputs.script-main-part2 }}
       script-jingle:
-        value: ${{ jobs.generate-part1.outputs.script-jingle }}
+        value: ${{ jobs.generate-jingle.outputs.script-jingle }}
       script-ending:
-        value: ${{ jobs.generate-part2.outputs.script-ending }}
+        value: ${{ jobs.generate-ending.outputs.script-ending }}
       voice-config:
-        value: ${{ jobs.generate-part1.outputs.voice-config }}
+        value: ${{ jobs.generate-opening.outputs.voice-config }}
 
 jobs:
-  generate-part1:
+  generate-opening:
     runs-on: ubuntu-latest
     outputs:
-      script-opening: ${{ steps.planning-part1.outputs.script-opening }}
-      script-main: ${{ steps.planning-part1.outputs.script-main }}
-      script-jingle: ${{ steps.planning-part1.outputs.script-jingle }}
-      voice-config: ${{ steps.planning-part1.outputs.voice-config }}
+      script-opening: ${{ steps.planning.outputs.script-opening }}
+      voice-config: ${{ steps.planning.outputs.voice-config }}
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -51,12 +49,70 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Generate radio scripts part 1 with Claude
-        id: planning-part1
+      - name: Generate opening script
+        id: planning
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          echo "::group::📋 Radio Script Generation Part 1"
+          echo "::group::📋 Opening Script Generation"
+          
+          WORK_DIR="radio-scripts"
+          mkdir -p "$WORK_DIR"
+          
+          PROMPT="ラジオ番組のオープニング台本を生成してください。
+
+          要件:
+          - 時間: 1分（300-400文字）
+          - 内容: 明るい挨拶と番組紹介
+          
+          以下のJSONを $WORK_DIR/opening.json に保存してください：
+          {
+            \"opening\": \"オープニング台本\"
+          }"
+          
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Write" \
+            --max-turns 5 \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT"
+          
+          if [ -f "$WORK_DIR/opening.json" ] && jq empty "$WORK_DIR/opening.json" 2>/dev/null; then
+            OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/opening.json")
+            
+            echo "script-opening<<EOF" >> $GITHUB_OUTPUT
+            echo "$OPENING_TEXT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            echo "voice-config=default" >> $GITHUB_OUTPUT
+            echo "✅ Opening script generated successfully"
+          else
+            echo "::error::Opening script generation failed"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+  generate-main:
+    runs-on: ubuntu-latest
+    outputs:
+      script-main: ${{ steps.planning.outputs.script-main }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Generate main part1 script
+        id: planning
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::📋 Main Part1 Script Generation"
           
           WORK_DIR="radio-scripts"
           mkdir -p "$WORK_DIR"
@@ -66,70 +122,44 @@ jobs:
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
           DEV_REPORT_PART1=$(echo "$DEV_REPORT" | cut -c1-$HALF_LENGTH)
           
-          # プロンプト作成
-          PROMPT="ラジオ番組台本のオープニング、メイン前半、ジングルを生成してください。
+          PROMPT="ラジオ番組のメイン前半台本を生成してください。
 
           開発進捗情報: $DEV_REPORT_PART1
           強調ポイント: ${{ inputs.topic-focus }}
 
           要件:
-          - オープニング: 1分（300-400文字）明るい挨拶と番組紹介
-          - メイン前半: 3分（900-1200文字）開発進捗の主要ポイントを解説
-          - ジングル: 「かむらじ」のみ
+          - 時間: 3分（900-1200文字）
+          - 内容: 開発進捗の主要ポイントを解説
           
-          以下のJSONを $WORK_DIR/part1.json に保存してください：
+          以下のJSONを $WORK_DIR/main.json に保存してください：
           {
-            \"opening\": \"オープニング台本\",
-            \"main\": \"メイン前半台本\", 
-            \"jingle\": \"かむらじ\"
+            \"main\": \"メイン前半台本\"
           }"
           
-          # Claude Code実行
           npx @anthropic-ai/claude-code \
-            --allowedTools "Write,Edit" \
-            --max-turns 5 \
-            --verbose \
+            --allowedTools "Write" \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
-          # 結果を出力に設定
-          if [ -f "$WORK_DIR/part1.json" ] && jq empty "$WORK_DIR/part1.json" 2>/dev/null; then
-            OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/part1.json")
-            MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/part1.json") 
-            JINGLE_TEXT=$(jq -r '.jingle' "$WORK_DIR/part1.json")
-            
-            echo "script-opening<<EOF" >> $GITHUB_OUTPUT
-            echo "$OPENING_TEXT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+          if [ -f "$WORK_DIR/main.json" ] && jq empty "$WORK_DIR/main.json" 2>/dev/null; then
+            MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/main.json")
             
             echo "script-main<<EOF" >> $GITHUB_OUTPUT
             echo "$MAIN_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
-            echo "script-jingle<<EOF" >> $GITHUB_OUTPUT
-            echo "$JINGLE_TEXT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            
-            echo "voice-config=default" >> $GITHUB_OUTPUT
-            echo "✅ Part 1 scripts generated successfully"
+            echo "✅ Main part1 script generated successfully"
           else
-            echo "::error::Part 1 script generation failed"
+            echo "::error::Main part1 script generation failed"
             exit 1
           fi
           echo "::endgroup::"
-      
-      - name: Upload part1 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: radio-scripts-part1
-          path: radio-scripts/part1.json
-          retention-days: 1
 
-  generate-part2:
+  generate-main-part2:
     runs-on: ubuntu-latest
     outputs:
-      script-main-part2: ${{ steps.planning-part2.outputs.script-main-part2 }}
-      script-ending: ${{ steps.planning-part2.outputs.script-ending }}
+      script-main-part2: ${{ steps.planning.outputs.script-main-part2 }}
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -142,12 +172,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Generate radio scripts part 2 with Claude
-        id: planning-part2
+      - name: Generate main part2 script
+        id: planning
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          echo "::group::📋 Radio Script Generation Part 2"
+          echo "::group::📋 Main Part2 Script Generation"
           
           WORK_DIR="radio-scripts"
           mkdir -p "$WORK_DIR"
@@ -157,53 +187,110 @@ jobs:
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
           DEV_REPORT_PART2=$(echo "$DEV_REPORT" | cut -c$((HALF_LENGTH + 1))-)
           
-          # プロンプト作成
-          PROMPT="ラジオ番組台本のメイン後半とエンディングを生成してください。
+          PROMPT="ラジオ番組のメイン後半台本を生成してください。
 
           開発進捗情報: $DEV_REPORT_PART2
           強調ポイント: ${{ inputs.topic-focus }}
 
           要件:
-          - メイン後半: 3分（900-1200文字）時事ニュースや追加情報、リスナーへのメッセージ
-          - エンディング: 1分（300-400文字）まとめと次回予告
+          - 時間: 3分（900-1200文字）
+          - 内容: 時事ニュースや追加情報、リスナーへのメッセージ
           
-          以下のJSONを $WORK_DIR/part2.json に保存してください：
+          以下のJSONを $WORK_DIR/main_part2.json に保存してください：
           {
-            \"main_part2\": \"メイン後半台本\",
-            \"ending\": \"エンディング台本\"
+            \"main_part2\": \"メイン後半台本\"
           }"
           
-          # Claude Code実行
           npx @anthropic-ai/claude-code \
-            --allowedTools "Write,Edit" \
-            --max-turns 5 \
-            --verbose \
+            --allowedTools "Write" \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
-          # 結果を出力に設定
-          if [ -f "$WORK_DIR/part2.json" ] && jq empty "$WORK_DIR/part2.json" 2>/dev/null; then
-            MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/part2.json")
-            ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/part2.json")
+          if [ -f "$WORK_DIR/main_part2.json" ] && jq empty "$WORK_DIR/main_part2.json" 2>/dev/null; then
+            MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/main_part2.json")
             
             echo "script-main-part2<<EOF" >> $GITHUB_OUTPUT
             echo "$MAIN_PART2_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
+            echo "✅ Main part2 script generated successfully"
+          else
+            echo "::error::Main part2 script generation failed"
+            exit 1
+          fi
+          echo "::endgroup::"
+
+  generate-jingle:
+    runs-on: ubuntu-latest
+    outputs:
+      script-jingle: ${{ steps.planning.outputs.script-jingle }}
+    steps:
+      - name: Generate jingle script
+        id: planning
+        run: |
+          echo "::group::📋 Jingle Script Generation"
+          
+          echo "script-jingle<<EOF" >> $GITHUB_OUTPUT
+          echo "かむらじ" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "✅ Jingle script generated successfully"
+          echo "::endgroup::"
+
+  generate-ending:
+    runs-on: ubuntu-latest
+    outputs:
+      script-ending: ${{ steps.planning.outputs.script-ending }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Generate ending script
+        id: planning
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::📋 Ending Script Generation"
+          
+          WORK_DIR="radio-scripts"
+          mkdir -p "$WORK_DIR"
+          
+          PROMPT="ラジオ番組のエンディング台本を生成してください。
+
+          要件:
+          - 時間: 1分（300-400文字）
+          - 内容: まとめと次回予告
+          
+          以下のJSONを $WORK_DIR/ending.json に保存してください：
+          {
+            \"ending\": \"エンディング台本\"
+          }"
+          
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Write" \
+            --max-turns 5 \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT"
+          
+          if [ -f "$WORK_DIR/ending.json" ] && jq empty "$WORK_DIR/ending.json" 2>/dev/null; then
+            ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/ending.json")
+            
             echo "script-ending<<EOF" >> $GITHUB_OUTPUT
             echo "$ENDING_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
-            echo "✅ Part 2 scripts generated successfully"
+            echo "✅ Ending script generated successfully"
           else
-            echo "::error::Part 2 script generation failed"
+            echo "::error::Ending script generation failed"
             exit 1
           fi
           echo "::endgroup::"
-      
-      - name: Upload part2 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: radio-scripts-part2
-          path: radio-scripts/part2.json
-          retention-days: 1
