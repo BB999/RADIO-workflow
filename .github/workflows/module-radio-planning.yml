@@ -170,41 +170,38 @@ jobs:
             echo "::warning::楽曲情報ファイルが見つからないため、デフォルトの紹介文を使用"
           fi
           
-          PROMPT="ラジオ番組のオープニング台本を生成してください。
+          PROMPT="オープニング台本を生成してください。
 
-          【パーソナリティ設定】
-          $PERSONALITY_DATA
+          パーソナリティ: $PERSONALITY_DATA
 
-          要件:
-          - 時間: 1分（300-400文字）
-          - 内容: 明るい挨拶と番組紹介、最後に楽曲紹介
-          - 楽曲紹介文: $MUSIC_INTRO
-          
-          生成後に以下の処理を行ってください：
-          1. 生成したテキストをSSMLフォーマッターで処理
-          2. SSMLフォーマッター使用例:
-          \`\`\`javascript
-          const SSMLFormatter = require('./ssml_formatter.js');
-          const formatter = new SSMLFormatter();
-          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
-          \`\`\`
+          要件: 1分（300-400文字）、明るい挨拶と番組紹介、楽曲紹介「$MUSIC_INTRO」
           
           以下のJSONを $WORK_DIR/opening.json に保存してください：
-          {
-            \"opening\": \"SSMLフォーマッター処理済みのオープニング台本\"
-          }"
+          {\"opening\": \"台本テキスト\"}"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 8 \
+            --max-turns 5 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
           if [ -f "$WORK_DIR/opening.json" ] && jq empty "$WORK_DIR/opening.json" 2>/dev/null; then
             OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/opening.json")
             
+            # SSMLフォーマッターを使用して処理
+            echo "🎛️ SSMLフォーマット処理開始"
+            cp radio-workflow/ssml_formatter.js $WORK_DIR/
+            
+            FORMATTED_TEXT=$(node -e "
+              const SSMLFormatter = require('./ssml_formatter.js');
+              const formatter = new SSMLFormatter();
+              const text = process.argv[1];
+              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
+              console.log(formatted);
+            " "$OPENING_TEXT")
+            
             echo "script-opening<<EOF" >> $GITHUB_OUTPUT
-            echo "$OPENING_TEXT" >> $GITHUB_OUTPUT
+            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "voice-config=default" >> $GITHUB_OUTPUT
@@ -258,43 +255,40 @@ jobs:
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
           DEV_REPORT_PART1=$(echo "$DEV_REPORT" | cut -c1-$HALF_LENGTH)
           
-          PROMPT="ラジオ番組のメイン前半台本を生成してください。
+          PROMPT="メイン前半台本を生成してください。
 
-          【パーソナリティ設定】
-          $PERSONALITY_DATA
-
-          開発進捗情報: $DEV_REPORT_PART1
+          パーソナリティ: $PERSONALITY_DATA
+          進捗情報: $DEV_REPORT_PART1
           強調ポイント: ${{ inputs.topic-focus }}
 
-          要件:
-          - 時間: 3分（900-1200文字）
-          - 内容: 開発進捗の主要ポイントを解説
-          
-          生成後に以下の処理を行ってください：
-          1. 生成したテキストをSSMLフォーマッターで処理
-          2. SSMLフォーマッター使用例:
-          \`\`\`javascript
-          const SSMLFormatter = require('./ssml_formatter.js');
-          const formatter = new SSMLFormatter();
-          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
-          \`\`\`
+          要件: 3分（900-1200文字）、開発進捗の主要ポイント解説
           
           以下のJSONを $WORK_DIR/main.json に保存してください：
-          {
-            \"main\": \"SSMLフォーマッター処理済みのメイン前半台本\"
-          }"
+          {\"main\": \"台本テキスト\"}"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 10 \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
           if [ -f "$WORK_DIR/main.json" ] && jq empty "$WORK_DIR/main.json" 2>/dev/null; then
             MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/main.json")
             
+            # SSMLフォーマッターを使用して処理
+            echo "🎛️ SSMLフォーマット処理開始"
+            cp radio-workflow/ssml_formatter.js $WORK_DIR/
+            
+            FORMATTED_TEXT=$(node -e "
+              const SSMLFormatter = require('./ssml_formatter.js');
+              const formatter = new SSMLFormatter();
+              const text = process.argv[1];
+              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
+              console.log(formatted);
+            " "$MAIN_TEXT")
+            
             echo "script-main<<EOF" >> $GITHUB_OUTPUT
-            echo "$MAIN_TEXT" >> $GITHUB_OUTPUT
+            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "✅ Main part1 script generated successfully with SSML formatting"
@@ -347,43 +341,40 @@ jobs:
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
           DEV_REPORT_PART2=$(echo "$DEV_REPORT" | cut -c$((HALF_LENGTH + 1))-)
           
-          PROMPT="ラジオ番組のメイン後半台本を生成してください。
+          PROMPT="メイン後半台本を生成してください。
 
-          【パーソナリティ設定】
-          $PERSONALITY_DATA
-
-          開発進捗情報: $DEV_REPORT_PART2
+          パーソナリティ: $PERSONALITY_DATA
+          進捗情報: $DEV_REPORT_PART2
           強調ポイント: ${{ inputs.topic-focus }}
 
-          要件:
-          - 時間: 3分（900-1200文字）
-          - 内容: 時事ニュースや追加情報、リスナーへのメッセージ
-          
-          生成後に以下の処理を行ってください：
-          1. 生成したテキストをSSMLフォーマッターで処理
-          2. SSMLフォーマッター使用例:
-          \`\`\`javascript
-          const SSMLFormatter = require('./ssml_formatter.js');
-          const formatter = new SSMLFormatter();
-          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
-          \`\`\`
+          要件: 3分（900-1200文字）、時事ニュースや追加情報、リスナーメッセージ
           
           以下のJSONを $WORK_DIR/main_part2.json に保存してください：
-          {
-            \"main_part2\": \"SSMLフォーマッター処理済みのメイン後半台本\"
-          }"
+          {\"main_part2\": \"台本テキスト\"}"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 10 \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
           if [ -f "$WORK_DIR/main_part2.json" ] && jq empty "$WORK_DIR/main_part2.json" 2>/dev/null; then
             MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/main_part2.json")
             
+            # SSMLフォーマッターを使用して処理
+            echo "🎛️ SSMLフォーマット処理開始"
+            cp radio-workflow/ssml_formatter.js $WORK_DIR/
+            
+            FORMATTED_TEXT=$(node -e "
+              const SSMLFormatter = require('./ssml_formatter.js');
+              const formatter = new SSMLFormatter();
+              const text = process.argv[1];
+              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
+              console.log(formatted);
+            " "$MAIN_PART2_TEXT")
+            
             echo "script-main-part2<<EOF" >> $GITHUB_OUTPUT
-            echo "$MAIN_PART2_TEXT" >> $GITHUB_OUTPUT
+            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "✅ Main part2 script generated successfully with SSML formatting"
@@ -445,43 +436,38 @@ jobs:
             echo "::warning::パーソナリティデータファイルが見つかりません"
           fi
           
-          # SSMLフォーマッターをコピー
-          cp radio-workflow/ssml_formatter.js $WORK_DIR/
-          
-          PROMPT="ラジオ番組のエンディング台本を生成してください。
+          PROMPT="エンディング台本を生成してください。
 
-          【パーソナリティ設定】
-          $PERSONALITY_DATA
+          パーソナリティ: $PERSONALITY_DATA
 
-          要件:
-          - 時間: 1分（300-400文字）
-          - 内容: まとめと次回予告
-          
-          生成後に以下の処理を行ってください：
-          1. 生成したテキストをSSMLフォーマッターで処理
-          2. SSMLフォーマッター使用例:
-          \`\`\`javascript
-          const SSMLFormatter = require('./ssml_formatter.js');
-          const formatter = new SSMLFormatter();
-          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
-          \`\`\`
+          要件: 1分（300-400文字）、まとめと次回予告
           
           以下のJSONを $WORK_DIR/ending.json に保存してください：
-          {
-            \"ending\": \"SSMLフォーマッター処理済みのエンディング台本\"
-          }"
+          {\"ending\": \"台本テキスト\"}"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 8 \
+            --max-turns 5 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
           if [ -f "$WORK_DIR/ending.json" ] && jq empty "$WORK_DIR/ending.json" 2>/dev/null; then
             ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/ending.json")
             
+            # SSMLフォーマッターを使用して処理
+            echo "🎛️ SSMLフォーマット処理開始"
+            cp radio-workflow/ssml_formatter.js $WORK_DIR/
+            
+            FORMATTED_TEXT=$(node -e "
+              const SSMLFormatter = require('./ssml_formatter.js');
+              const formatter = new SSMLFormatter();
+              const text = process.argv[1];
+              const formatted = formatter.formatWithBreaks(text, formatter.getPreset('normal'));
+              console.log(formatted);
+            " "$ENDING_TEXT")
+            
             echo "script-ending<<EOF" >> $GITHUB_OUTPUT
-            echo "$ENDING_TEXT" >> $GITHUB_OUTPUT
+            echo "$FORMATTED_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "✅ Ending script generated successfully with SSML formatting"
