@@ -140,12 +140,12 @@ jobs:
     secrets: inherit
 
   planning:
-    needs: [api-check, input-processing]
-    if: always() && needs.api-check.result == 'success'
+    needs: [api-check]
+    if: needs.api-check.result == 'success'
     uses: ./.github/workflows/module-radio-planning.yml
     with:
-      processed-summary: ${{ inputs.gemini-summary == true && needs.input-processing.result == 'success' && needs.input-processing.outputs.processed-summary || '' }}
-      use-processed-input: ${{ inputs.gemini-summary == true && needs.input-processing.result == 'success' }}
+      processed-summary: ''
+      use-processed-input: false
       development-report: ${{ inputs.development-report }}
     secrets: inherit
 
