@@ -167,9 +167,9 @@ jobs:
             
             # 楽曲紹介テキストを作成
             if [ "$ARTIST_NAME" != "不明" ] && [ "$SONG_NAME" != "不明" ] && [ "$SONG_NAME" != "不明2" ] && [ "$SONG_NAME" != "不明3" ]; then
-              MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は、${ARTIST_NAME}の「${SONG_NAME}」です。"
+              MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は、${ARTIST_NAME}さんの「${SONG_NAME}」です。"
             elif [ "$ARTIST_NAME" != "不明" ] && ([[ "$SONG_NAME" == "不明"* ]] || [ "$SONG_NAME" == "" ]); then
-              MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は、${ARTIST_NAME}の楽曲です。"
+              MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は、${ARTIST_NAME}さんの楽曲です。"
             elif [ "$SONG_NAME" != "不明" ] && [[ ! "$SONG_NAME" == "不明"* ]]; then
               MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は「${SONG_NAME}」です。"
             else
