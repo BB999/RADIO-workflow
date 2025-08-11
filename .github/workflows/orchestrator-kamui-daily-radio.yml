@@ -11,6 +11,11 @@ on:
         required: false
         type: boolean
         default: false
+      gemini-summary:
+        description: 'Geminiまとめ'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write  # リリース作成に必要
@@ -128,19 +133,19 @@ jobs:
 
   input-processing:
     needs: api-check
-    if: false  # 一時的に無効化（Gemini APIトークン不足のため）
+    if: ${{ inputs.gemini-summary == true }}
     uses: ./.github/workflows/module-input-processing.yml
     with:
       development-report: ${{ inputs.development-report }}
-      topic-focus: ${{ inputs.topic-focus }}
     secrets: inherit
 
   planning:
-    needs: api-check  # input-processing を一時的に無効化したため api-check に直接依存
+    needs: [api-check, input-processing]
+    if: always() && (needs.api-check.result == 'success')
     uses: ./.github/workflows/module-radio-planning.yml
     with:
-      processed-summary: ""  # 空の値を渡す
-      use-processed-input: false  # 処理済み入力を使用しない
+      processed-summary: ${{ inputs.gemini-summary == true && needs.input-processing.outputs.processed-summary || '' }}
+      use-processed-input: ${{ inputs.gemini-summary == true }}
       development-report: ${{ inputs.development-report }}
     secrets: inherit
 
