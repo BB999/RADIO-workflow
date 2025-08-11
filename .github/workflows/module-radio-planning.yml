@@ -61,10 +61,15 @@ jobs:
           WORK_DIR="radio-scripts"
           mkdir -p "$WORK_DIR"
           
+          # 開発進捗情報を前半用に分割
+          DEV_REPORT='${{ inputs.development-report }}'
+          HALF_LENGTH=$((${#DEV_REPORT} / 2))
+          DEV_REPORT_PART1=$(echo "$DEV_REPORT" | cut -c1-$HALF_LENGTH)
+          
           # プロンプト作成
           PROMPT="ラジオ番組台本のオープニング、メイン前半、ジングルを生成してください。
 
-          開発進捗情報: ${{ inputs.development-report }}
+          開発進捗情報: $DEV_REPORT_PART1
           強調ポイント: ${{ inputs.topic-focus }}
 
           要件:
@@ -147,10 +152,15 @@ jobs:
           WORK_DIR="radio-scripts"
           mkdir -p "$WORK_DIR"
           
+          # 開発進捗情報を後半用に分割
+          DEV_REPORT='${{ inputs.development-report }}'
+          HALF_LENGTH=$((${#DEV_REPORT} / 2))
+          DEV_REPORT_PART2=$(echo "$DEV_REPORT" | cut -c$((HALF_LENGTH + 1))-)
+          
           # プロンプト作成
           PROMPT="ラジオ番組台本のメイン後半とエンディングを生成してください。
 
-          開発進捗情報: ${{ inputs.development-report }}
+          開発進捗情報: $DEV_REPORT_PART2
           強調ポイント: ${{ inputs.topic-focus }}
 
           要件:
