@@ -181,7 +181,7 @@ jobs:
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 5 \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
@@ -192,7 +192,7 @@ jobs:
             echo "🎛️ SSMLフォーマット処理開始"
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
-            FORMATTED_TEXT=$(node -e "
+            FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
               const SSMLFormatter = require('./ssml_formatter.js');
               const formatter = new SSMLFormatter();
               const text = process.argv[1];
@@ -279,7 +279,7 @@ jobs:
             echo "🎛️ SSMLフォーマット処理開始"
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
-            FORMATTED_TEXT=$(node -e "
+            FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
               const SSMLFormatter = require('./ssml_formatter.js');
               const formatter = new SSMLFormatter();
               const text = process.argv[1];
@@ -365,7 +365,7 @@ jobs:
             echo "🎛️ SSMLフォーマット処理開始"
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
-            FORMATTED_TEXT=$(node -e "
+            FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
               const SSMLFormatter = require('./ssml_formatter.js');
               const formatter = new SSMLFormatter();
               const text = process.argv[1];
@@ -447,7 +447,7 @@ jobs:
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 5 \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
@@ -458,7 +458,7 @@ jobs:
             echo "🎛️ SSMLフォーマット処理開始"
             cp radio-workflow/ssml_formatter.js $WORK_DIR/
             
-            FORMATTED_TEXT=$(node -e "
+            FORMATTED_TEXT=$(cd $WORK_DIR && node -e "
               const SSMLFormatter = require('./ssml_formatter.js');
               const formatter = new SSMLFormatter();
               const text = process.argv[1];
