@@ -200,6 +200,9 @@ jobs:
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
+          # 元のディレクトリに戻る
+          cd - > /dev/null 2>&1 || cd /home/runner/work/kamuicode-workflow/kamuicode-workflow
+          
           if [ -f "$WORK_DIR/opening.json" ]; then
             echo "📄 opening.json ファイルが存在"
             
@@ -336,6 +339,9 @@ jobs:
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
+          # 元のディレクトリに戻る
+          cd - > /dev/null 2>&1 || cd /home/runner/work/kamuicode-workflow/kamuicode-workflow
+          
           if [ -f "$WORK_DIR/main.json" ]; then
             echo "📄 main.json ファイルが存在"
             
@@ -461,6 +467,9 @@ jobs:
             --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
+          
+          # 元のディレクトリに戻る
+          cd - > /dev/null 2>&1 || cd /home/runner/work/kamuicode-workflow/kamuicode-workflow
           
           if [ -f "$WORK_DIR/main_part2.json" ]; then
             echo "📄 main_part2.json ファイルが存在"
@@ -607,6 +616,10 @@ jobs:
           echo "  WORK_DIRの存在確認: $(ls -ld "$WORK_DIR" 2>/dev/null || echo "存在しません")"
           echo "  WORK_DIR内の内容: $(ls -la "$WORK_DIR" 2>/dev/null || echo "空またはアクセス不可")"
           echo "  ending.jsonの検索: $(find . -name "ending.json" 2>/dev/null || echo "見つかりません")"
+          
+          # 元のディレクトリに戻る
+          cd - > /dev/null 2>&1 || cd /home/runner/work/kamuicode-workflow/kamuicode-workflow
+          echo "  元のディレクトリに戻りました: $(pwd)"
           
           if [ -f "$WORK_DIR/ending.json" ]; then
             echo "📄 ending.json ファイルが存在"
