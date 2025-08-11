@@ -327,7 +327,7 @@ jobs:
           - **時事ニュース**: メインパートで1〜2個の時事ネタに触れて、開発の話と絡める
           - **ランダム要素**: 指定されたランダム要素を必ず取り入れる（特別トーク要素、オープニング・エンディングスタイル、キャラクターモード）
           - **バリエーション**: 毎回違う雰囲気の番組になるよう、ランダム要素を活かして個性を出す
-          - **重要**: オープニング・エンディングは1分（300-400文字）、メインは2分（600-800文字）で生成し、API制限の3000文字以内に収めてください
+          - **重要**: オープニング・エンディングは1分（300-400文字）、メインは前半・後半各1分（各300-400文字）で生成し、API制限の3000文字以内に収めてください
           - **禁止事項**: 効果音の説明（ビビビー、ピロピロ、ドーン等）を絶対にセリフに含めない。効果音は音響処理で別途追加するため台本には書かない$(
             if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
               echo "
@@ -344,7 +344,8 @@ jobs:
           **重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
           {
             \"opening\": \"オープニング台本（300-400文字程度）\",
-            \"main\": \"メイン台本（600-800文字程度）\", 
+            \"main\": \"メイン前半台本（300-400文字程度）\", 
+            \"main_part2\": \"メイン後半台本（300-400文字程度）\", 
             \"jingle\": \"かむらじ\",
             \"ending\": \"エンディング台本（300-400文字程度）\"
           }"
@@ -370,11 +371,12 @@ jobs:
                 # 各セクションの文字数チェック
                 OPENING_LENGTH=$(jq -r '.opening' "$WORK_DIR/scripts.json" | wc -c)
                 MAIN_LENGTH=$(jq -r '.main' "$WORK_DIR/scripts.json" | wc -c)
+                MAIN_PART2_LENGTH=$(jq -r '.main_part2' "$WORK_DIR/scripts.json" | wc -c)
                 ENDING_LENGTH=$(jq -r '.ending' "$WORK_DIR/scripts.json" | wc -c)
                 
-                echo "📏 文字数チェック: opening=$OPENING_LENGTH, main=$MAIN_LENGTH, ending=$ENDING_LENGTH"
+                echo "📏 文字数チェック: opening=$OPENING_LENGTH, main=$MAIN_LENGTH, main_part2=$MAIN_PART2_LENGTH, ending=$ENDING_LENGTH"
                 
-                if [ $OPENING_LENGTH -le 3000 ] && [ $MAIN_LENGTH -le 3000 ] && [ $ENDING_LENGTH -le 3000 ]; then
+                if [ $OPENING_LENGTH -le 3000 ] && [ $MAIN_LENGTH -le 3000 ] && [ $MAIN_PART2_LENGTH -le 3000 ] && [ $ENDING_LENGTH -le 3000 ]; then
                   echo "✅ 全セクションが3000文字以内です"
                   break
                 else
@@ -412,12 +414,14 @@ jobs:
               # 各セクションにSSMLフォーマットを適用
               OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/scripts.json")
               MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/scripts.json")
+              MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/scripts.json")
               JINGLE_TEXT=$(jq -r '.jingle' "$WORK_DIR/scripts.json")
               ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/scripts.json")
               
               # 各セクションをファイルに保存してから処理（クォート問題を回避）
               echo "$OPENING_TEXT" > temp_opening.txt
               echo "$MAIN_TEXT" > temp_main.txt
+              echo "$MAIN_PART2_TEXT" > temp_main_part2.txt
               echo "$JINGLE_TEXT" > temp_jingle.txt
               echo "$ENDING_TEXT" > temp_ending.txt
               
@@ -444,6 +448,17 @@ jobs:
                 });
               ")
               
+              MAIN_PART2_SSML=$(cat temp_main_part2.txt | node -e "
+                const SSMLFormatter = require('./ssml_formatter.js');
+                const formatter = new SSMLFormatter();
+                let text = '';
+                process.stdin.on('data', chunk => text += chunk);
+                process.stdin.on('end', () => {
+                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
+                  console.log(result);
+                });
+              ")
+              
               # ジングルは短いのでSSMLフォーマット不要（そのまま使用）
               JINGLE_SSML="$JINGLE_TEXT"
               
@@ -459,11 +474,12 @@ jobs:
               ")
               
               # 一時ファイルを削除
-              rm -f temp_opening.txt temp_main.txt temp_jingle.txt temp_ending.txt
+              rm -f temp_opening.txt temp_main.txt temp_main_part2.txt temp_jingle.txt temp_ending.txt
               
               echo "✅ SSML formatting completed"
               echo "📏 Opening SSML length: ${#OPENING_SSML}"
               echo "📏 Main SSML length: ${#MAIN_SSML}"
+              echo "📏 Main Part2 SSML length: ${#MAIN_PART2_SSML}"
               echo "📏 Jingle SSML length: ${#JINGLE_SSML}"  
               echo "📏 Ending SSML length: ${#ENDING_SSML}"
               echo "::endgroup::"
@@ -478,6 +494,12 @@ jobs:
               {
                 echo "script-main<<EOF"
                 echo "$MAIN_SSML"
+                echo "EOF"
+              } >> $GITHUB_OUTPUT
+              
+              {
+                echo "script-main-part2<<EOF"
+                echo "$MAIN_PART2_SSML"
                 echo "EOF"
               } >> $GITHUB_OUTPUT
               

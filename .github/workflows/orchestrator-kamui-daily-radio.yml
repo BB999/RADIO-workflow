@@ -160,6 +160,14 @@ jobs:
       voice-config: ${{ needs.planning.outputs.voice-config }}
     secrets: inherit
 
+  voice-main-part2:
+    needs: planning
+    uses: ./.github/workflows/module-voice-generation-main-part2.yml
+    with:
+      script-text: ${{ needs.planning.outputs.script-main-part2 }}
+      voice-config: ${{ needs.planning.outputs.voice-config }}
+    secrets: inherit
+
   voice-ending:
     needs: planning
     uses: ./.github/workflows/module-voice-generation-ending.yml
@@ -186,6 +194,11 @@ jobs:
     uses: ./.github/workflows/module-bgm-generation-main.yml
     secrets: inherit
 
+  bgm-main-part2:
+    needs: planning
+    uses: ./.github/workflows/module-bgm-generation-main-part2.yml
+    secrets: inherit
+
   bgm-ending:
     needs: planning
     uses: ./.github/workflows/module-bgm-generation-ending.yml
@@ -207,11 +220,20 @@ jobs:
 
   audio-mixing-main:
     needs: [voice-main, bgm-main]
-    if: success()  # メイン音声・BGM生成が成功した場合のみミキシング実行
+    if: success()  # メイン前半音声・BGM生成が成功した場合のみミキシング実行
     uses: ./.github/workflows/module-audio-mixing-main.yml
     with:
       voice-main: ${{ needs.voice-main.outputs.audio-file }}
       bgm-main: ${{ needs.bgm-main.outputs.bgm-file }}
+    secrets: inherit
+
+  audio-mixing-main-part2:
+    needs: [voice-main-part2, bgm-main-part2]
+    if: success()  # メイン後半音声・BGM生成が成功した場合のみミキシング実行
+    uses: ./.github/workflows/module-audio-mixing-main-part2.yml
+    with:
+      voice-main-part2: ${{ needs.voice-main-part2.outputs.audio-file }}
+      bgm-main-part2: ${{ needs.bgm-main-part2.outputs.bgm-file }}
     secrets: inherit
 
   audio-mixing-ending:
@@ -233,12 +255,13 @@ jobs:
     secrets: inherit
 
   audio-mixing-final:
-    needs: [audio-mixing-opening, audio-mixing-main, audio-mixing-jingle, audio-mixing-ending]
+    needs: [audio-mixing-opening, audio-mixing-main, audio-mixing-main-part2, audio-mixing-jingle, audio-mixing-ending]
     if: success()  # 全てのセクション音声ミキシングが成功した場合のみ最終結合実行
     uses: ./.github/workflows/module-audio-mixing-final.yml
     with:
       opening-audio: ${{ needs.audio-mixing-opening.outputs.mixed-audio }}
       main-audio: ${{ needs.audio-mixing-main.outputs.mixed-audio }}
+      main-part2-audio: ${{ needs.audio-mixing-main-part2.outputs.mixed-audio }}
       jingle-audio: ${{ needs.audio-mixing-jingle.outputs.mixed-audio }}
       ending-audio: ${{ needs.audio-mixing-ending.outputs.mixed-audio }}
     secrets: inherit
@@ -418,7 +441,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   summary:
-    needs: [planning, voice-opening, voice-main, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-ending, bgm-jingle, audio-mixing-final, create-pr]
+    needs: [planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, create-pr]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -431,11 +454,13 @@ jobs:
           |---------|------|-----|
           | 台本生成 | ${{ needs.planning.result }} | ${{ needs.planning.result == 'success' && '✅' || '❌' }} |
           | 音声生成(開始) | ${{ needs.voice-opening.result }} | ${{ needs.voice-opening.result == 'success' && '✅' || needs.voice-opening.result == 'failure' && '❌' || '⚠️' }} |
-          | 音声生成(本編) | ${{ needs.voice-main.result }} | ${{ needs.voice-main.result == 'success' && '✅' || needs.voice-main.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(前半) | ${{ needs.voice-main.result }} | ${{ needs.voice-main.result == 'success' && '✅' || needs.voice-main.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(後半) | ${{ needs.voice-main-part2.result }} | ${{ needs.voice-main-part2.result == 'success' && '✅' || needs.voice-main-part2.result == 'failure' && '❌' || '⚠️' }} |
           | 音声生成(終了) | ${{ needs.voice-ending.result }} | ${{ needs.voice-ending.result == 'success' && '✅' || needs.voice-ending.result == 'failure' && '❌' || '⚠️' }} |
           | 音声生成(ジングル) | ${{ needs.voice-jingle.result }} | ${{ needs.voice-jingle.result == 'success' && '✅' || needs.voice-jingle.result == 'failure' && '❌' || '⚠️' }} |
           | BGM生成(開始) | ${{ needs.bgm-opening.result }} | ${{ needs.bgm-opening.result == 'success' && '✅' || needs.bgm-opening.result == 'failure' && '❌' || '⚠️' }} |
-          | BGM生成(本編) | ${{ needs.bgm-main.result }} | ${{ needs.bgm-main.result == 'success' && '✅' || needs.bgm-main.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(前半) | ${{ needs.bgm-main.result }} | ${{ needs.bgm-main.result == 'success' && '✅' || needs.bgm-main.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(後半) | ${{ needs.bgm-main-part2.result }} | ${{ needs.bgm-main-part2.result == 'success' && '✅' || needs.bgm-main-part2.result == 'failure' && '❌' || '⚠️' }} |
           | BGM生成(終了) | ${{ needs.bgm-ending.result }} | ${{ needs.bgm-ending.result == 'success' && '✅' || needs.bgm-ending.result == 'failure' && '❌' || '⚠️' }} |
           | BGM生成(ジングル) | ${{ needs.bgm-jingle.result }} | ${{ needs.bgm-jingle.result == 'success' && '✅' || needs.bgm-jingle.result == 'failure' && '❌' || '⚠️' }} |
           | 音声合成 | ${{ needs.audio-mixing-final.result }} | ${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌' }} |
@@ -448,7 +473,7 @@ jobs:
           EOF
 
   line-notification:
-    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-ending, bgm-jingle, audio-mixing-final, create-pr, summary]
+    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, create-pr, summary]
     if: always()
     runs-on: ubuntu-latest
     steps:

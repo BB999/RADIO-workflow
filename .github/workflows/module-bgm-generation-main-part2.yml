@@ -1,0 +1,254 @@
+name: BGM Generation Main Part2 (Minimal)
+on:
+  workflow_call:
+    outputs:
+      bgm-url:
+        value: ${{ jobs.generate.outputs.url }}
+      bgm-file:
+        value: ${{ jobs.generate.outputs.file }}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.bgm.outputs.music-url }}
+      file: ${{ steps.bgm.outputs.music-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: |
+          echo "📦 Claude Code SDKインストール"
+          npm install @anthropic-ai/claude-code --force 2>/dev/null || echo "⚠️ インストールエラーを無視して続行"
+      
+      - name: Generate Main Part2 BGM with Google Lyria (with retry)
+        id: bgm
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          MCP_LYRIA_URL: ${{ secrets.MCP_LYRIA_URL }}
+        run: |
+          # BGM生成リトライ処理（最大3回）
+          for RETRY_COUNT in {1..3}; do
+            echo "🔄 BGM生成試行 $RETRY_COUNT/3"
+            echo "::group::🎵 Main Part2 BGM Generation with Google Lyria"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # MCP Lyria URLの確認
+          if [ -z "$MCP_LYRIA_URL" ]; then
+            echo "::error::MCP_LYRIA_URL is not set in GitHub Secrets"
+            exit 1
+          fi
+          echo "✅ MCP Lyria URL is configured"
+          
+          # プロンプトの構築（後半用：少し活気のあるトーン）
+          PROMPT="以下のメイン後半BGMを生成してください：
+
+          【BGM要件】
+          - 長さ: 30秒（ループ用ベース音楽）
+          - スタイル: ラジオトーク背景音楽、モダンチルアウト、洗練されたアンビエント
+          - 雰囲気: 会話の後半を支える程よい活気、集中力を保ちつつリラックス、優しいエネルギー感
+          - 楽器: ウォームシンセパッド、軽快なリズムパターン、控えめなベースライン、きらめくアルペジオ
+          - 特徴: 前半より若干明るめのトーン、音量バランスに配慮、声を邪魔しない周波数選択、シームレスなループ構造
+          - ムード: 積極的で前向きな話題に適した穏やかな高揚感
+
+          **重要**: 
+          1. \`mcp__t2m-google-lyria__lyria_generate\` ツールを使用してください
+          2. 生成されたファイルを自動ダウンロードし、ファイル名を出力してください
+          3. auto_download: true, auto_open: false を設定してください
+
+          **必須**: 必ず正しいツール名 \`mcp__t2m-google-lyria__lyria_generate\` を使用してください。"
+          
+          echo "🚀 Starting Main Part2 BGM Generation..."
+          echo "📝 Prompt length: ${#PROMPT}"
+          
+          echo "📋 Environment Check:"
+          echo "Working directory: $(pwd)"
+          echo "MCP Lyria URL configured: Yes"
+          
+          # Claude Code CLIの実行（環境変数から直接MCPサービスを使用）
+          echo "🤖 Claude Code CLI実行開始"
+          
+          # MCP設定を作成
+          echo '{
+            "mcpServers": {
+              "t2m-google-lyria": {
+                "type": "http",
+                "url": "'${MCP_LYRIA_URL}'",
+                "description": "Google Lyria Text-to-Music Generation"
+              }
+            }
+          }' > mcp-config.json
+          
+          # Claude Codeの実行とエラーハンドリング
+          echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
+          BGM_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
+            --mcp-config="$(pwd)/mcp-config.json" \
+            --allowedTools "mcp__t2m-google-lyria__lyria_generate,Bash" \
+            --max-turns 5 \
+            --print \
+            --verbose \
+            "$PROMPT" 2>&1) || {
+                CLAUDE_EXIT_CODE=$?
+                echo "::error::❌ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
+                if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
+                  echo "::error::❌ タイムアウトしました (2分)"
+                fi
+                echo "::error::詳細なエラー出力:"
+                echo "$BGM_RESULT" | head -50
+                echo "::error::環境変数確認:"
+                echo "CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:0:20}..."
+                BGM_RESULT=""
+              }
+          
+          echo "🎵 BGM生成結果 (最初の500文字):"
+          echo "$BGM_RESULT" | head -c 500
+          echo ""
+          
+          # 結果からURLまたはファイル名を抽出
+          MUSIC_URL=$(echo "$BGM_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(wav|mp3|m4a)' | head -1)
+          # Claude Codeの出力からファイル名を抽出（バッククォートで囲まれたファイル名を検索）
+          CLAUDE_FILE=$(echo "$BGM_RESULT" | grep -oP '`lyria_output_[^`]+\.wav`' | sed 's/`//g' | head -1)
+          if [ ! -z "$CLAUDE_FILE" ]; then
+            echo "✅ Claude Codeの出力からファイル名を検出: $CLAUDE_FILE"
+          fi
+          MUSIC_FILE="bgm-main-part2.wav"
+          
+          # 直接ダウンロードされたファイルを検索（より包括的に）
+          echo "🔍 生成されたファイルを検索中..."
+          ls -la || true
+          
+          # 複数のパターンでファイルを検索
+          DOWNLOADED_FILE=""
+          
+          # パターン0: Claude Codeが明示的に出力したファイル名
+          if [ ! -z "$CLAUDE_FILE" ] && [ -f "$CLAUDE_FILE" ]; then
+            DOWNLOADED_FILE="$CLAUDE_FILE"
+            echo "✅ パターン0（Claude出力）で発見: $DOWNLOADED_FILE"
+          fi
+          
+          # パターン1: lyria_output_で始まるファイル
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(find . -name "lyria_output_*.wav" -type f 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン1で発見: $DOWNLOADED_FILE"
+          fi
+          
+          # パターン2: musicで始まるファイル
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(find . -name "music*.wav" -type f 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン2で発見: $DOWNLOADED_FILE"
+          fi
+          
+          # パターン3: 最近作成されたwavファイル
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(find . -name "*.wav" -type f -mmin -5 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン3で発見: $DOWNLOADED_FILE"
+          fi
+          
+          # パターン4: 任意のwavファイル
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            DOWNLOADED_FILE=$(find . -name "*.wav" -type f 2>/dev/null | head -1)
+            [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン4で発見: $DOWNLOADED_FILE"
+          fi
+          
+          echo "🔍 URL抽出結果: '$MUSIC_URL'"
+          echo "📁 ダウンロードされたファイル: '$DOWNLOADED_FILE'"
+          
+          # ファイル処理（ダウンロード済みファイルを優先）
+          if [ ! -z "$DOWNLOADED_FILE" ] && [ -s "$DOWNLOADED_FILE" ]; then
+            echo "✅ 既にダウンロードされたファイルを使用: $DOWNLOADED_FILE"
+            
+            FILE_SIZE=$(stat -c%s "$DOWNLOADED_FILE")
+            echo "📊 ファイルサイズ: ${FILE_SIZE} bytes"
+            
+            # 音声ファイルの簡易検証
+            file "$DOWNLOADED_FILE"
+            
+            # ffmpegでループ拡張
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+            if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-part2-30s.wav" -y; then
+              echo "✅ BGMループ拡張成功"
+              echo "music-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
+              echo "music-file=bgm-main-part2-30s.wav" >> $GITHUB_OUTPUT
+            else
+              echo "::error::❌ ffmpeg処理失敗"
+              exit 1
+            fi
+          elif [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
+            echo "✅ HTTPS URLからダウンロード: $MUSIC_URL"
+            
+            # ダウンロードとファイルチェック
+            if curl -L "$MUSIC_URL" -o "$MUSIC_FILE" --max-time 60; then
+              if [ -s "$MUSIC_FILE" ]; then
+                FILE_SIZE=$(stat -c%s "$MUSIC_FILE")
+                echo "✅ BGMファイルダウンロード成功 (${FILE_SIZE} bytes)"
+                
+                # 音声ファイルの簡易検証
+                file "$MUSIC_FILE"
+                
+                # ファイル内容をチェック（XMLエラーかどうか）
+                echo "📄 ファイル内容（最初の200文字）:"
+                head -c 200 "$MUSIC_FILE" || true
+                echo ""
+                
+                # XMLファイルの場合はエラーとして扱う
+                if file "$MUSIC_FILE" | grep -q "XML"; then
+                  echo "::error::❌ ダウンロードしたファイルがXMLエラーレスポンスです"
+                  echo "::error::ファイル全体の内容:"
+                  cat "$MUSIC_FILE"
+                  exit 1
+                fi
+                
+                # ffmpegでループ拡張
+                sudo apt-get update && sudo apt-get install -y ffmpeg
+                if ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-part2-30s.wav" -y; then
+                  echo "✅ BGMループ拡張成功"
+                  echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
+                  echo "music-file=bgm-main-part2-30s.wav" >> $GITHUB_OUTPUT
+                else
+                  echo "::error::❌ ffmpeg処理失敗"
+                  exit 1
+                fi
+              else
+                echo "::warning::⚠️ ダウンロードされたファイルが空です"
+              fi
+            else
+              echo "::warning::⚠️ BGMファイルのダウンロードに失敗しました"
+            fi
+          else
+            echo "::warning::⚠️ 有効なURLまたはファイルが見つかりません"
+          fi
+          
+          
+            # BGM生成成功チェック
+            if [ -f "bgm-main-part2-30s.wav" ] && [ -s "bgm-main-part2-30s.wav" ]; then
+              FINAL_SIZE=$(stat -c%s "bgm-main-part2-30s.wav")
+              echo "✅ BGMファイル生成成功 (試行 $RETRY_COUNT/3) - ${FINAL_SIZE} bytes"
+              echo "::endgroup::"
+              break
+            else
+              echo "::warning::⚠️ BGM生成失敗（試行 $RETRY_COUNT/3）"
+              rm -f bgm-main-part2-30s.wav lyria_output_*.wav *.wav 2>/dev/null || true
+              
+              if [ $RETRY_COUNT -eq 3 ]; then
+                echo "::error::❌ BGM生成に3回失敗しました"
+                echo "::endgroup::"
+                exit 1
+              else
+                echo "🔄 30秒後に再試行します..."
+                sleep 30
+              fi
+            fi
+          done
+      
+      - name: Upload BGM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bgm-main-part2
+          path: bgm-main-part2-30s.wav
+          retention-days: 1
