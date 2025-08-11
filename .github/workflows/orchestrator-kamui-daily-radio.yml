@@ -6,6 +6,11 @@ on:
         description: '神威アプリの開発進捗・最新情報'
         required: true
         type: string
+      public:
+        description: '公開設定'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write  # リリース作成に必要
