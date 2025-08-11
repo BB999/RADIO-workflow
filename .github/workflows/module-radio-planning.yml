@@ -189,10 +189,12 @@ jobs:
           構成: 明るい挨拶 → 番組紹介 → 最後に楽曲紹介(必ず絶対に最後に入れる)
           楽曲紹介文（必ず絶対最後に入れる）: $MUSIC_INTRO
           
-          以下のJSONを $WORK_DIR/opening.json に保存してください：
-          {\"opening\": \"台本テキスト（楽曲紹介で終わる）\"}"
+          以下のJSONファイルを opening.json として現在のディレクトリに保存してください：
+          {\"opening\": \"台本テキスト（楽曲紹介で終わる）\"}
           
-          npx @anthropic-ai/claude-code \
+          **重要**: Writeツールを使用してファイルを確実に保存してください。"
+          
+          cd "$WORK_DIR" && npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
@@ -323,10 +325,12 @@ jobs:
 
           要件: 3分（900-1200文字）、開発進捗の主要ポイント解説
           
-          以下のJSONを $WORK_DIR/main.json に保存してください：
-          {\"main\": \"台本テキスト\"}"
+          以下のJSONファイルを main.json として現在のディレクトリに保存してください：
+          {\"main\": \"台本テキスト\"}
           
-          npx @anthropic-ai/claude-code \
+          **重要**: Writeツールを使用してファイルを確実に保存してください。"
+          
+          cd "$WORK_DIR" && npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
@@ -447,10 +451,12 @@ jobs:
 
           要件: 3分（900-1200文字）、時事ニュースや追加情報、リスナーメッセージ
           
-          以下のJSONを $WORK_DIR/main_part2.json に保存してください：
-          {\"main_part2\": \"台本テキスト\"}"
+          以下のJSONファイルを main_part2.json として現在のディレクトリに保存してください：
+          {\"main_part2\": \"台本テキスト\"}
           
-          npx @anthropic-ai/claude-code \
+          **重要**: Writeツールを使用してファイルを確実に保存してください。"
+          
+          cd "$WORK_DIR" && npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
@@ -579,10 +585,12 @@ jobs:
 
           要件: 1分（300-400文字）、まとめと次回予告
           
-          以下のJSONを $WORK_DIR/ending.json に保存してください：
-          {\"ending\": \"台本テキスト\"}"
+          以下のJSONファイルを ending.json として現在のディレクトリに保存してください：
+          {\"ending\": \"台本テキスト\"}
           
-          npx @anthropic-ai/claude-code \
+          **重要**: Writeツールを使用してファイルを確実に保存してください。"
+          
+          cd "$WORK_DIR" && npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
