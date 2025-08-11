@@ -590,11 +590,23 @@ jobs:
           
           **重要**: Writeツールを使用してファイルを確実に保存してください。"
           
-          cd "$WORK_DIR" && npx @anthropic-ai/claude-code \
+          echo "🔍 Claude Code実行前のデバッグ情報:"
+          echo "  現在のディレクトリ: $(pwd)"
+          echo "  WORK_DIR: $WORK_DIR"
+          echo "  WORK_DIRの存在確認: $(ls -ld "$WORK_DIR" 2>/dev/null || echo "存在しません")"
+          echo "  WORK_DIR内の内容: $(ls -la "$WORK_DIR" 2>/dev/null || echo "空またはアクセス不可")"
+          
+          cd "$WORK_DIR" && echo "✅ ディレクトリ移動成功: $(pwd)" && npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
+          
+          echo "🔍 Claude Code実行後のデバッグ情報:"
+          echo "  現在のディレクトリ: $(pwd)"
+          echo "  WORK_DIRの存在確認: $(ls -ld "$WORK_DIR" 2>/dev/null || echo "存在しません")"
+          echo "  WORK_DIR内の内容: $(ls -la "$WORK_DIR" 2>/dev/null || echo "空またはアクセス不可")"
+          echo "  ending.jsonの検索: $(find . -name "ending.json" 2>/dev/null || echo "見つかりません")"
           
           if [ -f "$WORK_DIR/ending.json" ]; then
             echo "📄 ending.json ファイルが存在"
