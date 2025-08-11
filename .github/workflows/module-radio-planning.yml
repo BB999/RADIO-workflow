@@ -145,6 +145,31 @@ jobs:
           # SSMLフォーマッターをコピー
           cp radio-workflow/ssml_formatter.js $WORK_DIR/
           
+          # 楽曲情報を取得
+          SELECTED_MUSIC="不明"
+          ARTIST_NAME="不明"
+          SONG_NAME="不明"
+          if [ -f "radio-workflow/temp/USE_UUID.md" ]; then
+            SELECTED_MUSIC_FILE=$(grep "Selected Music File:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f4- 2>/dev/null || echo "不明")
+            ARTIST_NAME=$(grep "Artist:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f2- 2>/dev/null || echo "不明")
+            SONG_NAME=$(grep "Song:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f2- 2>/dev/null || echo "不明")
+            
+            # 楽曲紹介テキストを作成
+            if [ "$ARTIST_NAME" != "不明" ] && [ "$SONG_NAME" != "不明" ]; then
+              MUSIC_INTRO="今日のオープニング楽曲は、${ARTIST_NAME}の「${SONG_NAME}」です。"
+            elif [ "$SONG_NAME" != "不明" ]; then
+              MUSIC_INTRO="今日のオープニング楽曲は「${SONG_NAME}」です。"
+            elif [ "$ARTIST_NAME" != "不明" ]; then
+              MUSIC_INTRO="今日のオープニング楽曲は${ARTIST_NAME}の楽曲です。"
+            else
+              MUSIC_INTRO="今日も素敵な楽曲と共にお送りします。"
+            fi
+            echo "🎵 楽曲紹介: $MUSIC_INTRO"
+          else
+            MUSIC_INTRO="今日も素敵な楽曲と共にお送りします。"
+            echo "::warning::楽曲情報ファイルが見つからないため、デフォルトの紹介文を使用"
+          fi
+          
           PROMPT="ラジオ番組のオープニング台本を生成してください。
 
           【パーソナリティ設定】
@@ -152,7 +177,8 @@ jobs:
 
           要件:
           - 時間: 1分（300-400文字）
-          - 内容: 明るい挨拶と番組紹介
+          - 内容: 明るい挨拶と番組紹介、最後に楽曲紹介
+          - 楽曲紹介文: $MUSIC_INTRO
           
           生成後に以下の処理を行ってください：
           1. 生成したテキストをSSMLフォーマッターで処理
