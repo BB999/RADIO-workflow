@@ -1,4 +1,4 @@
-name: Radio Planning Module (Minimal)
+name: Radio Planning Module - Split Version (Minimal)
 on:
   workflow_call:
     inputs:
@@ -19,25 +19,26 @@ on:
         default: false
     outputs:
       script-opening:
-        value: ${{ jobs.generate.outputs.script-opening }}
+        value: ${{ jobs.generate-part1.outputs.script-opening }}
       script-main:
-        value: ${{ jobs.generate.outputs.script-main }}
+        value: ${{ jobs.generate-part1.outputs.script-main }}
+      script-main-part2:
+        value: ${{ jobs.generate-part2.outputs.script-main-part2 }}
       script-jingle:
-        value: ${{ jobs.generate.outputs.script-jingle }}
+        value: ${{ jobs.generate-part1.outputs.script-jingle }}
       script-ending:
-        value: ${{ jobs.generate.outputs.script-ending }}
+        value: ${{ jobs.generate-part2.outputs.script-ending }}
       voice-config:
-        value: ${{ jobs.generate.outputs.voice-config }}
+        value: ${{ jobs.generate-part1.outputs.voice-config }}
 
 jobs:
-  generate:
+  generate-part1:
     runs-on: ubuntu-latest
     outputs:
-      script-opening: ${{ steps.planning.outputs.script-opening }}
-      script-main: ${{ steps.planning.outputs.script-main }}
-      script-jingle: ${{ steps.planning.outputs.script-jingle }}
-      script-ending: ${{ steps.planning.outputs.script-ending }}
-      voice-config: ${{ steps.planning.outputs.voice-config }}
+      script-opening: ${{ steps.planning-part1.outputs.script-opening }}
+      script-main: ${{ steps.planning-part1.outputs.script-main }}
+      script-jingle: ${{ steps.planning-part1.outputs.script-jingle }}
+      voice-config: ${{ steps.planning-part1.outputs.voice-config }}
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,536 +51,149 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Copy SSML formatter
-        run: |
-          # SSMLフォーマッターをワーキングディレクトリにコピー
-          cp radio-workflow/ssml_formatter.js ./ssml_formatter.js
-          echo "✅ SSML formatter copied to working directory"
-      
-      - name: Generate radio scripts with Claude
-        id: planning
+      - name: Generate radio scripts part 1 with Claude
+        id: planning-part1
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          USE_PROCESSED_INPUT: ${{ inputs.use-processed-input }}
-          PROCESSED_SUMMARY: ${{ inputs.processed-summary }}
         run: |
-          echo "::group::📋 Radio Script Generation"
-          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          echo "::group::📋 Radio Script Generation Part 1"
           
-          # 作業ディレクトリ作成
           WORK_DIR="radio-scripts"
           mkdir -p "$WORK_DIR"
           
-          # パーソナリティデータファイルの内容を読み込み
-          if [ -f "radio-workflow/radio-personality-data.md" ]; then
-            PERSONALITY_DATA=$(cat radio-workflow/radio-personality-data.md)
-            echo "✅ パーソナリティデータを読み込みました"
-          else
-            PERSONALITY_DATA=""
-            echo "::warning::パーソナリティデータファイルが見つかりません"
-          fi
-          
-          # 音楽ファイル選択
-          echo "::group::🎵 音楽ファイル選択"
-          
-          # radio-workflow/musicディレクトリから実際のmp3ファイルを取得
-          echo "📁 musicディレクトリの音楽ファイルをスキャン中..."
-          if [ ! -d "radio-workflow/music" ]; then
-            echo "::error::radio-workflow/musicディレクトリが見つかりません"
-            exit 1
-          fi
-          
-          # .mp3ファイルを配列に取得
-          declare -a MUSIC_FILES=()
-          while IFS= read -r -d '' file; do
-            filename=$(basename "$file")
-            MUSIC_FILES+=("$filename")
-            echo "  - 発見: $filename"
-          done < <(find radio-workflow/music -name "*.mp3" -print0)
-          
-          # 音楽ファイルが存在するかチェック
-          if [ ${#MUSIC_FILES[@]} -eq 0 ]; then
-            echo "::error::musicディレクトリに.mp3ファイルが見つかりません"
-            exit 1
-          fi
-          
-          echo "📊 合計 ${#MUSIC_FILES[@]} 個の音楽ファイルが見つかりました"
-          
-          # ランダムに音楽ファイルを選択（日時ベースのシード）
-          SEED=$(date +%s%N | cut -b10-19)
-          MUSIC_RANDOM_INDEX=$((SEED % ${#MUSIC_FILES[@]}))
-          SELECTED_MUSIC_FILE="${MUSIC_FILES[$MUSIC_RANDOM_INDEX]}"
-          echo "  シード値: $SEED, インデックス: $MUSIC_RANDOM_INDEX"
-          
-          # ファイル名から推測でアーティスト名と曲名を抽出（・で区切られている場合）
-          if [[ "$SELECTED_MUSIC_FILE" =~ ^(.+)・(.+)\.mp3$ ]]; then
-            POTENTIAL_SONG_NAME="${BASH_REMATCH[1]}"
-            POTENTIAL_ARTIST_NAME="${BASH_REMATCH[2]}"
-            
-            # 楽曲名に「不明」が含まれている場合は楽曲名のみ空にし、アーティスト名は保持
-            if [[ "$POTENTIAL_SONG_NAME" =~ 不明 ]]; then
-              SONG_NAME=""
-            else
-              SONG_NAME="$POTENTIAL_SONG_NAME"
-            fi
-            
-            # アーティスト名に「不明」が含まれている場合も空にする
-            if [[ "$POTENTIAL_ARTIST_NAME" =~ 不明 ]]; then
-              ARTIST_NAME=""
-            else
-              ARTIST_NAME="$POTENTIAL_ARTIST_NAME"
-            fi
-          else
-            # ・が含まれていない場合はファイル名のみ
-            SONG_NAME=""
-            ARTIST_NAME=""
-          fi
-          
-          echo "🎯 選択された音楽: $SELECTED_MUSIC_FILE"
-          echo "🎤 アーティスト: ${ARTIST_NAME:-'不明'}"
-          echo "🎵 楽曲名: ${SONG_NAME:-'不明'}"
-          
-          echo "::endgroup::"
-          
-          # 時事ニュース取得
-          echo "::group::📰 時事ニュース取得"
-          echo "最新のニュースを取得中..."
-          
-          # 安全なニュースカテゴリーのみ使用
-          NEWS_TOPICS="テクノロジー AI ガジェット ゲーム アニメ エンターテイメント 科学 宇宙 新商品"
-          
-          # Claude Code CLIで時事ニュースと天気情報取得（WebSearchツール使用）
-          NEWS_PROMPT="今日の日本の最新ニュースを3つと、東京の今日の天気予報を教えてください。
+          # プロンプト作成
+          PROMPT="ラジオ番組台本のオープニング、メイン前半、ジングルを生成してください。
 
-          【ニュースカテゴリー】
-          - テクノロジー、AI、IT関連
-          - エンターテイメント、芸能
-          - 科学、宇宙
-          - ゲーム、アニメ
-          - 新商品、ガジェット
-          
-          **重要**: 政治、宗教、差別、誹謗中傷、炎上系の話題は絶対に避けてください。
-          明るく楽しい話題のみを選んでください。
-          
-          以下の形式で出力してください：
-          
-          【天気予報】
-          東京の天気: 晴れ/曇り/雨など
-          最高気温: XX℃
-          最低気温: XX℃
-          
-          【ニュース】
-          1. [カテゴリー] ニュースタイトル - 簡単な説明
-          2. [カテゴリー] ニュースタイトル - 簡単な説明
-          3. [カテゴリー] ニュースタイトル - 簡単な説明"
-          
-          NEWS_RESULT=$(npx @anthropic-ai/claude-code \
-            --allowedTools "WebSearch" \
-            --max-turns 3 \
-            --print \
-            "$NEWS_PROMPT" 2>/dev/null || echo "ニュース取得失敗")
-          
-          # ニュース取得結果を整形
-          if [ -z "$NEWS_RESULT" ] || [ "$NEWS_RESULT" = "ニュース取得失敗" ]; then
-            echo "::warning::時事ニュースと天気情報の取得に失敗しました。デフォルトの情報を使用します。"
-            NEWS_CONTENT="
-          【天気予報】
-          東京の天気: 晴れ
-          最高気温: 20℃
-          最低気温: 12℃
-          
-          【最近の話題】
-          - AI技術の進化が話題
-          - 新しいゲーム機の発表
-          - 宇宙開発の最新情報"
-          else
-            NEWS_CONTENT="$NEWS_RESULT"
-            echo "✅ 時事ニュース取得成功"
-            echo "$NEWS_CONTENT"
-          fi
-          
-          echo "::endgroup::"
-          
-          # ランダム要素の生成
-          echo "::group::🎲 ランダム要素生成"
-          
-          # ランダムなトーク要素
-          RANDOM_ELEMENTS=()
-          RANDOM_ELEMENTS+=("今日のプログラミングあるある話")
-          RANDOM_ELEMENTS+=("開発者の変な癖エピソード")
-          RANDOM_ELEMENTS+=("バグとの格闘記")
-          RANDOM_ELEMENTS+=("深夜コーディングの思い出")
-          RANDOM_ELEMENTS+=("コンパイルエラーとの戦い")
-          RANDOM_ELEMENTS+=("コードレビューの裏話")
-          RANDOM_ELEMENTS+=("新機能のアイデア妄想")
-          RANDOM_ELEMENTS+=("開発環境トラブル体験談")
-          RANDOM_ELEMENTS+=("ステージング環境での事件")
-          RANDOM_ELEMENTS+=("デプロイ前夜の不安話")
-          
-          # ランダムに1つ選択
-          RANDOM_ELEMENT_INDEX=$((RANDOM % ${#RANDOM_ELEMENTS[@]}))
-          SELECTED_RANDOM_ELEMENT="${RANDOM_ELEMENTS[$RANDOM_ELEMENT_INDEX]}"
-          
-          # ランダムなオープニングパターン
-          OPENING_PATTERNS=()
-          OPENING_PATTERNS+=("元気いっぱいハイテンション")
-          OPENING_PATTERNS+=("ちょっと眠そうな感じから徐々にテンション上がる")
-          OPENING_PATTERNS+=("謎のテンションで始まる")
-          OPENING_PATTERNS+=("いきなりボケから入る")
-          OPENING_PATTERNS+=("自分にツッコミながら挨拶")
-          
-          OPENING_PATTERN_INDEX=$((RANDOM % ${#OPENING_PATTERNS[@]}))
-          SELECTED_OPENING_PATTERN="${OPENING_PATTERNS[$OPENING_PATTERN_INDEX]}"
-          
-          # ランダムな締めパターン
-          ENDING_PATTERNS=()
-          ENDING_PATTERNS+=("感動的に締める（でもちょっとズレてる）")
-          ENDING_PATTERNS+=("急にテンション下がって締める")
-          ENDING_PATTERNS+=("最後にダジャレで締める")
-          ENDING_PATTERNS+=("リスナーに無茶振りして締める")
-          ENDING_PATTERNS+=("謎の決意表明で締める")
-          
-          ENDING_PATTERN_INDEX=$((RANDOM % ${#ENDING_PATTERNS[@]}))
-          SELECTED_ENDING_PATTERN="${ENDING_PATTERNS[$ENDING_PATTERN_INDEX]}"
-          
-          # 今日の特別なキャラ設定
-          CHARACTER_MODES=()
-          CHARACTER_MODES+=("いつも通り")
-          CHARACTER_MODES+=("ちょっと関西弁混じり")
-          CHARACTER_MODES+=("やたら例え話が多い")
-          CHARACTER_MODES+=("声真似を多用")
-          CHARACTER_MODES+=("効果音を口で言いまくり")
-          CHARACTER_MODES+=("一人二役で会話")
-          
-          CHARACTER_MODE_INDEX=$((RANDOM % ${#CHARACTER_MODES[@]}))
-          SELECTED_CHARACTER_MODE="${CHARACTER_MODES[$CHARACTER_MODE_INDEX]}"
-          
-          echo "🎯 今日のランダム要素:"
-          echo "  トーク要素: $SELECTED_RANDOM_ELEMENT"
-          echo "  オープニングスタイル: $SELECTED_OPENING_PATTERN"
-          echo "  エンディングスタイル: $SELECTED_ENDING_PATTERN"
-          echo "  キャラモード: $SELECTED_CHARACTER_MODE"
-          
-          echo "::endgroup::"
-          
-          # プロンプトの構築（処理済み入力対応）
-          echo "🔄 入力データの準備中..."
-          
-          # 処理済み入力を使用するかチェック
-          if [ "$USE_PROCESSED_INPUT" = "true" ] && [ -n "$PROCESSED_SUMMARY" ]; then
-            echo "✅ Gemini処理済み入力を使用します"
-            CONTENT_SOURCE=$(printf "【Gemini処理済み構造化情報】\n%s" "$PROCESSED_SUMMARY")
-          else
-            echo "📝 元の入力データを使用します"
-            DEVELOPMENT_INPUT="${{ inputs.development-report }}"
-            TOPIC_INPUT="${{ inputs.topic-focus }}"
-            CONTENT_SOURCE=$(printf "【開発進捗・最新情報】\n%s\n\n【強調ポイント】\n%s" "$DEVELOPMENT_INPUT" "${TOPIC_INPUT:-なし}")
-          fi
-          
-          PROMPT="以下の内容でラジオ番組台本を生成し、JSONファイルに保存してください：
+          開発進捗情報: ${{ inputs.development-report }}
+          強調ポイント: ${{ inputs.topic-focus }}
 
-          【パーソナリティ設定】
-          $PERSONALITY_DATA
-
-          $CONTENT_SOURCE
-
-          【今日の天気と時事ニュース】
-          $NEWS_CONTENT
-
-          【今日のランダム要素】
-          - 特別トーク要素: $SELECTED_RANDOM_ELEMENT
-          - オープニングスタイル: $SELECTED_OPENING_PATTERN
-          - エンディングスタイル: $SELECTED_ENDING_PATTERN
-          - キャラクターモード: $SELECTED_CHARACTER_MODE
-
-          【今日の楽曲】$(
-            if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
-              echo "
-          - アーティスト: $ARTIST_NAME
-          - 楽曲名: $SONG_NAME"
-            elif [ -n "$ARTIST_NAME" ]; then
-              echo "
-          - アーティスト: $ARTIST_NAME
-          - 楽曲: $SELECTED_MUSIC_FILE（楽曲名不明）"
-            else
-              echo "
-          - 楽曲: $SELECTED_MUSIC_FILE（詳細不明）"
-            fi
-          )
-
-          【要件】$(
-            if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
-              echo "
-          - オープニング: 1分（明るい挨拶、必ず今日の日付と番組名を紹介、最後に今日の楽曲「$SONG_NAME」by $ARTIST_NAME の紹介を含める）約300-400文字"
-            elif [ -n "$ARTIST_NAME" ]; then
-              echo "
-          - オープニング: 1分（明るい挨拶、必ず今日の日付と番組名を紹介、最後に$ARTIST_NAME の楽曲の紹介を含める）約300-400文字"
-            else
-              echo "
-          - オープニング: 1分（明るい挨拶、必ず今日の日付と番組名を紹介、楽曲については詳細を言わずに「今日の楽曲をお楽しみください」程度で紹介）約300-400文字"
-            fi
-          )
-          - メイン: 2分（内容を分かりやすく解説、時事ニュースも織り交ぜる）約600-800文字  
-          - ジングル: 「かむらじ」のみ（この文字だけ）
-          - エンディング: 1分（まとめと次回予告）約300-400文字
-          - パーソナリティ: radio-personality-data.mdの設定に従う
-          - 一人称は「僕」、口癖や話し方の特徴を必ず反映
-          - **時事ニュース**: メインパートで1〜2個の時事ネタに触れて、開発の話と絡める
-          - **ランダム要素**: 指定されたランダム要素を必ず取り入れる（特別トーク要素、オープニング・エンディングスタイル、キャラクターモード）
-          - **バリエーション**: 毎回違う雰囲気の番組になるよう、ランダム要素を活かして個性を出す
-          - **重要**: オープニング・エンディングは1分（300-400文字）、メインは前半・後半各1分（各300-400文字）で生成し、API制限の3000文字以内に収めてください
-          - **禁止事項**: 効果音の説明（ビビビー、ピロピロ、ドーン等）を絶対にセリフに含めない。効果音は音響処理で別途追加するため台本には書かない$(
-            if [ -n "$ARTIST_NAME" ] && [ -n "$SONG_NAME" ]; then
-              echo "
-          - **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲、$ARTIST_NAME さんの『$SONG_NAME』をお聴きください」のような形で自然に楽曲紹介を入れてください"
-            elif [ -n "$ARTIST_NAME" ]; then
-              echo "
-          - **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲、$ARTIST_NAME さんの作品をお聴きください」のような形で自然に楽曲紹介を入れてください"
-            else
-              echo "
-          - **オープニング曲紹介**: オープニングの最後で「それでは今日の楽曲をお聴きください」のような形で楽曲紹介を入れてください（詳細は言わない）"
-            fi
-          )
-
-          **重要**: 以下のJSONを \"$WORK_DIR/scripts.json\" ファイルに保存してください：
+          要件:
+          - オープニング: 1分（300-400文字）明るい挨拶と番組紹介
+          - メイン前半: 3分（900-1200文字）開発進捗の主要ポイントを解説
+          - ジングル: 「かむらじ」のみ
+          
+          以下のJSONを $WORK_DIR/part1.json に保存してください：
           {
-            \"opening\": \"オープニング台本（300-400文字程度）\",
-            \"main\": \"メイン前半台本（300-400文字程度）\", 
-            \"main_part2\": \"メイン後半台本（300-400文字程度）\", 
-            \"jingle\": \"かむらじ\",
-            \"ending\": \"エンディング台本（300-400文字程度）\"
+            \"opening\": \"オープニング台本\",
+            \"main\": \"メイン前半台本\", 
+            \"jingle\": \"かむらじ\"
           }"
           
-          echo "🚀 Starting Radio Script Generation..."
-          echo "📝 Prompt length: ${#PROMPT}"
+          # Claude Code実行
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Write,Edit" \
+            --max-turns 5 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT"
           
-          # Claude Code CLIの実行（リトライ付き文字数制限チェック）
-          for attempt in {1..5}; do
-            echo "🎯 Claude Code CLI実行中（試行 $attempt/5）..."
+          # 結果を出力に設定
+          if [ -f "$WORK_DIR/part1.json" ] && jq empty "$WORK_DIR/part1.json" 2>/dev/null; then
+            OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/part1.json")
+            MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/part1.json") 
+            JINGLE_TEXT=$(jq -r '.jingle' "$WORK_DIR/part1.json")
             
-            if npx @anthropic-ai/claude-code \
-              --allowedTools "Write,Edit" \
-              --max-turns 10 \
-              --verbose \
-              --permission-mode "acceptEdits" \
-              -p "$PROMPT"; then
-              
-              # 生成された台本の文字数チェック
-              if [ -f "$WORK_DIR/scripts.json" ] && jq empty "$WORK_DIR/scripts.json" 2>/dev/null; then
-                echo "✅ JSONファイル生成成功"
-                
-                # 各セクションの文字数チェック
-                OPENING_LENGTH=$(jq -r '.opening' "$WORK_DIR/scripts.json" | wc -c)
-                MAIN_LENGTH=$(jq -r '.main' "$WORK_DIR/scripts.json" | wc -c)
-                MAIN_PART2_LENGTH=$(jq -r '.main_part2' "$WORK_DIR/scripts.json" | wc -c)
-                ENDING_LENGTH=$(jq -r '.ending' "$WORK_DIR/scripts.json" | wc -c)
-                
-                echo "📏 文字数チェック: opening=$OPENING_LENGTH, main=$MAIN_LENGTH, main_part2=$MAIN_PART2_LENGTH, ending=$ENDING_LENGTH"
-                
-                if [ $OPENING_LENGTH -le 3000 ] && [ $MAIN_LENGTH -le 3000 ] && [ $MAIN_PART2_LENGTH -le 3000 ] && [ $ENDING_LENGTH -le 3000 ]; then
-                  echo "✅ 全セクションが3000文字以内です"
-                  break
-                else
-                  echo "::warning::⚠️ 一部セクションが3000文字を超えています（試行 $attempt/5）"
-                  PROMPT="前回生成した台本が長すぎました。各セクションを3000文字以内で短く生成し直してください。JSONを $WORK_DIR/scripts.json に保存してください。"
-                fi
-              else
-                echo "::warning::⚠️ JSONファイル生成失敗（試行 $attempt/5）"
-              fi
-            else
-              echo "::warning::⚠️ Claude Code実行失敗（試行 $attempt/5）"
-            fi
+            echo "script-opening<<EOF" >> $GITHUB_OUTPUT
+            echo "$OPENING_TEXT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
             
-            if [ $attempt -eq 5 ]; then
-              echo "::error::❌ 5回試行しても適切な台本を生成できませんでした"
-              exit 1
-            fi
+            echo "script-main<<EOF" >> $GITHUB_OUTPUT
+            echo "$MAIN_TEXT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
             
-            sleep 5
-          done
-          
-          # 生成されたJSONファイルの確認と読み込み
-          if [ -f "$WORK_DIR/scripts.json" ]; then
-            echo "✅ Scripts JSON file generated"
-            cat "$WORK_DIR/scripts.json"
+            echo "script-jingle<<EOF" >> $GITHUB_OUTPUT
+            echo "$JINGLE_TEXT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
             
-            # JSONから各セクションを抽出
-            if jq empty "$WORK_DIR/scripts.json" 2>/dev/null; then
-              echo "✅ Valid JSON response received"
-              
-              # SSML処理を追加
-              echo "::group::🎵 SSML Processing"
-              echo "🔄 Applying SSML formatting to all scripts..."
-              
-              # 各セクションにSSMLフォーマットを適用
-              OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/scripts.json")
-              MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/scripts.json")
-              MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/scripts.json")
-              JINGLE_TEXT=$(jq -r '.jingle' "$WORK_DIR/scripts.json")
-              ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/scripts.json")
-              
-              # 各セクションをファイルに保存してから処理（クォート問題を回避）
-              echo "$OPENING_TEXT" > temp_opening.txt
-              echo "$MAIN_TEXT" > temp_main.txt
-              echo "$MAIN_PART2_TEXT" > temp_main_part2.txt
-              echo "$JINGLE_TEXT" > temp_jingle.txt
-              echo "$ENDING_TEXT" > temp_ending.txt
-              
-              # Node.jsでSSMLフォーマッターを実行（stdin使用でクォート問題を回避）
-              OPENING_SSML=$(cat temp_opening.txt | node -e "
-                const SSMLFormatter = require('./ssml_formatter.js');
-                const formatter = new SSMLFormatter();
-                let text = '';
-                process.stdin.on('data', chunk => text += chunk);
-                process.stdin.on('end', () => {
-                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
-                  console.log(result);
-                });
-              ")
-              
-              MAIN_SSML=$(cat temp_main.txt | node -e "
-                const SSMLFormatter = require('./ssml_formatter.js');
-                const formatter = new SSMLFormatter();
-                let text = '';
-                process.stdin.on('data', chunk => text += chunk);
-                process.stdin.on('end', () => {
-                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
-                  console.log(result);
-                });
-              ")
-              
-              MAIN_PART2_SSML=$(cat temp_main_part2.txt | node -e "
-                const SSMLFormatter = require('./ssml_formatter.js');
-                const formatter = new SSMLFormatter();
-                let text = '';
-                process.stdin.on('data', chunk => text += chunk);
-                process.stdin.on('end', () => {
-                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
-                  console.log(result);
-                });
-              ")
-              
-              # ジングルは短いのでSSMLフォーマット不要（そのまま使用）
-              JINGLE_SSML="$JINGLE_TEXT"
-              
-              ENDING_SSML=$(cat temp_ending.txt | node -e "
-                const SSMLFormatter = require('./ssml_formatter.js');
-                const formatter = new SSMLFormatter();
-                let text = '';
-                process.stdin.on('data', chunk => text += chunk);
-                process.stdin.on('end', () => {
-                  const result = formatter.formatWithBreaks(text.trim(), formatter.getPreset('normal'));
-                  console.log(result);
-                });
-              ")
-              
-              # 一時ファイルを削除
-              rm -f temp_opening.txt temp_main.txt temp_main_part2.txt temp_jingle.txt temp_ending.txt
-              
-              echo "✅ SSML formatting completed"
-              echo "📏 Opening SSML length: ${#OPENING_SSML}"
-              echo "📏 Main SSML length: ${#MAIN_SSML}"
-              echo "📏 Main Part2 SSML length: ${#MAIN_PART2_SSML}"
-              echo "📏 Jingle SSML length: ${#JINGLE_SSML}"  
-              echo "📏 Ending SSML length: ${#ENDING_SSML}"
-              echo "::endgroup::"
-              
-              # SSML版をGitHub Outputsに設定（マルチライン対応）
-              {
-                echo "script-opening<<EOF"
-                echo "$OPENING_SSML"
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-              
-              {
-                echo "script-main<<EOF"
-                echo "$MAIN_SSML"
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-              
-              {
-                echo "script-main-part2<<EOF"
-                echo "$MAIN_PART2_SSML"
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-              
-              {
-                echo "script-jingle<<EOF"
-                echo "$JINGLE_SSML"
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-              
-              {
-                echo "script-ending<<EOF"
-                echo "$ENDING_SSML"
-                echo "EOF"
-              } >> $GITHUB_OUTPUT
-            else
-              echo "::warning::Invalid JSON format, using fallback scripts"
-              echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
-              echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
-              echo "script-jingle=かむらじ" >> $GITHUB_OUTPUT
-              echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
-            fi
+            echo "voice-config=default" >> $GITHUB_OUTPUT
+            echo "✅ Part 1 scripts generated successfully"
           else
-            echo "::warning::Scripts JSON file not found, using fallback scripts"
-            echo "script-opening=こんにちは、神威日報ラジオです。申し訳ございません、システムにエラーが発生しました。" >> $GITHUB_OUTPUT
-            echo "script-main=台本生成システムに不具合が起きており、本日の放送をお届けできません。ご迷惑をおかけして大変申し訳ございません。しばらく間をおいてから、また聞きに来ていただけると嬉しいです。" >> $GITHUB_OUTPUT
-            echo "script-jingle=かむらじ" >> $GITHUB_OUTPUT
-            echo "script-ending=復旧作業を進めておりますので、今後ともよろしくお願いいたします。神威日報ラジオでした。" >> $GITHUB_OUTPUT
-          fi
-          
-          echo 'voice-config={"gender":"female","age":"20s"}' >> $GITHUB_OUTPUT
-          
-          # 音声ID選択とUSE_UUID.mdファイル作成
-          echo "::group::🎲 音声ID選択"
-          
-          # UUID.mdファイルから音声IDリストを読み込み
-          if [ -f "radio-workflow/UUID.md" ]; then
-            echo "✅ UUID.mdファイルから音声IDを読み込みます"
-            # 空行を除いて配列に読み込み
-            readarray -t VOICE_IDS < <(grep -v '^$' radio-workflow/UUID.md)
-            echo "📝 読み込まれた音声ID数: ${#VOICE_IDS[@]}"
-            for i in "${!VOICE_IDS[@]}"; do
-              echo "  [$i] ${VOICE_IDS[$i]}"
-            done
-          else
-            echo "::error::❌ UUID.mdファイルが見つかりません"
+            echo "::error::Part 1 script generation failed"
             exit 1
           fi
-          
-          # ランダムに音声IDを選択
-          if [ ${#VOICE_IDS[@]} -eq 0 ]; then
-            echo "::error::❌ 音声IDが見つかりません"
-            exit 1
-          fi
-          RANDOM_INDEX=$((RANDOM % ${#VOICE_IDS[@]}))
-          SELECTED_VOICE_ID="${VOICE_IDS[$RANDOM_INDEX]}"
-          
           echo "::endgroup::"
-          
-          # 現在の日付を取得
-          CURRENT_DATE=$(date +%Y-%m-%d)
-          
-          echo "🎯 選択された音声ID: $SELECTED_VOICE_ID"
-          echo "📅 日付: $CURRENT_DATE"
-          
-          # USE_UUID.mdファイルを作成
-          mkdir -p radio-workflow/temp
-          echo "# Selected Voice ID and Music for Radio Production" > radio-workflow/temp/USE_UUID.md
-          echo "" >> radio-workflow/temp/USE_UUID.md
-          echo "Date: $CURRENT_DATE" >> radio-workflow/temp/USE_UUID.md
-          echo "Voice UUID: $SELECTED_VOICE_ID" >> radio-workflow/temp/USE_UUID.md
-          echo "Selected Music File: $SELECTED_MUSIC_FILE" >> radio-workflow/temp/USE_UUID.md
-          echo "Artist: $ARTIST_NAME" >> radio-workflow/temp/USE_UUID.md
-          echo "Song: $SONG_NAME" >> radio-workflow/temp/USE_UUID.md
-          
-          echo "✅ USE_UUID.mdファイルを作成しました"
-          cat radio-workflow/temp/USE_UUID.md
       
-      - name: Upload voice UUID file
+      - name: Upload part1 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: voice-uuid
-          path: radio-workflow/temp/USE_UUID.md
+          name: radio-scripts-part1
+          path: radio-scripts/part1.json
+          retention-days: 1
+
+  generate-part2:
+    runs-on: ubuntu-latest
+    outputs:
+      script-main-part2: ${{ steps.planning-part2.outputs.script-main-part2 }}
+      script-ending: ${{ steps.planning-part2.outputs.script-ending }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Generate radio scripts part 2 with Claude
+        id: planning-part2
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          echo "::group::📋 Radio Script Generation Part 2"
+          
+          WORK_DIR="radio-scripts"
+          mkdir -p "$WORK_DIR"
+          
+          # プロンプト作成
+          PROMPT="ラジオ番組台本のメイン後半とエンディングを生成してください。
+
+          開発進捗情報: ${{ inputs.development-report }}
+          強調ポイント: ${{ inputs.topic-focus }}
+
+          要件:
+          - メイン後半: 3分（900-1200文字）時事ニュースや追加情報、リスナーへのメッセージ
+          - エンディング: 1分（300-400文字）まとめと次回予告
+          
+          以下のJSONを $WORK_DIR/part2.json に保存してください：
+          {
+            \"main_part2\": \"メイン後半台本\",
+            \"ending\": \"エンディング台本\"
+          }"
+          
+          # Claude Code実行
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Write,Edit" \
+            --max-turns 5 \
+            --verbose \
+            --permission-mode "acceptEdits" \
+            -p "$PROMPT"
+          
+          # 結果を出力に設定
+          if [ -f "$WORK_DIR/part2.json" ] && jq empty "$WORK_DIR/part2.json" 2>/dev/null; then
+            MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/part2.json")
+            ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/part2.json")
+            
+            echo "script-main-part2<<EOF" >> $GITHUB_OUTPUT
+            echo "$MAIN_PART2_TEXT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            echo "script-ending<<EOF" >> $GITHUB_OUTPUT
+            echo "$ENDING_TEXT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            
+            echo "✅ Part 2 scripts generated successfully"
+          else
+            echo "::error::Part 2 script generation failed"
+            exit 1
+          fi
+          echo "::endgroup::"
+      
+      - name: Upload part2 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: radio-scripts-part2
+          path: radio-scripts/part2.json
           retention-days: 1
