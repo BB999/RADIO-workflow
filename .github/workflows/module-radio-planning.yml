@@ -104,13 +104,25 @@ jobs:
             exit 1
           fi
           
+          # 楽曲名とアーティスト名を抽出（「楽曲名・アーティスト名.mp3」形式）
+          FILENAME_WITHOUT_EXT="${SELECTED_MUSIC_FILE%.mp3}"
+          if [[ "$FILENAME_WITHOUT_EXT" == *"・"* ]]; then
+            SONG_NAME="${FILENAME_WITHOUT_EXT%・*}"
+            ARTIST_NAME="${FILENAME_WITHOUT_EXT#*・}"
+            echo "📝 楽曲情報を抽出: 楽曲名='$SONG_NAME', アーティスト='$ARTIST_NAME'"
+          else
+            SONG_NAME="$FILENAME_WITHOUT_EXT"
+            ARTIST_NAME="不明"
+            echo "📝 楽曲情報: 楽曲名='$SONG_NAME' (アーティスト名なし)"
+          fi
+          
           # USE_UUID.mdファイルを作成
           mkdir -p radio-workflow/temp
           cat > radio-workflow/temp/USE_UUID.md << EOF
           Voice UUID: $DEFAULT_VOICE_ID
           Selected Music File: $SELECTED_MUSIC_FILE
-          Artist: 不明
-          Song: 不明
+          Artist: $ARTIST_NAME
+          Song: $SONG_NAME
           EOF
           
           echo "✅ 音楽選択とUUID設定完了"
@@ -154,12 +166,12 @@ jobs:
             SONG_NAME=$(grep "Song:" radio-workflow/temp/USE_UUID.md | cut -d' ' -f2- 2>/dev/null || echo "不明")
             
             # 楽曲紹介テキストを作成
-            if [ "$ARTIST_NAME" != "不明" ] && [ "$SONG_NAME" != "不明" ]; then
-              MUSIC_INTRO="今日のオープニング楽曲は、${ARTIST_NAME}の「${SONG_NAME}」です。"
-            elif [ "$SONG_NAME" != "不明" ]; then
-              MUSIC_INTRO="今日のオープニング楽曲は「${SONG_NAME}」です。"
-            elif [ "$ARTIST_NAME" != "不明" ]; then
-              MUSIC_INTRO="今日のオープニング楽曲は${ARTIST_NAME}の楽曲です。"
+            if [ "$ARTIST_NAME" != "不明" ] && [ "$SONG_NAME" != "不明" ] && [ "$SONG_NAME" != "不明2" ] && [ "$SONG_NAME" != "不明3" ]; then
+              MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は、${ARTIST_NAME}の「${SONG_NAME}」です。"
+            elif [ "$ARTIST_NAME" != "不明" ] && ([[ "$SONG_NAME" == "不明"* ]] || [ "$SONG_NAME" == "" ]); then
+              MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は、${ARTIST_NAME}の楽曲です。"
+            elif [ "$SONG_NAME" != "不明" ] && [[ ! "$SONG_NAME" == "不明"* ]]; then
+              MUSIC_INTRO="今日紹介するカムイユーザーの楽曲は「${SONG_NAME}」です。"
             else
               MUSIC_INTRO="今日も素敵な楽曲と共にお送りします。"
             fi
