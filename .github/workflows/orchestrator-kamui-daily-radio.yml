@@ -491,10 +491,12 @@ jobs:
              [[ "${{ needs.planning.result }}" != "success" ]] || \
              [[ "${{ needs.voice-opening.result }}" != "success" ]] || \
              [[ "${{ needs.voice-main.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-main-part2.result }}" != "success" ]] || \
              [[ "${{ needs.voice-ending.result }}" != "success" ]] || \
              [[ "${{ needs.voice-jingle.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-opening.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-main.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-main-part2.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-ending.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-jingle.result }}" != "success" ]] || \
              [[ "${{ needs.audio-mixing-final.result }}" != "success" ]] || \
@@ -508,10 +510,12 @@ jobs:
           PLANNING_STATUS="${{ needs.planning.result == 'success' && '✅' || '❌ Claude API異常' }}"
           VOICE_OPENING_STATUS="${{ needs.voice-opening.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
           VOICE_MAIN_STATUS="${{ needs.voice-main.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_MAIN_PART2_STATUS="${{ needs.voice-main-part2.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
           VOICE_ENDING_STATUS="${{ needs.voice-ending.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
           VOICE_JINGLE_STATUS="${{ needs.voice-jingle.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
           BGM_OPENING_STATUS="${{ needs.bgm-opening.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
           BGM_MAIN_STATUS="${{ needs.bgm-main.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_MAIN_PART2_STATUS="${{ needs.bgm-main-part2.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
           BGM_ENDING_STATUS="${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
           BGM_JINGLE_STATUS="${{ needs.bgm-jingle.result == 'success' && '✅' || '❌ ジングルSE選択失敗' }}"
           MIXING_STATUS="${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌ FFmpeg失敗' }}"
@@ -529,7 +533,10 @@ jobs:
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニング音声生成エラー: AIVIS API失敗"
           fi
           if [[ "${{ needs.voice-main.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン音声生成エラー: AIVIS API失敗"
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン前半音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-main-part2.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン後半音声生成エラー: AIVIS API失敗"
           fi
           if [[ "${{ needs.voice-ending.result }}" != "success" ]]; then
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディング音声生成エラー: AIVIS API失敗"
@@ -541,7 +548,10 @@ jobs:
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニングBGM生成エラー: Google Lyria API失敗"
           fi
           if [[ "${{ needs.bgm-main.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メインBGM生成エラー: Google Lyria API失敗"
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン前半BGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-main-part2.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン後半BGM生成エラー: Google Lyria API失敗"
           fi
           if [[ "${{ needs.bgm-ending.result }}" != "success" ]]; then
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディングBGM生成エラー: Google Lyria API失敗"
@@ -571,7 +581,7 @@ jobs:
               \"messages\": [
                 {
                   \"type\": \"text\",
-                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(本編): ${VOICE_MAIN_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(本編): ${BGM_MAIN_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・プルリク作成: ${PR_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(前半): ${VOICE_MAIN_STATUS}\n・音声生成(後半): ${VOICE_MAIN_PART2_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(前半): ${BGM_MAIN_STATUS}\n・BGM生成(後半): ${BGM_MAIN_PART2_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・プルリク作成: ${PR_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
                 }
               ]
             }"

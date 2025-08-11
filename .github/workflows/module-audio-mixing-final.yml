@@ -48,6 +48,12 @@ jobs:
           name: main-mixed-audio
           path: artifacts/main-mixed-audio
       
+      - name: Download main part2 mixed audio artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: main-part2-mixed-audio
+          path: artifacts/main-part2-mixed-audio
+      
       - name: Download ending mixed audio artifact
         uses: actions/download-artifact@v4
         with:
@@ -121,7 +127,15 @@ jobs:
             cp "artifacts/main-mixed-audio/${{ inputs.main-audio }}" main-final.wav
             echo "✅ main-final.wav をコピーしました"
           else
-            echo "::error::メイン音声が見つかりません: artifacts/main-mixed-audio/${{ inputs.main-audio }}"
+            echo "::error::メイン前半音声が見つかりません: artifacts/main-mixed-audio/${{ inputs.main-audio }}"
+            exit 1
+          fi
+          
+          if [ -f "artifacts/main-part2-mixed-audio/${{ inputs.main-part2-audio }}" ]; then
+            cp "artifacts/main-part2-mixed-audio/${{ inputs.main-part2-audio }}" main-part2-final.wav
+            echo "✅ main-part2-final.wav をコピーしました"
+          else
+            echo "::error::メイン後半音声が見つかりません: artifacts/main-part2-mixed-audio/${{ inputs.main-part2-audio }}"
             exit 1
           fi
           
@@ -141,38 +155,52 @@ jobs:
             exit 1
           fi
           
-          # セクション間用の無音ファイルを作成（1〜2秒のランダム）
-          echo "🔇 セクション間無音ファイルを作成"
+          # セクション間用の無音ファイルを作成（5つ必要）
+          echo "🔇 セクション間無音ファイルを作成（5つ）"
           
-          # 1つ目の無音区間（オープニング→メイン間、1〜2秒のランダム）
+          # 1つ目の無音区間（オープニング→前半間、1〜2秒のランダム）
           SILENCE_1=$(awk "BEGIN {srand(); print 1 + rand()}")
-          echo "  1つ目の無音（オープニング→メイン）: ${SILENCE_1}秒"
+          echo "  1つ目の無音（オープニング→前半）: ${SILENCE_1}秒"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_1 -ar 44100 -ac 2 -c:a pcm_s16le section-break-1.wav || exit 1
           
-          # 2つ目の無音区間（メイン→ジングル間、0.5秒固定）
+          # 2つ目の無音区間（前半→ジングル間、0.5秒固定）
           SILENCE_2=0.5
-          echo "  2つ目の無音（メイン→ジングル）: ${SILENCE_2}秒"
+          echo "  2つ目の無音（前半→ジングル）: ${SILENCE_2}秒"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_2 -ar 44100 -ac 2 -c:a pcm_s16le section-break-2.wav || exit 1
           
-          # 3つ目の無音区間（ジングル→エンディング間、0.5秒固定）
+          # 3つ目の無音区間（ジングル→後半間、0.5秒固定）
           SILENCE_3=0.5
-          echo "  3つ目の無音（ジングル→エンディング）: ${SILENCE_3}秒"
+          echo "  3つ目の無音（ジングル→後半）: ${SILENCE_3}秒"
           safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_3 -ar 44100 -ac 2 -c:a pcm_s16le section-break-3.wav || exit 1
           
-          # 4つのセクションを無音区間付きで連結し、最終調整
-          echo "🎵 最終ミックス開始（4セクション + 無音区間結合）"
-          echo "📁 連結するファイル:"
-          ls -la opening-final.wav section-break-1.wav main-final.wav section-break-2.wav jingle-final.wav section-break-3.wav ending-final.wav
+          # 4つ目の無音区間（後半→ジングル間、0.5秒固定）
+          SILENCE_4=0.5
+          echo "  4つ目の無音（後半→ジングル）: ${SILENCE_4}秒"
+          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_4 -ar 44100 -ac 2 -c:a pcm_s16le section-break-4.wav || exit 1
           
-          # オープニング→無音→メイン→ジングル→エンディングの順に連結し、放送基準に正規化
+          # 5つ目の無音区間（ジングル→エンディング間、0.5秒固定）
+          SILENCE_5=0.5
+          echo "  5つ目の無音（ジングル→エンディング）: ${SILENCE_5}秒"
+          safe_ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t $SILENCE_5 -ar 44100 -ac 2 -c:a pcm_s16le section-break-5.wav || exit 1
+          
+          # 11セクション（5つのセクション + 5つの無音区間）を連結し、最終調整
+          echo "🎵 最終ミックス開始（11セクション結合）"
+          echo "📁 連結するファイル:"
+          ls -la opening-final.wav section-break-1.wav main-final.wav section-break-2.wav jingle-final.wav section-break-3.wav main-part2-final.wav section-break-4.wav jingle-final.wav section-break-5.wav ending-final.wav
+          
+          # オープニング→無音→前半→無音→ジングル→無音→後半→無音→ジングル→無音→エンディングの順に連結し、放送基準に正規化
           safe_ffmpeg -i opening-final.wav \
                       -i section-break-1.wav \
                       -i main-final.wav \
                       -i section-break-2.wav \
                       -i jingle-final.wav \
                       -i section-break-3.wav \
+                      -i main-part2-final.wav \
+                      -i section-break-4.wav \
+                      -i jingle-final.wav \
+                      -i section-break-5.wav \
                       -i ending-final.wav \
-                      -filter_complex "[0][1][2][3][4][5][6]concat=n=7:v=0:a=1[combined];
+                      -filter_complex "[0][1][2][3][4][5][6][7][8][9][10]concat=n=11:v=0:a=1[combined];
                                       [combined]loudnorm=I=-23:LRA=7:TP=-1[normalized]" \
                       -map "[normalized]" \
                       -c:a mp3 \
