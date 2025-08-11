@@ -94,11 +94,11 @@ jobs:
               exit 1
             fi
             
-            # ランダムにUUIDを選択（時刻ベースのシード使用）
-            UUID_SEED=$(($(date +%s%N | cut -b10-19) + $$ + RANDOM))
-            UUID_INDEX=$((UUID_SEED % ${#VOICE_UUIDS[@]}))
+            # 時刻ベースのランダム選択
+            CURRENT_TIME=$(date +%s)
+            UUID_INDEX=$((CURRENT_TIME % ${#VOICE_UUIDS[@]}))
             DEFAULT_VOICE_ID="${VOICE_UUIDS[$UUID_INDEX]}"
-            echo "🎯 選択された音声UUID: $DEFAULT_VOICE_ID (シード: $UUID_SEED)"
+            echo "🎯 選択された音声UUID: $DEFAULT_VOICE_ID (時刻: $CURRENT_TIME, インデックス: $UUID_INDEX)"
           else
             echo "::error::UUID.mdファイルが見つかりません"
             exit 1

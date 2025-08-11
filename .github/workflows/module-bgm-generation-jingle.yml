@@ -45,14 +45,14 @@ jobs:
             exit 1
           fi
           
-          # ランダム選択（日時ベースのシード + プロセスIDで真のランダム性を確保）
-          JINGLE_SEED=$(($(date +%s%N | cut -b10-19) + $$ + RANDOM))
-          RANDOM_INDEX=$((JINGLE_SEED % ${#JINGLE_FILES[@]}))
+          # 時刻ベースのランダム選択
+          CURRENT_TIME=$(date +%s)
+          RANDOM_INDEX=$((CURRENT_TIME % ${#JINGLE_FILES[@]}))
           SELECTED_JINGLE="${JINGLE_FILES[$RANDOM_INDEX]}"
           
           echo "🎯 選択されたジングルBGM: $SELECTED_JINGLE"
           echo "📊 利用可能ファイル数: ${#JINGLE_FILES[@]}"
-          echo "🎲 シード値: $JINGLE_SEED, インデックス: $RANDOM_INDEX"
+          echo "🎲 時刻: $CURRENT_TIME, インデックス: $RANDOM_INDEX"
           
           # ファイル情報表示
           ls -la "$SELECTED_JINGLE"
