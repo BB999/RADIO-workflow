@@ -166,20 +166,55 @@ jobs:
             FILE_SIZE=$(stat -c%s "$DOWNLOADED_FILE")
             echo "📊 ファイルサイズ: ${FILE_SIZE} bytes"
             
-            # 音声ファイルの簡易検証
-            file "$DOWNLOADED_FILE"
+            # 音声ファイルの検証
+            FILE_TYPE=$(file "$DOWNLOADED_FILE")
+            echo "📄 ファイルタイプ: $FILE_TYPE"
             
-            # ffmpegでループ拡張
-            sudo apt-get update && sudo apt-get install -y ffmpeg
-            if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-part2-30s.wav" -y; then
-              echo "✅ BGMループ拡張成功"
-              echo "music-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
-              echo "music-file=bgm-main-part2-30s.wav" >> $GITHUB_OUTPUT
+            # 音声ファイルかチェック
+            if echo "$FILE_TYPE" | grep -qE "(audio|WAVE|RIFF|data)" && [ $FILE_SIZE -gt 10000 ]; then
+              echo "✅ 有効な音声ファイルと判定"
+              
+              # ffmpegでループ拡張
+              sudo apt-get update && sudo apt-get install -y ffmpeg
+              if ffmpeg -stream_loop -1 -i "$DOWNLOADED_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-part2-30s.wav" -y 2>/dev/null; then
+                echo "✅ BGMループ拡張成功"
+                echo "music-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
+                echo "music-file=bgm-main-part2-30s.wav" >> $GITHUB_OUTPUT
+              else
+                echo "::warning::⚠️ ffmpeg処理失敗、ファイルが無効な可能性があります"
+                echo "::warning::ファイル内容（最初の500文字）:"
+                head -c 500 "$DOWNLOADED_FILE" || true
+                echo ""
+                
+                # ファイルを削除して次の試行へ
+                rm -f "$DOWNLOADED_FILE" "bgm-main-part2-30s.wav"
+                DOWNLOADED_FILE=""
+              fi
             else
-              echo "::error::❌ ffmpeg処理失敗"
-              exit 1
+              echo "::warning::⚠️ ダウンロードされたファイルが音声ファイルではありません"
+              echo "::warning::ファイルタイプ: $FILE_TYPE"
+              echo "::warning::ファイルサイズ: ${FILE_SIZE} bytes"
+              echo "::warning::ファイル内容（最初の500文字）:"
+              head -c 500 "$DOWNLOADED_FILE" || true
+              echo ""
+              
+              # XMLエラーレスポンスの場合、内容を表示
+              if echo "$FILE_TYPE" | grep -qE "(XML|HTML|text)"; then
+                echo "::warning::エラーレスポンス全体:"
+                cat "$DOWNLOADED_FILE" | head -20
+              fi
+              
+              # ファイルを削除
+              rm -f "$DOWNLOADED_FILE"
+              DOWNLOADED_FILE=""
             fi
-          elif [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
+          else
+            echo "::warning::⚠️ ダウンロードされたファイルが見つかりません"
+          fi
+          
+          # ダウンロードされたファイルが無効だった場合、URLからダウンロードを試みる
+          if [ -z "$DOWNLOADED_FILE" ] || [ ! -f "bgm-main-part2-30s.wav" ]; then
+            if [ ! -z "$MUSIC_URL" ] && [[ "$MUSIC_URL" =~ ^https:// ]]; then
             echo "✅ HTTPS URLからダウンロード: $MUSIC_URL"
             
             # ダウンロードとファイルチェック
@@ -198,21 +233,21 @@ jobs:
                 
                 # XMLファイルの場合はエラーとして扱う
                 if file "$MUSIC_FILE" | grep -q "XML"; then
-                  echo "::error::❌ ダウンロードしたファイルがXMLエラーレスポンスです"
-                  echo "::error::ファイル全体の内容:"
-                  cat "$MUSIC_FILE"
-                  exit 1
+                  echo "::warning::⚠️ ダウンロードしたファイルがXMLエラーレスポンスです"
+                  echo "::warning::ファイル全体の内容:"
+                  cat "$MUSIC_FILE" | head -20
+                  rm -f "$MUSIC_FILE"
                 fi
                 
                 # ffmpegでループ拡張
                 sudo apt-get update && sudo apt-get install -y ffmpeg
-                if ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-part2-30s.wav" -y; then
+                if ffmpeg -stream_loop -1 -i "$MUSIC_FILE" -t 30 -ar 44100 -ac 2 -c:a pcm_s16le "bgm-main-part2-30s.wav" -y 2>/dev/null; then
                   echo "✅ BGMループ拡張成功"
                   echo "music-url=$MUSIC_URL" >> $GITHUB_OUTPUT
                   echo "music-file=bgm-main-part2-30s.wav" >> $GITHUB_OUTPUT
                 else
-                  echo "::error::❌ ffmpeg処理失敗"
-                  exit 1
+                  echo "::warning::⚠️ ffmpeg処理失敗"
+                  rm -f "$MUSIC_FILE" "bgm-main-part2-30s.wav"
                 fi
               else
                 echo "::warning::⚠️ ダウンロードされたファイルが空です"
@@ -221,7 +256,8 @@ jobs:
               echo "::warning::⚠️ BGMファイルのダウンロードに失敗しました"
             fi
           else
-            echo "::warning::⚠️ 有効なURLまたはファイルが見つかりません"
+              echo "::warning::⚠️ 有効なURLが見つかりません"
+            fi
           fi
           
           
