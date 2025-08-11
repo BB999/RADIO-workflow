@@ -142,6 +142,9 @@ jobs:
             echo "::warning::パーソナリティデータファイルが見つかりません"
           fi
           
+          # SSMLフォーマッターをコピー
+          cp radio-workflow/ssml_formatter.js $WORK_DIR/
+          
           PROMPT="ラジオ番組のオープニング台本を生成してください。
 
           【パーソナリティ設定】
@@ -151,14 +154,23 @@ jobs:
           - 時間: 1分（300-400文字）
           - 内容: 明るい挨拶と番組紹介
           
+          生成後に以下の処理を行ってください：
+          1. 生成したテキストをSSMLフォーマッターで処理
+          2. SSMLフォーマッター使用例:
+          \`\`\`javascript
+          const SSMLFormatter = require('./ssml_formatter.js');
+          const formatter = new SSMLFormatter();
+          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
+          \`\`\`
+          
           以下のJSONを $WORK_DIR/opening.json に保存してください：
           {
-            \"opening\": \"オープニング台本\"
+            \"opening\": \"SSMLフォーマッター処理済みのオープニング台本\"
           }"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 5 \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
@@ -170,7 +182,7 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
             
             echo "voice-config=default" >> $GITHUB_OUTPUT
-            echo "✅ Opening script generated successfully"
+            echo "✅ Opening script generated successfully with SSML formatting"
           else
             echo "::error::Opening script generation failed"
             exit 1
@@ -212,6 +224,9 @@ jobs:
             echo "::warning::パーソナリティデータファイルが見つかりません"
           fi
           
+          # SSMLフォーマッターをコピー
+          cp radio-workflow/ssml_formatter.js $WORK_DIR/
+          
           # 開発進捗情報を前半用に分割
           DEV_REPORT='${{ inputs.development-report }}'
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
@@ -229,14 +244,23 @@ jobs:
           - 時間: 3分（900-1200文字）
           - 内容: 開発進捗の主要ポイントを解説
           
+          生成後に以下の処理を行ってください：
+          1. 生成したテキストをSSMLフォーマッターで処理
+          2. SSMLフォーマッター使用例:
+          \`\`\`javascript
+          const SSMLFormatter = require('./ssml_formatter.js');
+          const formatter = new SSMLFormatter();
+          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
+          \`\`\`
+          
           以下のJSONを $WORK_DIR/main.json に保存してください：
           {
-            \"main\": \"メイン前半台本\"
+            \"main\": \"SSMLフォーマッター処理済みのメイン前半台本\"
           }"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 8 \
+            --max-turns 10 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
@@ -247,7 +271,7 @@ jobs:
             echo "$MAIN_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
-            echo "✅ Main part1 script generated successfully"
+            echo "✅ Main part1 script generated successfully with SSML formatting"
           else
             echo "::error::Main part1 script generation failed"
             exit 1
@@ -289,6 +313,9 @@ jobs:
             echo "::warning::パーソナリティデータファイルが見つかりません"
           fi
           
+          # SSMLフォーマッターをコピー
+          cp radio-workflow/ssml_formatter.js $WORK_DIR/
+          
           # 開発進捗情報を後半用に分割
           DEV_REPORT='${{ inputs.development-report }}'
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
@@ -306,14 +333,23 @@ jobs:
           - 時間: 3分（900-1200文字）
           - 内容: 時事ニュースや追加情報、リスナーへのメッセージ
           
+          生成後に以下の処理を行ってください：
+          1. 生成したテキストをSSMLフォーマッターで処理
+          2. SSMLフォーマッター使用例:
+          \`\`\`javascript
+          const SSMLFormatter = require('./ssml_formatter.js');
+          const formatter = new SSMLFormatter();
+          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
+          \`\`\`
+          
           以下のJSONを $WORK_DIR/main_part2.json に保存してください：
           {
-            \"main_part2\": \"メイン後半台本\"
+            \"main_part2\": \"SSMLフォーマッター処理済みのメイン後半台本\"
           }"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 8 \
+            --max-turns 10 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
@@ -324,7 +360,7 @@ jobs:
             echo "$MAIN_PART2_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
-            echo "✅ Main part2 script generated successfully"
+            echo "✅ Main part2 script generated successfully with SSML formatting"
           else
             echo "::error::Main part2 script generation failed"
             exit 1
@@ -383,6 +419,9 @@ jobs:
             echo "::warning::パーソナリティデータファイルが見つかりません"
           fi
           
+          # SSMLフォーマッターをコピー
+          cp radio-workflow/ssml_formatter.js $WORK_DIR/
+          
           PROMPT="ラジオ番組のエンディング台本を生成してください。
 
           【パーソナリティ設定】
@@ -392,14 +431,23 @@ jobs:
           - 時間: 1分（300-400文字）
           - 内容: まとめと次回予告
           
+          生成後に以下の処理を行ってください：
+          1. 生成したテキストをSSMLフォーマッターで処理
+          2. SSMLフォーマッター使用例:
+          \`\`\`javascript
+          const SSMLFormatter = require('./ssml_formatter.js');
+          const formatter = new SSMLFormatter();
+          const formattedText = formatter.formatWithBreaks(originalText, formatter.getPreset('normal'));
+          \`\`\`
+          
           以下のJSONを $WORK_DIR/ending.json に保存してください：
           {
-            \"ending\": \"エンディング台本\"
+            \"ending\": \"SSMLフォーマッター処理済みのエンディング台本\"
           }"
           
           npx @anthropic-ai/claude-code \
             --allowedTools "Write" \
-            --max-turns 5 \
+            --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
           
@@ -410,7 +458,7 @@ jobs:
             echo "$ENDING_TEXT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
             
-            echo "✅ Ending script generated successfully"
+            echo "✅ Ending script generated successfully with SSML formatting"
           else
             echo "::error::Ending script generation failed"
             exit 1
