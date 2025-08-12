@@ -65,16 +65,7 @@ jobs:
             echo "🔄 画像生成試行 $RETRY_COUNT/3"
             
             # プロンプトの構築（画像生成指示をシンプル化）
-            FULL_PROMPT="画像を生成してください:
-
-$PROMPT_TEXT
-
-設定:
-- アスペクト比: 1:1 (square)
-- auto_download: true
-- auto_open: false
-
-Flux Schnellの3段階ツールを使って画像生成を完了してください。"
+            FULL_PROMPT="画像を生成してください: $PROMPT_TEXT 設定: アスペクト比1:1(square), auto_download:true, auto_open:false Flux Schnellの3段階ツールを使って画像生成を完了してください。"
           
             echo "🚀 Starting Radio Title Image Generation..."
             echo "📝 Prompt length: ${#FULL_PROMPT} (シンプル化済み)"
