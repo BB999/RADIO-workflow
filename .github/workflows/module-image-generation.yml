@@ -70,12 +70,13 @@ jobs:
           $PROMPT_TEXT
 
           **重要**: 
-          1. \`mcp__i2i-fal-flux-schnell__flux_schnell_generate\` ツールを使用してください
-          2. 生成されたファイルを自動ダウンロードし、ファイル名を出力してください
-          3. auto_download: true, auto_open: false を設定してください
+          1. \`mcp__i2i-fal-flux-schnell__flux_schnell_submit\` でリクエストを送信
+          2. \`mcp__i2i-fal-flux-schnell__flux_schnell_status\` でステータス確認
+          3. \`mcp__i2i-fal-flux-schnell__flux_schnell_result\` で結果取得とダウンロード
           4. アスペクト比は 16:9 (landscape) に設定してください
+          5. auto_download: true, auto_open: false を設定してください
 
-          **必須**: 必ず正しいツール名 \`mcp__i2i-fal-flux-schnell__flux_schnell_generate\` を使用してください。"
+          **必須**: 3段階のワークフローで画像生成を完了させてください。"
           
             echo "🚀 Starting Radio Title Image Generation..."
             echo "📝 Prompt length: ${#FULL_PROMPT}"
@@ -102,8 +103,9 @@ jobs:
             echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
             IMAGE_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
               --mcp-config="$(pwd)/mcp-config.json" \
-              --allowedTools "mcp__i2i-fal-flux-schnell__flux_schnell_generate,Bash" \
-              --max-turns 5 \
+              --allowedTools "mcp__i2i-fal-flux-schnell__flux_schnell_submit,mcp__i2i-fal-flux-schnell__flux_schnell_status,mcp__i2i-fal-flux-schnell__flux_schnell_result,Bash" \
+              --max-turns 8 \
+              --permission-mode "acceptMcp" \
               --print \
               --verbose \
               "$FULL_PROMPT" 2>&1) || {
