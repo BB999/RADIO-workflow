@@ -162,6 +162,21 @@ jobs:
               [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン4で発見: $DOWNLOADED_FILE"
             fi
             
+            # パターン5: /root/での絶対パスファイル
+            if [ -z "$DOWNLOADED_FILE" ] && [ ! -z "$CLAUDE_FILE" ]; then
+              if [[ "$CLAUDE_FILE" == /root/* ]] && [ -f "$CLAUDE_FILE" ]; then
+                echo "✅ パターン5（/root/絶対パス）で発見: $CLAUDE_FILE"
+                # ワーキングディレクトリにコピー
+                BASENAME_FILE=$(basename "$CLAUDE_FILE")
+                if cp "$CLAUDE_FILE" "./$BASENAME_FILE" 2>/dev/null; then
+                  DOWNLOADED_FILE="./$BASENAME_FILE"
+                  echo "✅ /root/からワーキングディレクトリにコピー完了: $DOWNLOADED_FILE"
+                else
+                  echo "::warning::⚠️ /root/からのファイルコピーに失敗"
+                fi
+              fi
+            fi
+            
             echo "🔍 URL抽出結果: '$IMAGE_URL'"
             echo "📁 ダウンロードされたファイル: '$DOWNLOADED_FILE'"
             
