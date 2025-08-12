@@ -23,7 +23,6 @@ permissions:
 
 jobs:
   image-generation:
-    runs-on: ubuntu-latest
     uses: ./.github/workflows/module-image-generation.yml
     secrets: inherit
 
