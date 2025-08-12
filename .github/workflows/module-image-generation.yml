@@ -156,9 +156,19 @@ jobs:
             DOWNLOADED_FILE=""
             
             # パターン0: Claude Codeが明示的に出力したファイル名（絶対パス含む）
-            if [ ! -z "$CLAUDE_FILE" ] && [ -f "$CLAUDE_FILE" ]; then
-              DOWNLOADED_FILE="$CLAUDE_FILE"
-              echo "✅ パターン0（Claude出力）で発見: $DOWNLOADED_FILE"
+            echo "🔍 パターン0チェック: CLAUDE_FILE='$CLAUDE_FILE'"
+            if [ ! -z "$CLAUDE_FILE" ]; then
+              echo "🔍 CLAUDE_FILEが設定されています - ファイル存在チェック"
+              if [ -f "$CLAUDE_FILE" ]; then
+                DOWNLOADED_FILE="$CLAUDE_FILE"
+                echo "✅ パターン0（Claude出力）で発見: $DOWNLOADED_FILE"
+              else
+                echo "⚠️ パターン0: ファイルが存在しません: $CLAUDE_FILE"
+                # 絶対パスでもls試行
+                ls -la "$CLAUDE_FILE" 2>/dev/null || echo "ls確認: ファイルアクセスできません"
+              fi
+            else
+              echo "🔍 CLAUDE_FILEが空です"
             fi
             
             # パターン1: flux_schnell_で始まるファイル（BGMのlyria_output_パターンと同じ構造）
