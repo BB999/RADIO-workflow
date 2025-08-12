@@ -43,9 +43,18 @@ jobs:
           fi
           echo "✅ MCP Flux Schnell URL is configured"
           
-          # 今日の日付を取得
+          # 今日の日付と時間帯を取得
           TODAY_DATE=$(date +%Y-%m-%d)
+          CURRENT_HOUR=$(date +%H)
+          if [ $CURRENT_HOUR -lt 12 ]; then
+            TIME_PERIOD="morning"
+            TIME_PERIOD_JP="朝"
+          else
+            TIME_PERIOD="afternoon"
+            TIME_PERIOD_JP="午後"
+          fi
           echo "📅 Today's date: $TODAY_DATE"
+          echo "🕐 Current time period: $TIME_PERIOD ($TIME_PERIOD_JP)"
           
           # プロンプトファイルの内容を読み込み、日付を今日の日付に置き換え
           if [ -f "radio-workflow/picture_prompt.md" ]; then
@@ -64,8 +73,8 @@ jobs:
           for RETRY_COUNT in {1..3}; do
             echo "🔄 画像生成試行 $RETRY_COUNT/3"
             
-            # プロンプトの構築（保存場所を明示的に指定）
-            FULL_PROMPT="画像を生成してください: $PROMPT_TEXT 設定: アスペクト比1:1(square), 保存場所は現在のワーキングディレクトリ $(pwd), ファイル名はradio-title.png, Flux Schnellの3段階ツールを使って画像生成を完了し、必ずradio-title.pngという名前で保存してください。/rootディレクトリではなく、現在のディレクトリに保存することが重要です。"
+            # プロンプトの構築（時間帯テキストを追加）
+            FULL_PROMPT="画像を生成してください: $PROMPT_TEXT さらに右下に大きく「$TIME_PERIOD」という文字を配置してください。 設定: アスペクト比1:1(square), 保存場所は現在のワーキングディレクトリ $(pwd), ファイル名はradio-title.png, Flux Schnellの3段階ツールを使って画像生成を完了し、必ずradio-title.pngという名前で保存してください。/rootディレクトリではなく、現在のディレクトリに保存することが重要です。"
           
             echo "🚀 Starting Radio Title Image Generation..."
             echo "📝 Prompt length: ${#FULL_PROMPT} (シンプル化済み)"
