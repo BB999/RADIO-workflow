@@ -37,22 +37,50 @@ jobs:
             exit 1
           fi
           
-          # MP3ファイル一覧取得
-          JINGLE_FILES=("$JINGLE_DIR"/*.mp3)
+          # MP3ファイル一覧取得とファイル数確認
+          echo "🔍 ジングルSEフォルダ内のファイルをチェック中..."
+          ls -la "$JINGLE_DIR"/*.mp3 2>/dev/null || {
+            echo "::error::❌ ジングルSEフォルダにMP3ファイルが見つかりません"
+            exit 1
+          }
           
-          if [ ${#JINGLE_FILES[@]} -eq 0 ]; then
+          JINGLE_FILES=("$JINGLE_DIR"/*.mp3)
+          FILE_COUNT=${#JINGLE_FILES[@]}
+          
+          echo "📁 ジングルファイル一覧:"
+          for i in "${!JINGLE_FILES[@]}"; do
+            echo "  [$i] $(basename "${JINGLE_FILES[$i]}")"
+          done
+          
+          if [ $FILE_COUNT -eq 0 ]; then
             echo "::error::❌ ジングルSEフォルダにMP3ファイルが見つかりません"
             exit 1
           fi
           
-          # 時刻ベースのランダム選択
+          # より確実なランダム選択（複数の要素を組み合わせ）
           CURRENT_TIME=$(date +%s)
-          RANDOM_INDEX=$((CURRENT_TIME % ${#JINGLE_FILES[@]}))
-          SELECTED_JINGLE="${JINGLE_FILES[$RANDOM_INDEX]}"
+          NANOSEC=$(date +%N)
+          WORKFLOW_RUN_ID="${{ github.run_id }}"
           
-          echo "🎯 選択されたジングルBGM: $SELECTED_JINGLE"
-          echo "📊 利用可能ファイル数: ${#JINGLE_FILES[@]}"
-          echo "🎲 時刻: $CURRENT_TIME, インデックス: $RANDOM_INDEX"
+          # 複数の値を組み合わせてランダム性を向上
+          RANDOM_SEED=$((CURRENT_TIME + NANOSEC + WORKFLOW_RUN_ID))
+          RANDOM_INDEX=$((RANDOM_SEED % FILE_COUNT))
+          
+          # さらにshufを使ってランダム性を向上
+          if command -v shuf >/dev/null 2>&1; then
+            SELECTED_FILE=$(printf '%s\n' "${JINGLE_FILES[@]}" | shuf -n 1)
+            echo "🎲 shufコマンドを使用してランダム選択"
+          else
+            SELECTED_FILE="${JINGLE_FILES[$RANDOM_INDEX]}"
+            echo "🎲 計算ベースランダム選択"
+          fi
+          
+          SELECTED_JINGLE="$SELECTED_FILE"
+          
+          echo "🎯 選択されたジングルBGM: $(basename "$SELECTED_JINGLE")"
+          echo "📊 利用可能ファイル数: $FILE_COUNT"
+          echo "🎲 シード値: $RANDOM_SEED, インデックス: $RANDOM_INDEX"
+          echo "⏰ 時刻: $CURRENT_TIME, ナノ秒: $NANOSEC, Run ID: $WORKFLOW_RUN_ID"
           
           # ファイル情報表示
           ls -la "$SELECTED_JINGLE"

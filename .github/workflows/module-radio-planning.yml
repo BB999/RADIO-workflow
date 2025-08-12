@@ -79,26 +79,53 @@ jobs:
           
           # radio-workflow/UUID.mdから音声IDをランダム選択
           if [ -f "radio-workflow/UUID.md" ]; then
+            echo "🔍 音声UUIDファイル内容をチェック中..."
+            cat "radio-workflow/UUID.md"
+            
             # 空行を除いてUUIDを配列に読み込み
             declare -a VOICE_UUIDS=()
             while IFS= read -r uuid; do
-              if [ -n "$uuid" ]; then
+              if [[ -n "$uuid" ]]; then
                 VOICE_UUIDS+=("$uuid")
-                echo "  - 発見UUID: $uuid"
               fi
             done < "radio-workflow/UUID.md"
             
+            UUID_COUNT=${#VOICE_UUIDS[@]}
+            
+            echo "📁 音声UUID一覧:"
+            for i in "${!VOICE_UUIDS[@]}"; do
+              echo "  [$i] ${VOICE_UUIDS[$i]}"
+            done
+            
             # UUIDが存在するかチェック
-            if [ ${#VOICE_UUIDS[@]} -eq 0 ]; then
+            if [ $UUID_COUNT -eq 0 ]; then
               echo "::error::有効なUUIDが見つかりません"
               exit 1
             fi
             
-            # 時刻ベースのランダム選択
+            # より確実なランダム選択（複数の要素を組み合わせ）
             CURRENT_TIME=$(date +%s)
-            UUID_INDEX=$((CURRENT_TIME % ${#VOICE_UUIDS[@]}))
-            DEFAULT_VOICE_ID="${VOICE_UUIDS[$UUID_INDEX]}"
-            echo "🎯 選択された音声UUID: $DEFAULT_VOICE_ID (時刻: $CURRENT_TIME, インデックス: $UUID_INDEX)"
+            NANOSEC=$(date +%N)
+            WORKFLOW_RUN_ID="${{ github.run_id }}"
+            
+            # 複数の値を組み合わせてランダム性を向上
+            RANDOM_SEED=$((CURRENT_TIME + NANOSEC + WORKFLOW_RUN_ID))
+            RANDOM_INDEX=$((RANDOM_SEED % UUID_COUNT))
+            
+            # さらにshufを使ってランダム性を向上
+            if command -v shuf >/dev/null 2>&1; then
+              SELECTED_UUID=$(printf '%s\n' "${VOICE_UUIDS[@]}" | shuf -n 1)
+              echo "🎲 shufコマンドを使用してランダム選択"
+            else
+              SELECTED_UUID="${VOICE_UUIDS[$RANDOM_INDEX]}"
+              echo "🎲 計算ベースランダム選択"
+            fi
+            
+            DEFAULT_VOICE_ID="$SELECTED_UUID"
+            echo "🎯 選択された音声UUID: $DEFAULT_VOICE_ID"
+            echo "📊 利用可能UUID数: $UUID_COUNT"
+            echo "🎲 シード値: $RANDOM_SEED, インデックス: $RANDOM_INDEX"
+            echo "⏰ 時刻: $CURRENT_TIME, ナノ秒: $NANOSEC, Run ID: $WORKFLOW_RUN_ID"
           else
             echo "::error::UUID.mdファイルが見つかりません"
             exit 1
