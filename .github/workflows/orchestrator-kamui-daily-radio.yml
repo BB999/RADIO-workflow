@@ -223,6 +223,12 @@ jobs:
     uses: ./.github/workflows/module-bgm-generation-jingle.yml
     secrets: inherit
 
+  image-generation:
+    needs: planning
+    if: needs.planning.result == 'success'
+    uses: ./.github/workflows/module-image-generation.yml
+    secrets: inherit
+
   audio-mixing-opening:
     needs: [voice-opening, bgm-opening]
     if: success()  # オープニング音声・BGM生成が成功した場合のみミキシング実行
@@ -269,8 +275,8 @@ jobs:
     secrets: inherit
 
   audio-mixing-final:
-    needs: [audio-mixing-opening, audio-mixing-main, audio-mixing-main-part2, audio-mixing-jingle, audio-mixing-ending]
-    if: success()  # 全てのセクション音声ミキシングが成功した場合のみ最終結合実行
+    needs: [audio-mixing-opening, audio-mixing-main, audio-mixing-main-part2, audio-mixing-jingle, audio-mixing-ending, image-generation]
+    if: success()  # 全てのセクション音声ミキシングと画像生成が成功した場合のみ最終結合実行
     uses: ./.github/workflows/module-audio-mixing-final.yml
     with:
       opening-audio: ${{ needs.audio-mixing-opening.outputs.mixed-audio }}

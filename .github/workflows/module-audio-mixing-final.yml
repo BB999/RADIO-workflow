@@ -72,6 +72,12 @@ jobs:
           name: voice-uuid
           path: artifacts/voice-uuid
       
+      - name: Download radio image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: radio-image
+          path: artifacts/radio-image
+      
       - name: List downloaded artifacts
         run: |
           echo "::group::📁 最終統合用アーティファクト"
@@ -224,10 +230,16 @@ jobs:
           # 画像と音声を組み合わせて動画を生成
           echo "🎬 動画生成開始（音声+静止画）"
           
-          # 画像ファイルの確認
-          RADIO_IMAGE="radio-workflow/image/title.png"
-          if [ ! -f "$RADIO_IMAGE" ]; then
-            echo "::error::❌ ラジオ用画像が見つかりません: $RADIO_IMAGE"
+          # 画像ファイルの確認（生成された画像を優先使用）
+          RADIO_IMAGE=""
+          if [ -f "artifacts/radio-image/radio-title.png" ]; then
+            RADIO_IMAGE="artifacts/radio-image/radio-title.png"
+            echo "✅ 生成された画像を使用: $RADIO_IMAGE"
+          elif [ -f "radio-workflow/image/title.png" ]; then
+            RADIO_IMAGE="radio-workflow/image/title.png"
+            echo "⚠️ フォールバック画像を使用: $RADIO_IMAGE"
+          else
+            echo "::error::❌ ラジオ用画像が見つかりません（生成画像もフォールバック画像も無し）"
             exit 1
           fi
           
@@ -294,7 +306,8 @@ jobs:
               \"codec\": \"H.264\",
               \"resolution\": \"静止画ベース（元画像サイズ）\",
               \"audio_codec\": \"AAC 192kbps\",
-              \"source_image\": \"radio-workflow/image/title.png\"
+              \"source_image\": \"$RADIO_IMAGE\",
+              \"image_generated\": \"$([ -f 'artifacts/radio-image/radio-title.png' ] && echo 'true' || echo 'false')\"
             },
             \"sections\": [
               {\"name\": \"opening\", \"description\": \"音声+BGM+選択楽曲（クロスフェード）\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%→0\", \"intro\": \"6s\", \"crossfade\": \"楽曲との5秒クロスフェード\"},

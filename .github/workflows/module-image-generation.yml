@@ -1,0 +1,323 @@
+name: Image Generation (Minimal)
+on:
+  workflow_call:
+    outputs:
+      image-url:
+        value: ${{ jobs.generate.outputs.url }}
+      image-file:
+        value: ${{ jobs.generate.outputs.file }}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.image.outputs.image-url }}
+      file: ${{ steps.image.outputs.image-file }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: |
+          echo "📦 Claude Code SDKインストール"
+          npm install @anthropic-ai/claude-code --force 2>/dev/null || echo "⚠️ インストールエラーを無視して続行"
+      
+      - name: Generate Radio Title Image with Flux Schnell
+        id: image
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          MCP_FLUX_SCHNELL_URL: ${{ secrets.MCP_FLUX_SCHNELL_URL }}
+        run: |
+          echo "::group::🎨 Radio Title Image Generation with Flux Schnell"
+          echo "Starting at: $(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+          
+          # MCP Flux Schnell URLの確認
+          if [ -z "$MCP_FLUX_SCHNELL_URL" ]; then
+            echo "::error::MCP_FLUX_SCHNELL_URL is not set in GitHub Secrets"
+            exit 1
+          fi
+          echo "✅ MCP Flux Schnell URL is configured"
+          
+          # 今日の日付を取得
+          TODAY_DATE=$(date +%Y-%m-%d)
+          echo "📅 Today's date: $TODAY_DATE"
+          
+          # プロンプトファイルの内容を読み込み、日付を今日の日付に置き換え
+          if [ -f "radio-workflow/picture_prompt.md" ]; then
+            PROMPT_TEXT=$(cat radio-workflow/picture_prompt.md | sed "s/2025-08-12/$TODAY_DATE/g")
+            echo "✅ プロンプトファイルを読み込み、日付を更新しました"
+            echo "📝 プロンプト内容（最初の200文字）:"
+            echo "$PROMPT_TEXT" | head -c 200
+            echo ""
+          else
+            echo "::error::プロンプトファイルが見つかりません: radio-workflow/picture_prompt.md"
+            exit 1
+          fi
+          
+          # 画像生成リトライループ（最大3回）
+          SUCCESS=false
+          for RETRY_COUNT in {1..3}; do
+            echo "🔄 画像生成試行 $RETRY_COUNT/3"
+            
+            # プロンプトの構築
+            FULL_PROMPT="以下のラジオ番組タイトル画像を生成してください：
+
+          $PROMPT_TEXT
+
+          **重要**: 
+          1. \`mcp__i2i-fal-flux-schnell__flux_schnell_generate\` ツールを使用してください
+          2. 生成されたファイルを自動ダウンロードし、ファイル名を出力してください
+          3. auto_download: true, auto_open: false を設定してください
+          4. アスペクト比は 16:9 (landscape) に設定してください
+
+          **必須**: 必ず正しいツール名 \`mcp__i2i-fal-flux-schnell__flux_schnell_generate\` を使用してください。"
+          
+            echo "🚀 Starting Radio Title Image Generation..."
+            echo "📝 Prompt length: ${#FULL_PROMPT}"
+            
+            echo "📋 Environment Check:"
+            echo "Working directory: $(pwd)"
+            echo "MCP Flux Schnell URL configured: Yes"
+            
+            # Claude Code CLIの実行（環境変数から直接MCPサービスを使用）
+            echo "🤖 Claude Code CLI実行開始"
+            
+            # MCP設定を作成
+            echo '{
+              "mcpServers": {
+                "i2i-fal-flux-schnell": {
+                  "type": "http",
+                  "url": "'${MCP_FLUX_SCHNELL_URL}'",
+                  "description": "Flux Schnell Text-to-Image Generation"
+                }
+              }
+            }' > mcp-config.json
+            
+            # Claude Codeの実行とエラーハンドリング
+            echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
+            IMAGE_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
+              --mcp-config="$(pwd)/mcp-config.json" \
+              --allowedTools "mcp__i2i-fal-flux-schnell__flux_schnell_generate,Bash" \
+              --max-turns 5 \
+              --print \
+              --verbose \
+              "$FULL_PROMPT" 2>&1) || {
+                  CLAUDE_EXIT_CODE=$?
+                  echo "::error::❌ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
+                  if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
+                    echo "::error::❌ タイムアウトしました (2分)"
+                  fi
+                  echo "::error::詳細なエラー出力:"
+                  echo "$IMAGE_RESULT" | head -50
+                  echo "::error::環境変数確認:"
+                  echo "CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:0:20}..."
+                  IMAGE_RESULT=""
+                }
+            
+            echo "🎨 画像生成結果 (最初の500文字):"
+            echo "$IMAGE_RESULT" | head -c 500
+            echo ""
+            
+            # 結果からURLまたはファイル名を抽出
+            IMAGE_URL=$(echo "$IMAGE_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(png|jpg|jpeg|webp)' | head -1)
+            # Claude Codeの出力からファイル名を抽出（バッククォートで囲まれたファイル名を検索）
+            CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP '`[^`]+\.(png|jpg|jpeg|webp)`' | sed 's/`//g' | head -1)
+            if [ ! -z "$CLAUDE_FILE" ]; then
+              echo "✅ Claude Codeの出力からファイル名を検出: $CLAUDE_FILE"
+            fi
+            IMAGE_FILE="radio-title.png"
+            
+            # 直接ダウンロードされたファイルを検索（より包括的に）
+            echo "🔍 生成されたファイルを検索中..."
+            ls -la || true
+            
+            # 複数のパターンでファイルを検索
+            DOWNLOADED_FILE=""
+            
+            # パターン0: Claude Codeが明示的に出力したファイル名
+            if [ ! -z "$CLAUDE_FILE" ] && [ -f "$CLAUDE_FILE" ]; then
+              DOWNLOADED_FILE="$CLAUDE_FILE"
+              echo "✅ パターン0（Claude出力）で発見: $DOWNLOADED_FILE"
+            fi
+            
+            # パターン1: flux_schnell_で始まるファイル
+            if [ -z "$DOWNLOADED_FILE" ]; then
+              DOWNLOADED_FILE=$(find . -name "flux_schnell_*.png" -o -name "flux_schnell_*.jpg" -o -name "flux_schnell_*.jpeg" -o -name "flux_schnell_*.webp" -type f 2>/dev/null | head -1)
+              [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン1で発見: $DOWNLOADED_FILE"
+            fi
+            
+            # パターン2: imageで始まるファイル
+            if [ -z "$DOWNLOADED_FILE" ]; then
+              DOWNLOADED_FILE=$(find . -name "image*.png" -o -name "image*.jpg" -o -name "image*.jpeg" -o -name "image*.webp" -type f 2>/dev/null | head -1)
+              [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン2で発見: $DOWNLOADED_FILE"
+            fi
+            
+            # パターン3: 最近作成された画像ファイル
+            if [ -z "$DOWNLOADED_FILE" ]; then
+              DOWNLOADED_FILE=$(find . -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" -type f -mmin -5 2>/dev/null | head -1)
+              [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン3で発見: $DOWNLOADED_FILE"
+            fi
+            
+            # パターン4: 任意の画像ファイル
+            if [ -z "$DOWNLOADED_FILE" ]; then
+              DOWNLOADED_FILE=$(find . -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" -type f 2>/dev/null | head -1)
+              [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン4で発見: $DOWNLOADED_FILE"
+            fi
+            
+            echo "🔍 URL抽出結果: '$IMAGE_URL'"
+            echo "📁 ダウンロードされたファイル: '$DOWNLOADED_FILE'"
+            
+            # ファイル処理（ダウンロード済みファイルを優先）
+            if [ ! -z "$DOWNLOADED_FILE" ] && [ -s "$DOWNLOADED_FILE" ]; then
+              echo "✅ 既にダウンロードされたファイルを使用: $DOWNLOADED_FILE"
+              
+              FILE_SIZE=$(stat -c%s "$DOWNLOADED_FILE")
+              echo "📊 ファイルサイズ: ${FILE_SIZE} bytes"
+              
+              # 画像ファイルの検証
+              FILE_TYPE=$(file "$DOWNLOADED_FILE")
+              echo "📄 ファイルタイプ: $FILE_TYPE"
+              
+              # 画像ファイルかチェック
+              if echo "$FILE_TYPE" | grep -qE "(image|PNG|JPEG|WebP|data)" && [ $FILE_SIZE -gt 1000 ]; then
+                echo "✅ 有効な画像ファイルと判定"
+                
+                # PNGに変換
+                sudo apt-get update && sudo apt-get install -y imagemagick
+                if convert "$DOWNLOADED_FILE" "radio-title.png" 2>/dev/null; then
+                  echo "✅ 画像をPNG形式に変換成功"
+                  echo "image-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
+                  echo "image-file=radio-title.png" >> $GITHUB_OUTPUT
+                else
+                  echo "::warning::⚠️ ImageMagick変換失敗、元ファイルを使用"
+                  cp "$DOWNLOADED_FILE" "radio-title.png"
+                  echo "image-url=file://$(pwd)/$DOWNLOADED_FILE" >> $GITHUB_OUTPUT
+                  echo "image-file=radio-title.png" >> $GITHUB_OUTPUT
+                fi
+              else
+                echo "::warning::⚠️ ダウンロードされたファイルが画像ファイルではありません"
+                echo "::warning::ファイルタイプ: $FILE_TYPE"
+                echo "::warning::ファイルサイズ: ${FILE_SIZE} bytes"
+                echo "::warning::ファイル内容（最初の500文字）:"
+                head -c 500 "$DOWNLOADED_FILE" || true
+                echo ""
+                
+                # XMLエラーレスポンスの場合、内容を表示
+                if echo "$FILE_TYPE" | grep -qE "(XML|HTML|text)"; then
+                  echo "::warning::エラーレスポンス全体:"
+                  cat "$DOWNLOADED_FILE" | head -20
+                fi
+                
+                # ファイルを削除
+                rm -f "$DOWNLOADED_FILE"
+                DOWNLOADED_FILE=""
+              fi
+            else
+              echo "::warning::⚠️ ダウンロードされたファイルが見つかりません"
+            fi
+            
+            # ダウンロードされたファイルが無効だった場合、URLからダウンロードを試みる
+            if [ -z "$DOWNLOADED_FILE" ] || [ ! -f "radio-title.png" ]; then
+              if [ ! -z "$IMAGE_URL" ] && [[ "$IMAGE_URL" =~ ^https:// ]]; then
+                echo "✅ HTTPS URLからダウンロードを試行: $IMAGE_URL"
+                
+                # ダウンロードとファイルチェック
+                if curl -L "$IMAGE_URL" -o "$IMAGE_FILE" --max-time 60; then
+                  if [ -s "$IMAGE_FILE" ]; then
+                    FILE_SIZE=$(stat -c%s "$IMAGE_FILE")
+                    FILE_TYPE=$(file "$IMAGE_FILE")
+                    echo "📊 ダウンロードファイルサイズ: ${FILE_SIZE} bytes"
+                    echo "📄 ファイルタイプ: $FILE_TYPE"
+                    
+                    # 画像ファイルかチェック
+                    if echo "$FILE_TYPE" | grep -qE "(image|PNG|JPEG|WebP|data)" && [ $FILE_SIZE -gt 1000 ]; then
+                      echo "✅ 有効な画像ファイルをダウンロード"
+                      
+                      # PNGに変換
+                      sudo apt-get update && sudo apt-get install -y imagemagick
+                      if convert "$IMAGE_FILE" "radio-title.png" 2>/dev/null; then
+                        echo "✅ 画像をPNG形式に変換成功"
+                        echo "image-url=$IMAGE_URL" >> $GITHUB_OUTPUT
+                        echo "image-file=radio-title.png" >> $GITHUB_OUTPUT
+                      else
+                        echo "::warning::⚠️ ImageMagick変換失敗、元ファイルを使用"
+                        mv "$IMAGE_FILE" "radio-title.png"
+                        echo "image-url=$IMAGE_URL" >> $GITHUB_OUTPUT
+                        echo "image-file=radio-title.png" >> $GITHUB_OUTPUT
+                      fi
+                    else
+                      echo "::warning::⚠️ ダウンロードしたファイルが画像ファイルではありません"
+                      echo "::warning::ファイル内容（最初の500文字）:"
+                      head -c 500 "$IMAGE_FILE" || true
+                      rm -f "$IMAGE_FILE"
+                    fi
+                  else
+                    echo "::warning::⚠️ ダウンロードされたファイルが空です"
+                  fi
+                else
+                  echo "::warning::⚠️ 画像ファイルのダウンロードに失敗しました"
+                fi
+              else
+                echo "::warning::⚠️ 有効なURLが見つかりません"
+              fi
+            fi
+            
+            # 画像生成成功チェック
+            if [ -f "radio-title.png" ] && [ -s "radio-title.png" ]; then
+              echo "✅ 画像生成成功（試行 $RETRY_COUNT/3）"
+              SUCCESS=true
+              break
+            else
+              echo "::warning::⚠️ 画像生成失敗（試行 $RETRY_COUNT/3）"
+              echo "::warning::詳細なエラーログ:"
+              echo "::warning::Claude Code実行結果: $IMAGE_RESULT"
+              echo "::warning::抽出されたURL: '$IMAGE_URL'"
+              echo "::warning::ダウンロードされたファイル: '$DOWNLOADED_FILE'"
+              
+              # ファイルをクリーンアップ
+              rm -f radio-title.png flux_schnell_*.png *.png 2>/dev/null || true
+              
+              if [ $RETRY_COUNT -lt 3 ]; then
+                echo "🔄 30秒後に再試行します..."
+                sleep 30
+              fi
+            fi
+          done
+          
+          # 最終結果チェック
+          if [ "$SUCCESS" != "true" ]; then
+            echo "::error::❌ 画像生成に3回失敗しました"
+            echo "::error::現在のディレクトリ内容:"
+            ls -la || true
+            echo "::error::MCP設定ファイル確認:"
+            if [ -f "mcp-config.json" ]; then
+              echo "::error::MCP設定ファイルが存在します: mcp-config.json"
+              head -20 "mcp-config.json" || true
+            else
+              echo "::error::MCP設定ファイルが見つかりません: mcp-config.json"
+            fi
+            exit 1
+          fi
+          
+          # 最終ファイルチェック
+          if [ -f "radio-title.png" ] && [ -s "radio-title.png" ]; then
+            FINAL_SIZE=$(stat -c%s "radio-title.png")
+            echo "✅ 最終画像ファイル生成完了 (${FINAL_SIZE} bytes)"
+          else
+            echo "::error::❌ 最終画像ファイルの生成に失敗しました"
+            exit 1
+          fi
+          
+          echo "::endgroup::"
+      
+      - name: Upload Image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: radio-image
+          path: radio-title.png
+          retention-days: 1
