@@ -64,22 +64,20 @@ jobs:
           for RETRY_COUNT in {1..3}; do
             echo "🔄 画像生成試行 $RETRY_COUNT/3"
             
-            # プロンプトの構築
-            FULL_PROMPT="以下のラジオ番組タイトル画像を生成してください：
+            # プロンプトの構築（画像生成指示をシンプル化）
+            FULL_PROMPT="画像を生成してください:
 
-          $PROMPT_TEXT
+$PROMPT_TEXT
 
-          **重要**: 
-          1. \`mcp__i2i-fal-flux-schnell__flux_schnell_submit\` でリクエストを送信
-          2. \`mcp__i2i-fal-flux-schnell__flux_schnell_status\` でステータス確認
-          3. \`mcp__i2i-fal-flux-schnell__flux_schnell_result\` で結果取得とダウンロード
-          4. アスペクト比は 16:9 (landscape) に設定してください
-          5. auto_download: true, auto_open: false を設定してください
+設定:
+- アスペクト比: 1:1 (square)
+- auto_download: true
+- auto_open: false
 
-          **必須**: 3段階のワークフローで画像生成を完了させてください。"
+Flux Schnellの3段階ツールを使って画像生成を完了してください。"
           
             echo "🚀 Starting Radio Title Image Generation..."
-            echo "📝 Prompt length: ${#FULL_PROMPT}"
+            echo "📝 Prompt length: ${#FULL_PROMPT} (シンプル化済み)"
             
             echo "📋 Environment Check:"
             echo "Working directory: $(pwd)"
@@ -100,11 +98,11 @@ jobs:
             }' > mcp-config.json
             
             # Claude Codeの実行とエラーハンドリング
-            echo "🎯 Claude Code CLI実行中（120秒タイムアウト）..."
-            IMAGE_RESULT=$(timeout 120 npx @anthropic-ai/claude-code \
+            echo "🎯 Claude Code CLI実行中（180秒タイムアウト）..."
+            IMAGE_RESULT=$(timeout 180 npx @anthropic-ai/claude-code \
               --mcp-config="$(pwd)/mcp-config.json" \
               --allowedTools "mcp__i2i-fal-flux-schnell__flux_schnell_submit,mcp__i2i-fal-flux-schnell__flux_schnell_status,mcp__i2i-fal-flux-schnell__flux_schnell_result,Bash" \
-              --max-turns 8 \
+              --max-turns 12 \
               --permission-mode "bypassPermissions" \
               --print \
               --verbose \
@@ -112,7 +110,7 @@ jobs:
                   CLAUDE_EXIT_CODE=$?
                   echo "::error::❌ Claude Code実行失敗 (exit code: $CLAUDE_EXIT_CODE)"
                   if [ $CLAUDE_EXIT_CODE -eq 124 ]; then
-                    echo "::error::❌ タイムアウトしました (2分)"
+                    echo "::error::❌ タイムアウトしました (3分)"
                   fi
                   echo "::error::詳細なエラー出力:"
                   echo "$IMAGE_RESULT" | head -50
@@ -121,8 +119,10 @@ jobs:
                   IMAGE_RESULT=""
                 }
             
-            echo "🎨 画像生成結果 (最初の500文字):"
-            echo "$IMAGE_RESULT" | head -c 500
+            echo "🎨 画像生成結果 (詳細ログ):"
+            echo "--- Claude Code 実行ログ (開始) ---"
+            echo "$IMAGE_RESULT"
+            echo "--- Claude Code 実行ログ (終了) ---"
             echo ""
             
             # 結果からURLまたはファイル名を抽出
