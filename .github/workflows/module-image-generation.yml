@@ -140,6 +140,9 @@ jobs:
               CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP 'flux_schnell_[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | head -1)
             fi
             
+            # ファイル名の前後の空白を除去
+            CLAUDE_FILE=$(echo "$CLAUDE_FILE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
             if [ ! -z "$CLAUDE_FILE" ]; then
               echo "✅ Claude Codeの出力からファイル名を検出: $CLAUDE_FILE"
             else

@@ -131,6 +131,12 @@ jobs:
             exit 1
           fi
 
+  image-generation:
+    needs: api-check
+    if: needs.api-check.result == 'success'
+    uses: ./.github/workflows/module-image-generation.yml
+    secrets: inherit
+
   input-processing:
     needs: api-check
     if: ${{ inputs.gemini-summary == true }}
@@ -221,12 +227,6 @@ jobs:
   bgm-jingle:
     needs: planning
     uses: ./.github/workflows/module-bgm-generation-jingle.yml
-    secrets: inherit
-
-  image-generation:
-    needs: planning
-    if: needs.planning.result == 'success'
-    uses: ./.github/workflows/module-image-generation.yml
     secrets: inherit
 
   audio-mixing-opening:
