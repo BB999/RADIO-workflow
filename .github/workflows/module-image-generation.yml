@@ -105,7 +105,7 @@ jobs:
               --mcp-config="$(pwd)/mcp-config.json" \
               --allowedTools "mcp__i2i-fal-flux-schnell__flux_schnell_submit,mcp__i2i-fal-flux-schnell__flux_schnell_status,mcp__i2i-fal-flux-schnell__flux_schnell_result,Bash" \
               --max-turns 8 \
-              --permission-mode "acceptMcp" \
+              --permission-mode "bypassPermissions" \
               --print \
               --verbose \
               "$FULL_PROMPT" 2>&1) || {
