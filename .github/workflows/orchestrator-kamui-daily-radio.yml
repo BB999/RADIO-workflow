@@ -22,12 +22,7 @@ permissions:
   pull-requests: write  # PR作成に必要
 
 jobs:
-  image-generation:
-    uses: ./.github/workflows/module-image-generation.yml
-    secrets: inherit
-
   api-check:
-    needs: image-generation
     runs-on: ubuntu-latest
     outputs:
       api-status: ${{ steps.check.outputs.status }}
@@ -229,6 +224,12 @@ jobs:
     uses: ./.github/workflows/module-bgm-generation-jingle.yml
     secrets: inherit
 
+  image-generation:
+    needs: planning
+    if: needs.planning.result == 'success'
+    uses: ./.github/workflows/module-image-generation.yml
+    secrets: inherit
+
   audio-mixing-opening:
     needs: [voice-opening, bgm-opening]
     if: success()  # オープニング音声・BGM生成が成功した場合のみミキシング実行
@@ -331,7 +332,7 @@ jobs:
             release-files/metadata.json
 
   create-pr:
-    needs: [planning, audio-mixing-final]
+    needs: [planning, audio-mixing-final, image-generation]
     if: success()
     runs-on: ubuntu-latest
     steps:
@@ -342,6 +343,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: final-audio
+          path: radio-output
+      
+      - name: Download radio image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: radio-image
           path: radio-output
       
       - name: Get current date
@@ -369,6 +376,8 @@ jobs:
           神威日報ラジオ生成 - ${{ steps.date.outputs.date }}
           
           - 音声ファイル: final-radio.mp3 (240秒、-23 LUFS)
+          - 動画ファイル: final-radio-video.mp4
+          - 画像ファイル: radio-title.png
           - メタデータ: metadata.json
           - 開発進捗: ${{ inputs.development-report }}
           
@@ -452,6 +461,8 @@ jobs:
 
           ### 📁 生成ファイル
           - \`radio-output/final-radio.mp3\` - 完成したラジオ番組音声
+          - \`radio-output/final-radio-video.mp4\` - ラジオ番組動画（音声+画像）
+          - \`radio-output/radio-title.png\` - 生成されたラジオタイトル画像
           - \`radio-output/metadata.json\` - 番組メタデータ
 
           ### 🔗 関連リンク
