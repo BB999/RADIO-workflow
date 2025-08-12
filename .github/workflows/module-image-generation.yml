@@ -169,19 +169,23 @@ jobs:
                 echo "⚠️ パターン0: 相対パスでファイルが存在しません: $CLAUDE_FILE"
                 # 絶対パスの場合、直接アクセス試行（BGMパターンと同じ）
                 if [[ "$CLAUDE_FILE" == /* ]]; then
-                  echo "🔍 絶対パス検出 - 直接アクセス試行"
-                  if [ -f "$CLAUDE_FILE" ]; then
-                    echo "✅ 絶対パスでファイル発見: $CLAUDE_FILE"
-                    BASENAME_FILE=$(basename "$CLAUDE_FILE")
-                    if cp "$CLAUDE_FILE" "./$BASENAME_FILE" 2>/dev/null; then
+                  echo "🔍 絶対パス検出 - sudoで直接アクセス試行"
+                  BASENAME_FILE=$(basename "$CLAUDE_FILE")
+                  echo "🔍 ファイル名: $BASENAME_FILE"
+                  
+                  # sudoでファイル存在確認
+                  if sudo test -f "$CLAUDE_FILE"; then
+                    echo "✅ sudo権限で絶対パスファイル発見: $CLAUDE_FILE"
+                    if sudo cp "$CLAUDE_FILE" "./$BASENAME_FILE" 2>/dev/null; then
+                      sudo chown runner:docker "./$BASENAME_FILE" 2>/dev/null || true
                       DOWNLOADED_FILE="./$BASENAME_FILE"
-                      echo "✅ 絶対パスからワーキングディレクトリにコピー完了: $DOWNLOADED_FILE"
+                      echo "✅ sudo権限で絶対パスからワーキングディレクトリにコピー完了: $DOWNLOADED_FILE"
                     else
-                      echo "::warning::⚠️ ファイルコピーに失敗"
+                      echo "::warning::⚠️ sudoでもファイルコピーに失敗"
                     fi
                   else
-                    echo "⚠️ 絶対パスでもファイルアクセスできません"
-                    ls -la "$CLAUDE_FILE" 2>/dev/null || echo "ls確認: ファイルアクセスできません"
+                    echo "⚠️ sudoでも絶対パスファイルアクセスできません"
+                    sudo ls -la "$CLAUDE_FILE" 2>/dev/null || echo "sudoでもls確認: ファイルアクセスできません"
                   fi
                 fi
               fi
