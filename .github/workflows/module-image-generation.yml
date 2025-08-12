@@ -118,8 +118,28 @@ jobs:
             
             # 結果からURLまたはファイル名を抽出
             IMAGE_URL=$(echo "$IMAGE_RESULT" | grep -oP '(https://|gs://)[^\s]+\.(png|jpg|jpeg|webp)' | head -1)
-            # Claude Codeの出力からファイル名を抽出（バッククォートで囲まれたファイル名を検索）
+            
+            # Claude Codeの出力からファイル名を抽出（複数パターン）
+            CLAUDE_FILE=""
+            
+            # パターンA: バッククォートで囲まれたファイル名
             CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP '`[^`]+\.(png|jpg|jpeg|webp)`' | sed 's/`//g' | head -1)
+            
+            # パターンB: 「ファイル名**: 」形式
+            if [ -z "$CLAUDE_FILE" ]; then
+              CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP '\*\*ファイル名\*\*[:\s]*[^0-9\s]*[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | sed 's/\*\*ファイル名\*\*[:\s]*//' | head -1)
+            fi
+            
+            # パターンC: 「画像は」で始まる行からファイル名抽出
+            if [ -z "$CLAUDE_FILE" ]; then
+              CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP '画像は[^/]*([/][^/\s]*)*[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | grep -oP '[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | head -1)
+            fi
+            
+            # パターンD: flux_schnellで始まるファイル名を直接検索
+            if [ -z "$CLAUDE_FILE" ]; then
+              CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP 'flux_schnell_[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | head -1)
+            fi
+            
             if [ ! -z "$CLAUDE_FILE" ]; then
               echo "✅ Claude Codeの出力からファイル名を検出: $CLAUDE_FILE"
             fi
