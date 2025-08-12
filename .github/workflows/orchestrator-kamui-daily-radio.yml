@@ -288,14 +288,23 @@ jobs:
     secrets: inherit
 
   publish:
-    needs: audio-mixing-final
-    if: false  # リリース無効化
+    needs: [audio-mixing-final, image-generation]
+    if: success()  # 音声ミキシングと画像生成が成功した場合のみリリース実行
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
       - name: Download final audio artifact
         uses: actions/download-artifact@v4
         with:
           name: final-audio
+          path: release-files
+      
+      - name: Download radio image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: radio-image
           path: release-files
       
       - name: List release files
@@ -307,6 +316,7 @@ jobs:
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -326,161 +336,20 @@ jobs:
             
             **開発進捗**: ${{ inputs.development-report }}
             
+            ### 📁 生成ファイル
+            - 音声ファイル: final-radio.mp3
+            - 画像ファイル: radio-title.png
+            - メタデータ: metadata.json
+            
             🎵 Generated with [Claude Code](https://claude.ai/code)
           files: |
             release-files/final-radio.mp3
+            release-files/radio-title.png
             release-files/metadata.json
 
-  create-pr:
-    needs: [planning, audio-mixing-final, image-generation]
-    if: success()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Download final audio artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: final-audio
-          path: radio-output
-      
-      - name: Download radio image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: radio-image
-          path: radio-output
-      
-      - name: Get current date
-        id: date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-      
-      - name: Create feature branch
-        run: |
-          BRANCH_NAME="radio/daily-radio-${{ steps.date.outputs.date }}-${{ github.run_id }}"
-          git checkout -b "$BRANCH_NAME"
-          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
-        id: branch
-      
-      - name: Commit generated files
-        run: |
-          # 生成されたファイルをradio-outputディレクトリに配置
-          mkdir -p radio-output
-          
-          # Gitに追加
-          git add radio-output/
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          git commit -m "$(cat <<'EOF'
-          神威日報ラジオ生成 - ${{ steps.date.outputs.date }}
-          
-          - 音声ファイル: final-radio.mp3 (240秒、-23 LUFS)
-          - 動画ファイル: final-radio-video.mp4
-          - 画像ファイル: radio-title.png
-          - メタデータ: metadata.json
-          - 開発進捗: ${{ inputs.development-report }}
-          
-          🤖 Generated with [Claude Code](https://claude.ai/code)
-          
-          Co-Authored-By: Claude <noreply@anthropic.com>
-          EOF
-          )"
-      
-      - name: Push branch
-        run: |
-          git push origin "${{ steps.branch.outputs.branch_name }}"
-      
-      - name: Create Pull Request
-        run: |
-          # 台本の内容を取得してSSMLタグを除去
-          OPENING_TEXT=$(echo "${{ needs.planning.outputs.script-opening }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          MAIN_TEXT=$(echo "${{ needs.planning.outputs.script-main }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          MAIN_PART2_TEXT=$(echo "${{ needs.planning.outputs.script-main-part2 }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          JINGLE_TEXT=$(echo "${{ needs.planning.outputs.script-jingle }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          ENDING_TEXT=$(echo "${{ needs.planning.outputs.script-ending }}" | sed 's/<[^>]*>//g' | sed 's/^ *//' | sed 's/ *$//')
-          
-          # 文字数計算（日本語対応）
-          OPENING_COUNT=$(echo "$OPENING_TEXT" | wc -m)
-          MAIN_COUNT=$(echo "$MAIN_TEXT" | wc -m)
-          MAIN_PART2_COUNT=$(echo "$MAIN_PART2_TEXT" | wc -m)
-          JINGLE_COUNT=$(echo "$JINGLE_TEXT" | wc -m)
-          ENDING_COUNT=$(echo "$ENDING_TEXT" | wc -m)
-          TOTAL_COUNT=$((OPENING_COUNT + MAIN_COUNT + MAIN_PART2_COUNT + JINGLE_COUNT + ENDING_COUNT))
-          
-          # 音声IDとアーティファクトから楽曲情報を取得
-          VOICE_ID="不明"
-          SELECTED_MUSIC="不明"
-          ARTIST_NAME="不明"
-          SONG_NAME="不明"
-          if [ -f "radio-output/USE_UUID.md" ]; then
-            VOICE_ID=$(grep "Voice UUID:" radio-output/USE_UUID.md | cut -d' ' -f3 2>/dev/null || echo "不明")
-            SELECTED_MUSIC_FILE=$(grep "Selected Music File:" radio-output/USE_UUID.md | cut -d' ' -f4- 2>/dev/null || echo "不明")
-            ARTIST_NAME=$(grep "Artist:" radio-output/USE_UUID.md | cut -d' ' -f2- 2>/dev/null || echo "不明")
-            SONG_NAME=$(grep "Song:" radio-output/USE_UUID.md | cut -d' ' -f2- 2>/dev/null || echo "不明")
-            
-            # 曲名情報を整理（アーティスト名と楽曲名が取得できた場合）
-            if [ "$ARTIST_NAME" != "不明" ] && [ "$SONG_NAME" != "不明" ]; then
-              SELECTED_MUSIC="${ARTIST_NAME} - ${SONG_NAME}"
-            elif [ "$SONG_NAME" != "不明" ]; then
-              SELECTED_MUSIC="${SONG_NAME}"
-            else
-              SELECTED_MUSIC="$SELECTED_MUSIC_FILE"
-            fi
-          fi
-          
-          # PRボディを直接作成
-          gh pr create \
-            --title "🎙️ 神威日報ラジオ - ${{ steps.date.outputs.date }}" \
-            --body "## 🎙️ 神威日報ラジオ生成完了
-
-          ### 📊 番組情報
-          - **放送日**: ${{ steps.date.outputs.date }}
-          - **時間**: 240秒（4分）
-          - **音声品質**: -23 LUFS (放送基準)
-          - **MC**: AI生成（20代女性）
-          - **使用音声ID**: ${VOICE_ID}
-          - **使用楽曲**: ${SELECTED_MUSIC}
-
-          ### 📝 生成された台本（合計文字数: ${TOTAL_COUNT}文字）
-
-          #### オープニング（${OPENING_COUNT}文字）
-          ${OPENING_TEXT}
-
-          #### メイン前半（${MAIN_COUNT}文字）
-          ${MAIN_TEXT}
-
-          #### ジングル（${JINGLE_COUNT}文字）
-          ${JINGLE_TEXT}
-
-          #### メイン後半（${MAIN_PART2_COUNT}文字）
-          ${MAIN_PART2_TEXT}
-
-          #### エンディング（${ENDING_COUNT}文字）
-          ${ENDING_TEXT}
-
-          ### 📁 生成ファイル
-          - \`radio-output/final-radio.mp3\` - 完成したラジオ番組音声
-          - \`radio-output/final-radio-video.mp4\` - ラジオ番組動画（音声+画像）
-          - \`radio-output/radio-title.png\` - 生成されたラジオタイトル画像
-          - \`radio-output/metadata.json\` - 番組メタデータ
-
-          ### 🔗 関連リンク
-          - [リリース](https://github.com/${{ github.repository }}/releases/tag/radio-${{ github.run_id }})
-          - [ワークフロー実行](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-          ### ✅ テストプラン
-          - [ ] 音声ファイルの再生確認
-          - [ ] 音声品質の確認 (-23 LUFS)
-          - [ ] メタデータの内容確認
-          - [ ] 台本の内容確認
-
-          🤖 Generated with [Claude Code](https://claude.ai/code)"
-        env:
-          GH_TOKEN: ${{ github.token }}
 
   summary:
-    needs: [planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, create-pr]
+    needs: [planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -512,7 +381,7 @@ jobs:
           EOF
 
   line-notification:
-    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, create-pr, summary]
+    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish, summary]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -539,7 +408,7 @@ jobs:
              [[ "${{ needs.bgm-ending.result }}" != "success" ]] || \
              [[ "${{ needs.bgm-jingle.result }}" != "success" ]] || \
              [[ "${{ needs.audio-mixing-final.result }}" != "success" ]] || \
-             [[ "${{ needs.create-pr.result }}" != "success" ]]; then
+             [[ "${{ needs.publish.result }}" != "success" ]]; then
             STATUS_EMOJI="❌"
             STATUS_TEXT="失敗"
           fi
@@ -558,7 +427,7 @@ jobs:
           BGM_ENDING_STATUS="${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
           BGM_JINGLE_STATUS="${{ needs.bgm-jingle.result == 'success' && '✅' || '❌ ジングルSE選択失敗' }}"
           MIXING_STATUS="${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌ FFmpeg失敗' }}"
-          PR_STATUS="${{ needs.create-pr.result == 'success' && '✅' || '❌ GitHub API失敗' }}"
+          PUBLISH_STATUS="${{ needs.publish.result == 'success' && '✅' || '❌ リリース作成失敗' }}"
           
           # エラー詳細情報の構築
           ERROR_DETAILS=""
@@ -601,8 +470,8 @@ jobs:
           if [[ "${{ needs.audio-mixing-final.result }}" != "success" ]]; then
             ERROR_DETAILS="${ERROR_DETAILS}\n🚫 音声ミキシングエラー: FFmpeg処理失敗"
           fi
-          if [[ "${{ needs.create-pr.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 プルリク作成エラー: GitHub API失敗"
+          if [[ "${{ needs.publish.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 リリース作成エラー: GitHub API失敗"
           fi
           
           # LINE APIが設定されているか確認
@@ -620,7 +489,7 @@ jobs:
               \"messages\": [
                 {
                   \"type\": \"text\",
-                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(前半): ${VOICE_MAIN_STATUS}\n・音声生成(後半): ${VOICE_MAIN_PART2_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(前半): ${BGM_MAIN_STATUS}\n・BGM生成(後半): ${BGM_MAIN_PART2_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・プルリク作成: ${PR_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(前半): ${VOICE_MAIN_STATUS}\n・音声生成(後半): ${VOICE_MAIN_PART2_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(前半): ${BGM_MAIN_STATUS}\n・BGM生成(後半): ${BGM_MAIN_PART2_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・リリース作成: ${PUBLISH_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
                 }
               ]
             }"

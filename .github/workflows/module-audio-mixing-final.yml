@@ -20,8 +20,6 @@ on:
     outputs:
       final-audio:
         value: ${{ jobs.mix-final.outputs.url }}
-      final-video:
-        value: ${{ jobs.mix-final.outputs.video-url }}
       metadata:
         value: ${{ jobs.mix-final.outputs.metadata }}
 
@@ -30,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       url: ${{ steps.mixing.outputs.final-file }}
-      video-url: ${{ steps.mixing.outputs.final-video }}
       metadata: ${{ steps.mixing.outputs.metadata }}
     steps:
       - name: Checkout repository
@@ -227,52 +224,6 @@ jobs:
             exit 1
           fi
           
-          # 画像と音声を組み合わせて動画を生成
-          echo "🎬 動画生成開始（音声+静止画）"
-          
-          # 画像ファイルの確認（生成された画像を優先使用）
-          RADIO_IMAGE=""
-          if [ -f "artifacts/radio-image/radio-title.png" ]; then
-            RADIO_IMAGE="artifacts/radio-image/radio-title.png"
-            echo "✅ 生成された画像を使用: $RADIO_IMAGE"
-          elif [ -f "radio-workflow/image/title.png" ]; then
-            RADIO_IMAGE="radio-workflow/image/title.png"
-            echo "⚠️ フォールバック画像を使用: $RADIO_IMAGE"
-          else
-            echo "::error::❌ ラジオ用画像が見つかりません（生成画像もフォールバック画像も無し）"
-            exit 1
-          fi
-          
-          echo "🖼️ 使用画像: $RADIO_IMAGE"
-          
-          # 音声の長さを取得
-          AUDIO_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "final-radio.mp3" 2>/dev/null || echo "240")
-          echo "⏱️ 音声長さ: ${AUDIO_DURATION}秒"
-          
-          # 静止画 + 音声でMP4動画を生成
-          ffmpeg -loop 1 -i "$RADIO_IMAGE" \
-                 -i final-radio.mp3 \
-                 -c:v libx264 \
-                 -tune stillimage \
-                 -c:a aac \
-                 -b:a 192k \
-                 -pix_fmt yuv420p \
-                 -shortest \
-                 -t "$AUDIO_DURATION" \
-                 final-radio-video.mp4 -y
-          
-          # 動画生成確認
-          if [ -f "final-radio-video.mp4" ]; then
-            VIDEO_SIZE=$(stat -c%s final-radio-video.mp4)
-            echo "✅ final-radio-video.mp4 生成成功 (${VIDEO_SIZE} bytes)"
-            
-            # 動画情報を取得
-            echo "📹 動画情報:"
-            ffprobe -v quiet -print_format json -show_format -show_streams final-radio-video.mp4 | jq '.format | {duration, size, format_name}'
-          else
-            echo "::error::❌ 動画ファイルの生成に失敗"
-            exit 1
-          fi
           
           # 選択された音楽情報を取得してメタデータに含める
           SELECTED_MUSIC_INFO="unknown"
@@ -285,12 +236,6 @@ jobs:
           # 最終音声の長さを取得
           FINAL_DURATION=$(ffprobe -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "final-radio.mp3" 2>/dev/null || echo "unknown")
           
-          # 動画ファイルサイズ取得
-          VIDEO_SIZE_MB=""
-          if [ -f "final-radio-video.mp4" ]; then
-            VIDEO_SIZE_BYTES=$(stat -c%s final-radio-video.mp4)
-            VIDEO_SIZE_MB=$(echo "scale=2; $VIDEO_SIZE_BYTES / 1048576" | bc -l)
-          fi
           
           # メタデータ生成
           echo "{
@@ -298,16 +243,7 @@ jobs:
             \"selected_music\": \"$SELECTED_MUSIC_INFO\",
             \"selected_jingle\": \"$SELECTED_JINGLE_INFO\",
             \"files\": {
-              \"audio\": \"final-radio.mp3\",
-              \"video\": \"final-radio-video.mp4\",
-              \"video_size_mb\": \"${VIDEO_SIZE_MB}\"
-            },
-            \"video_specs\": {
-              \"codec\": \"H.264\",
-              \"resolution\": \"静止画ベース（元画像サイズ）\",
-              \"audio_codec\": \"AAC 192kbps\",
-              \"source_image\": \"$RADIO_IMAGE\",
-              \"image_generated\": \"$([ -f 'artifacts/radio-image/radio-title.png' ] && echo 'true' || echo 'false')\"
+              \"audio\": \"final-radio.mp3\"
             },
             \"sections\": [
               {\"name\": \"opening\", \"description\": \"音声+BGM+選択楽曲（クロスフェード）\", \"bgm\": \"upbeat\", \"bgm_volume\": \"100%→50%→0\", \"intro\": \"6s\", \"crossfade\": \"楽曲との5秒クロスフェード\"},
@@ -328,11 +264,10 @@ jobs:
             },
             \"sequence\": \"opening → silence(${SILENCE_1}s) → jingle_1 → silence(${SILENCE_2}s) → main_part1 → silence(${SILENCE_3}s) → jingle_2 → silence(${SILENCE_4}s) → main_part2 → silence(${SILENCE_5}s) → jingle_3 → silence(${SILENCE_6}s) → ending\",
             \"audio_standard\": \"-23 LUFS\",
-            \"format\": \"MP3 320kbps + MP4 H.264/AAC\"
+            \"format\": \"MP3 320kbps\"
           }" > metadata.json
           
           echo "final-file=final-radio.mp3" >> $GITHUB_OUTPUT
-          echo "final-video=final-radio-video.mp4" >> $GITHUB_OUTPUT
           echo "metadata=metadata.json" >> $GITHUB_OUTPUT
       
       - name: Upload final media artifacts
@@ -341,6 +276,5 @@ jobs:
           name: final-audio
           path: |
             final-radio.mp3
-            final-radio-video.mp4
             metadata.json
           retention-days: 7
