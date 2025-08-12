@@ -43,9 +43,10 @@ jobs:
           fi
           echo "✅ MCP Flux Schnell URL is configured"
           
-          # 今日の日付と時間帯を取得
-          TODAY_DATE=$(date +%Y-%m-%d)
-          CURRENT_HOUR=$(date +%H)
+          # 今日の日付と時間帯を取得（日本時間）
+          TODAY_DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d)
+          CURRENT_HOUR=$(TZ=Asia/Tokyo date +%H)
+          CURRENT_TIME=$(TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M:%S JST')
           if [ $CURRENT_HOUR -lt 12 ]; then
             TIME_PERIOD="morning"
             TIME_PERIOD_JP="朝"
@@ -54,7 +55,9 @@ jobs:
             TIME_PERIOD_JP="午後"
           fi
           echo "📅 Today's date: $TODAY_DATE"
-          echo "🕐 Current time period: $TIME_PERIOD ($TIME_PERIOD_JP)"
+          echo "🕐 Current time (JST): $CURRENT_TIME"
+          echo "🕐 Current hour: $CURRENT_HOUR"
+          echo "🕐 Time period: $TIME_PERIOD ($TIME_PERIOD_JP)"
           
           # プロンプトファイルの内容を読み込み、日付を今日の日付に置き換え
           if [ -f "radio-workflow/picture_prompt.md" ]; then
