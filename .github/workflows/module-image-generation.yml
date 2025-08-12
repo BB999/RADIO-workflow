@@ -142,23 +142,26 @@ jobs:
             
             if [ ! -z "$CLAUDE_FILE" ]; then
               echo "✅ Claude Codeの出力からファイル名を検出: $CLAUDE_FILE"
+            else
+              echo "⚠️ Claude Codeの出力からファイル名を検出できませんでした"
             fi
+            echo "🔍 デバッグ: CLAUDE_FILE='$CLAUDE_FILE'"
             IMAGE_FILE="radio-title.png"
             
             # 直接ダウンロードされたファイルを検索（より包括的に）
             echo "🔍 生成されたファイルを検索中..."
             ls -la || true
             
-            # 複数のパターンでファイルを検索
+            # 複数のパターンでファイルを検索（BGMパターンを参考）
             DOWNLOADED_FILE=""
             
-            # パターン0: Claude Codeが明示的に出力したファイル名
+            # パターン0: Claude Codeが明示的に出力したファイル名（絶対パス含む）
             if [ ! -z "$CLAUDE_FILE" ] && [ -f "$CLAUDE_FILE" ]; then
               DOWNLOADED_FILE="$CLAUDE_FILE"
               echo "✅ パターン0（Claude出力）で発見: $DOWNLOADED_FILE"
             fi
             
-            # パターン1: flux_schnell_で始まるファイル
+            # パターン1: flux_schnell_で始まるファイル（BGMのlyria_output_パターンと同じ構造）
             if [ -z "$DOWNLOADED_FILE" ]; then
               DOWNLOADED_FILE=$(find . -name "flux_schnell_*.png" -o -name "flux_schnell_*.jpg" -o -name "flux_schnell_*.jpeg" -o -name "flux_schnell_*.webp" -type f 2>/dev/null | head -1)
               [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン1で発見: $DOWNLOADED_FILE"
@@ -182,20 +185,6 @@ jobs:
               [ ! -z "$DOWNLOADED_FILE" ] && echo "✅ パターン4で発見: $DOWNLOADED_FILE"
             fi
             
-            # パターン5: /root/での絶対パスファイル
-            if [ -z "$DOWNLOADED_FILE" ] && [ ! -z "$CLAUDE_FILE" ]; then
-              if [[ "$CLAUDE_FILE" == /root/* ]] && [ -f "$CLAUDE_FILE" ]; then
-                echo "✅ パターン5（/root/絶対パス）で発見: $CLAUDE_FILE"
-                # ワーキングディレクトリにコピー
-                BASENAME_FILE=$(basename "$CLAUDE_FILE")
-                if cp "$CLAUDE_FILE" "./$BASENAME_FILE" 2>/dev/null; then
-                  DOWNLOADED_FILE="./$BASENAME_FILE"
-                  echo "✅ /root/からワーキングディレクトリにコピー完了: $DOWNLOADED_FILE"
-                else
-                  echo "::warning::⚠️ /root/からのファイルコピーに失敗"
-                fi
-              fi
-            fi
             
             echo "🔍 URL抽出結果: '$IMAGE_URL'"
             echo "📁 ダウンロードされたファイル: '$DOWNLOADED_FILE'"
@@ -203,6 +192,18 @@ jobs:
             # ファイル処理（ダウンロード済みファイルを優先）
             if [ ! -z "$DOWNLOADED_FILE" ] && [ -s "$DOWNLOADED_FILE" ]; then
               echo "✅ 既にダウンロードされたファイルを使用: $DOWNLOADED_FILE"
+              
+              # 絶対パスの場合、ワーキングディレクトリにコピー（BGMパターンを参考）
+              if [[ "$DOWNLOADED_FILE" == /* ]]; then
+                echo "🔍 絶対パス検出 - ワーキングディレクトリにコピー中"
+                BASENAME_FILE=$(basename "$DOWNLOADED_FILE")
+                if cp "$DOWNLOADED_FILE" "./$BASENAME_FILE" 2>/dev/null; then
+                  DOWNLOADED_FILE="./$BASENAME_FILE"
+                  echo "✅ 絶対パスからワーキングディレクトリにコピー完了: $DOWNLOADED_FILE"
+                else
+                  echo "::warning::⚠️ ファイルコピーに失敗"
+                fi
+              fi
               
               FILE_SIZE=$(stat -c%s "$DOWNLOADED_FILE")
               echo "📊 ファイルサイズ: ${FILE_SIZE} bytes"
