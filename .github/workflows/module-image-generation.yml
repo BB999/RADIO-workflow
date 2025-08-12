@@ -135,9 +135,19 @@ jobs:
               CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP '画像は[^/]*([/][^/\s]*)*[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | grep -oP '[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | head -1)
             fi
             
-            # パターンD: flux_schnellで始まるファイル名を直接検索
+            # パターンD: 「ファイル名「」として保存」形式
             if [ -z "$CLAUDE_FILE" ]; then
-              CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP 'flux_schnell_[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | head -1)
+              CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP 'ファイル名「[^」]+\.(png|jpg|jpeg|webp)」として保存' | grep -oP '[^「]+\.(png|jpg|jpeg|webp)' | head -1)
+            fi
+            
+            # パターンE: flux_schnellで始まるファイル名を直接検索
+            if [ -z "$CLAUDE_FILE" ]; then
+              CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP '[A-Za-z_]*flux_schnell_[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | head -1)
+            fi
+            
+            # パターンF: KAMURAJI_logoで始まるファイル名を検索
+            if [ -z "$CLAUDE_FILE" ]; then
+              CLAUDE_FILE=$(echo "$IMAGE_RESULT" | grep -oP 'KAMURAJI_logo_[a-zA-Z0-9_]+\.(png|jpg|jpeg|webp)' | head -1)
             fi
             
             # ファイル名の前後の空白を除去
