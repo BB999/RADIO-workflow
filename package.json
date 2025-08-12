@@ -1,5 +1,5 @@
 {
-  "name": "kamuicode-workflow",
+  "name": "radio-work",
   "version": "1.0.0",
   "description": "Claude Code SDK と kamuicode MCP を活用したAI生成ワークフロー集",
   "main": "index.js",
