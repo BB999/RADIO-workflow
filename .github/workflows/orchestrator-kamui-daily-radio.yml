@@ -22,7 +22,13 @@ permissions:
   pull-requests: write  # PR作成に必要
 
 jobs:
+  image-generation:
+    runs-on: ubuntu-latest
+    uses: ./.github/workflows/module-image-generation.yml
+    secrets: inherit
+
   api-check:
+    needs: image-generation
     runs-on: ubuntu-latest
     outputs:
       api-status: ${{ steps.check.outputs.status }}
@@ -131,11 +137,6 @@ jobs:
             exit 1
           fi
 
-  image-generation:
-    needs: api-check
-    if: needs.api-check.result == 'success'
-    uses: ./.github/workflows/module-image-generation.yml
-    secrets: inherit
 
   input-processing:
     needs: api-check

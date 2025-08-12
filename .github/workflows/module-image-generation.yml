@@ -166,9 +166,24 @@ jobs:
                 DOWNLOADED_FILE="$CLAUDE_FILE"
                 echo "✅ パターン0（Claude出力）で発見: $DOWNLOADED_FILE"
               else
-                echo "⚠️ パターン0: ファイルが存在しません: $CLAUDE_FILE"
-                # 絶対パスでもls試行
-                ls -la "$CLAUDE_FILE" 2>/dev/null || echo "ls確認: ファイルアクセスできません"
+                echo "⚠️ パターン0: 相対パスでファイルが存在しません: $CLAUDE_FILE"
+                # 絶対パスの場合、直接アクセス試行（BGMパターンと同じ）
+                if [[ "$CLAUDE_FILE" == /* ]]; then
+                  echo "🔍 絶対パス検出 - 直接アクセス試行"
+                  if [ -f "$CLAUDE_FILE" ]; then
+                    echo "✅ 絶対パスでファイル発見: $CLAUDE_FILE"
+                    BASENAME_FILE=$(basename "$CLAUDE_FILE")
+                    if cp "$CLAUDE_FILE" "./$BASENAME_FILE" 2>/dev/null; then
+                      DOWNLOADED_FILE="./$BASENAME_FILE"
+                      echo "✅ 絶対パスからワーキングディレクトリにコピー完了: $DOWNLOADED_FILE"
+                    else
+                      echo "::warning::⚠️ ファイルコピーに失敗"
+                    fi
+                  else
+                    echo "⚠️ 絶対パスでもファイルアクセスできません"
+                    ls -la "$CLAUDE_FILE" 2>/dev/null || echo "ls確認: ファイルアクセスできません"
+                  fi
+                fi
               fi
             else
               echo "🔍 CLAUDE_FILEが空です"
