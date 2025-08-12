@@ -1,0 +1,37 @@
+{
+  "duration": "472.104000s",
+  "selected_music": "不明・にゅうき.mp3",
+  "selected_jingle": "",
+  "files": {
+    "audio": "final-radio.mp3",
+    "video": "final-radio-video.mp4",
+    "video_size_mb": "14.07"
+  },
+  "video_specs": {
+    "codec": "H.264",
+    "resolution": "静止画ベース（元画像サイズ）",
+    "audio_codec": "AAC 192kbps",
+    "source_image": "artifacts/radio-image/radio-title.png",
+    "image_generated": "true"
+  },
+  "sections": [
+    {"name": "opening", "description": "音声+BGM+選択楽曲（クロスフェード）", "bgm": "upbeat", "bgm_volume": "100%→50%→0", "intro": "6s", "crossfade": "楽曲との5秒クロスフェード"},
+    {"name": "main_part1", "description": "前半メイン音声+BGM", "bgm": "talk-friendly", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "jingle_1", "description": "ジングル音声+SE（5秒遅延）", "bgm": "jingle-se", "bgm_volume": "70%", "voice_delay": "5s", "fade_out": "2s"},
+    {"name": "main_part2", "description": "後半メイン音声+BGM", "bgm": "modern-chill", "bgm_volume": "100%→50%", "intro": "4s", "fade_out": "5s"},
+    {"name": "jingle_2", "description": "ジングル音声+SE（5秒遅延、同一音声）", "bgm": "jingle-se-alt", "bgm_volume": "70%", "voice_delay": "5s", "fade_out": "2s"},
+    {"name": "ending", "description": "音声+BGM", "bgm": "warm-outro", "bgm_volume": "100%→50%→100%", "intro": "4s", "fade_out": "7s"}
+  ],
+  "processing": {
+    "workflow": "分割処理後統合",
+    "opening_job": "audio-mixing-opening",
+    "main_part1_job": "audio-mixing-main",
+    "main_part2_job": "audio-mixing-main-part2",
+    "jingle_job": "audio-mixing-jingle",
+    "ending_job": "audio-mixing-ending",
+    "final_job": "audio-mixing-final"
+  },
+  "sequence": "opening → silence(1.69658s) → jingle_1 → silence(0.5s) → main_part1 → silence(0.5s) → jingle_2 → silence(0.5s) → main_part2 → silence(0.5s) → jingle_3 → silence(0.5s) → ending",
+  "audio_standard": "-23 LUFS",
+  "format": "MP3 320kbps + MP4 H.264/AAC"
+}
