@@ -322,9 +322,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: radio-${{ github.run_id }}
-          name: 神威日報ラジオ - ${{ steps.date.outputs.date }}
+          name: 神威日報振り返りエンターテインメントラジオ「KAMURAJI」${{ steps.date.outputs.date }}
           body: |
-            ## 🎙️ 神威日報ラジオ
+            ## 🎙️ 神威日報振り返りエンターテインメントラジオ「KAMURAJI」
             
             ### 番組情報
             - 放送日: ${{ steps.date.outputs.date }}
@@ -334,7 +334,22 @@ jobs:
             ### 内容
             神威アプリの最新開発情報をお届けします。
             
-            **開発進捗**: ${{ inputs.development-report }}
+            ### 📜 今回の台本
+            
+            **オープニング:**
+            ${{ needs.planning.outputs.script-opening }}
+            
+            **メイン前半:**
+            ${{ needs.planning.outputs.script-main }}
+            
+            **メイン後半:**
+            ${{ needs.planning.outputs.script-main-part2 }}
+            
+            **エンディング:**
+            ${{ needs.planning.outputs.script-ending }}
+            
+            **ジングル:**
+            ${{ needs.planning.outputs.script-jingle }}
             
             ### 📁 生成ファイル
             - 音声ファイル: final-radio.mp3
@@ -506,7 +521,16 @@ jobs:
       - name: Get formatted date
         id: podcast-date
         run: |
-          echo "formatted_date=$(date +'%Y.%-m.%-d')" >> $GITHUB_OUTPUT
+          # 日本時間で時間帯を判定
+          export TZ=Asia/Tokyo
+          HOUR=$(date +'%H')
+          if [ $HOUR -lt 12 ]; then
+            TIME_PERIOD="morning"
+          else
+            TIME_PERIOD="afternoon"
+          fi
+          
+          echo "formatted_date=$(date +'%Y.%-m.%-d') $TIME_PERIOD" >> $GITHUB_OUTPUT
           echo "rfc_date=$(date -R)" >> $GITHUB_OUTPUT
       
       - name: Generate episode summary
@@ -581,14 +605,19 @@ jobs:
       
       - name: Commit and push to GitHub Pages
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          # Git設定はチェックアウト後に実行
+          if [ -d ".git" ]; then
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
           
-          git add docs/
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
+            git add docs/
+            if git diff --staged --quiet; then
+              echo "No changes to commit"
+            else
+              git commit -m "🎙️ Add KAMURAJI Episode #${{ github.run_number }}: ${{ steps.podcast-date.outputs.formatted_date }}"
+              git push origin main
+              echo "🚀 Podcast episode published to GitHub Pages"
+            fi
           else
-            git commit -m "🎙️ Add KAMURAJI Episode #${{ github.run_number }}: ${{ steps.podcast-date.outputs.formatted_date }}"
-            git push origin main
-            echo "🚀 Podcast episode published to GitHub Pages"
+            echo "⚠️ Not in a git repository, skipping commit"
           fi
