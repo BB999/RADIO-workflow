@@ -343,15 +343,20 @@ jobs:
           # SSMLフォーマッターをコピー
           cp radio-workflow/ssml_formatter.js $WORK_DIR/
           
-          # 開発進捗情報を前半用に分割
+          # 開発進捗情報を前半用に分割してファイルに保存
           DEV_REPORT='${{ inputs.development-report }}'
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
           DEV_REPORT_PART1=$(echo "$DEV_REPORT" | cut -c1-$HALF_LENGTH)
           
+          # 開発レポートをファイルに保存（引数制限回避）
+          echo "$DEV_REPORT_PART1" > "$WORK_DIR/dev_report_part1.txt"
+          echo "📝 開発レポート前半をファイルに保存しました (${#DEV_REPORT_PART1} bytes)"
+          
           PROMPT="メイン前半台本を生成してください。
 
+          まず、dev_report_part1.txt ファイルを読み込んで、その内容を開発進捗情報として使用してください。
+
           パーソナリティ: $PERSONALITY_DATA
-          進捗情報: $DEV_REPORT_PART1
 
           要件: 3分（900-1200文字）、開発進捗の主要ポイント解説
           注意: 楽曲紹介は含めないでください（楽曲紹介はオープニングで既に行っています）
@@ -359,10 +364,10 @@ jobs:
           以下のJSONファイルを main.json として現在のディレクトリに保存してください：
           {\"main\": \"台本テキスト\"}
           
-          **重要**: Writeツールを使用してファイルを確実に保存してください。"
+          **重要**: Readツールでdev_report_part1.txtを読み込んでから、Writeツールを使用してファイルを確実に保存してください。"
           
           cd "$WORK_DIR" && npx @anthropic-ai/claude-code \
-            --allowedTools "Write" \
+            --allowedTools "Read,Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
@@ -473,25 +478,30 @@ jobs:
           # SSMLフォーマッターをコピー
           cp radio-workflow/ssml_formatter.js $WORK_DIR/
           
-          # 開発進捗情報を後半用に分割
+          # 開発進捗情報を後半用に分割してファイルに保存
           DEV_REPORT='${{ inputs.development-report }}'
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
           DEV_REPORT_PART2=$(echo "$DEV_REPORT" | cut -c$((HALF_LENGTH + 1))-)
           
+          # 開発レポートをファイルに保存（引数制限回避）
+          echo "$DEV_REPORT_PART2" > "$WORK_DIR/dev_report_part2.txt"
+          echo "📝 開発レポート後半をファイルに保存しました (${#DEV_REPORT_PART2} bytes)"
+          
           PROMPT="メイン後半台本を生成してください。
 
+          まず、dev_report_part2.txt ファイルを読み込んで、その内容を開発進捗情報として使用してください。
+
           パーソナリティ: $PERSONALITY_DATA
-          進捗情報: $DEV_REPORT_PART2
 
           要件: 3分（900-1200文字）、時事ニュースや追加情報、リスナーメッセージ
           
           以下のJSONファイルを main_part2.json として現在のディレクトリに保存してください：
           {\"main_part2\": \"台本テキスト\"}
           
-          **重要**: Writeツールを使用してファイルを確実に保存してください。"
+          **重要**: Readツールでdev_report_part2.txtを読み込んでから、Writeツールを使用してファイルを確実に保存してください。"
           
           cd "$WORK_DIR" && npx @anthropic-ai/claude-code \
-            --allowedTools "Write" \
+            --allowedTools "Read,Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
