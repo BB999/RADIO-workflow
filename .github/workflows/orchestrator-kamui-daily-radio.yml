@@ -493,16 +493,102 @@ jobs:
                 }
               ]
             }"
-  # Spotify Podcast配信
-  podcast-publish:
-    needs: [publish]
-    if: needs.publish.result == 'success'
-    uses: ./.github/workflows/podcast-publish.yml
-    with:
-      episode-number: ${{ github.run_number }}
-      episode-title: "神威日報振り返りエンターテインメントラジオ「KAMURAJI」"
-      episode-description: "自動生成される300文字要約"
-      script-content: ${{ needs.planning.outputs.script-opening }}
-      audio-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_number }}/final-radio.mp3"
-    secrets: inherit
-
+      
+      # Spotify Podcast配信
+      - name: Setup Node.js for Podcast
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code
+      
+      - name: Get formatted date
+        id: podcast-date
+        run: |
+          echo "formatted_date=$(date +'%Y.%-m.%-d')" >> $GITHUB_OUTPUT
+          echo "rfc_date=$(date -R)" >> $GITHUB_OUTPUT
+      
+      - name: Generate episode summary
+        id: summary
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          # デフォルト要約を設定
+          DEFAULT_SUMMARY="神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。毎日の開発現場から生の情報をお伝えし、技術の進歩と実用化への取り組みを詳しくご紹介。エンターテイメント性も交えながら、専門的な内容も親しみやすくお話しします。神威プロジェクトの成長をぜひお楽しみください。"
+          echo "summary=$DEFAULT_SUMMARY" >> $GITHUB_OUTPUT
+      
+      - name: Update Podcast RSS and Site
+        run: |
+          # Create episode directories
+          mkdir -p docs/episodes docs/assets
+          
+          # Generate episode HTML
+          cat > docs/episodes/episode-${{ github.run_number }}.html << 'HTMLEOF'
+          <\!DOCTYPE html>
+          <html lang="ja">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」</title>
+              <style>
+                  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+                  .episode-container { background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+                  h1 { color: #667eea; }
+                  .episode-meta { color: #666; margin: 1rem 0; }
+                  audio { width: 100%; margin: 2rem 0; }
+                  .back-link { display: inline-block; margin-top: 2rem; color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 50px; }
+              </style>
+          </head>
+          <body>
+              <a href="/radio-work/" class="back-link">← 戻る</a>
+              <div class="episode-container">
+                  <h1>神威日報振り返りエンターテインメントラジオ「KAMURAJI」</h1>
+                  <div class="episode-meta">
+                      <p>エピソード #${{ github.run_number }}</p>
+                  </div>
+                  <audio controls>
+                      <source src="https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3" type="audio/mpeg">
+                  </audio>
+                  <div class="description">
+                      <h2>📝 概要</h2>
+                      <p>${{ steps.summary.outputs.summary }}</p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          HTMLEOF
+          
+          # Update RSS feed
+          if [ -f "docs/podcast.xml" ]; then
+            # Add new episode to RSS
+            sed -i '' "/<\/channel>/i\\
+            <item>\\
+                <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」${{ steps.podcast-date.outputs.formatted_date }}</title>\\
+                <description><\![CDATA[${{ steps.summary.outputs.summary }}]]></description>\\
+                <link>https://noranekob.github.io/radio-work/episodes/episode-${{ github.run_number }}.html</link>\\
+                <guid isPermaLink=\"true\">https://noranekob.github.io/radio-work/episodes/episode-${{ github.run_number }}.html</guid>\\
+                <pubDate>${{ steps.podcast-date.outputs.rfc_date }}</pubDate>\\
+                <enclosure url=\"https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3\" length=\"5760000\" type=\"audio/mpeg\"/>\\
+                <itunes:author>Kamui Radio AI</itunes:author>\\
+                <itunes:summary><\![CDATA[${{ steps.summary.outputs.summary }}]]></itunes:summary>\\
+                <itunes:duration>04:00</itunes:duration>\\
+                <itunes:explicit>false</itunes:explicit>\\
+                <itunes:episode>${{ github.run_number }}</itunes:episode>\\
+                <itunes:season>1</itunes:season>\\
+            </item>" docs/podcast.xml
+          fi
+      
+      - name: Commit and push to GitHub Pages
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add docs/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🎙️ Add KAMURAJI Episode #${{ github.run_number }}: ${{ steps.podcast-date.outputs.formatted_date }}"
+            git push origin main
+            echo "🚀 Podcast episode published to GitHub Pages"
+          fi
