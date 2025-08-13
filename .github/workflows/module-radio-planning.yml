@@ -480,8 +480,19 @@ jobs:
           
           # 開発進捗情報を後半用に分割してファイルに保存
           DEV_REPORT='${{ inputs.development-report }}'
-          HALF_LENGTH=$((${#DEV_REPORT} / 2))
-          DEV_REPORT_PART2=$(echo "$DEV_REPORT" | cut -c$((HALF_LENGTH + 1))-)
+          REPORT_LENGTH=${#DEV_REPORT}
+          HALF_LENGTH=$((REPORT_LENGTH / 2))
+          
+          echo "🔍 デバッグ情報:"
+          echo "  - レポート全体長: ${REPORT_LENGTH} bytes"
+          echo "  - 半分の位置: ${HALF_LENGTH}"
+          echo "  - レポートの先頭100文字: ${DEV_REPORT:0:100}"
+          
+          # bashの部分文字列取得構文を使用（より確実）
+          DEV_REPORT_PART2="${DEV_REPORT:$HALF_LENGTH}"
+          
+          echo "  - 後半部分の長さ: ${#DEV_REPORT_PART2} bytes"
+          echo "  - 後半部分の先頭100文字: ${DEV_REPORT_PART2:0:100}"
           
           # 開発レポートをファイルに保存（引数制限回避）
           echo "$DEV_REPORT_PART2" > "$WORK_DIR/dev_report_part2.txt"
