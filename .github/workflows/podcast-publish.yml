@@ -72,9 +72,17 @@ jobs:
       - name: Get audio file size
         id: audio-size
         run: |
-          # 音声ファイルのサイズを取得（URLから）
-          AUDIO_SIZE=$(curl -sI "${{ inputs.audio-url }}" | grep -i content-length | awk '{print $2}' | tr -d '\r')
-          echo "size=${AUDIO_SIZE:-10000000}" >> $GITHUB_OUTPUT
+          # 実際に音声ファイルをダウンロードしてサイズを測定
+          echo "Downloading audio file to measure size..."
+          AUDIO_SIZE=$(curl -s "${{ inputs.audio-url }}" | wc -c)
+          echo "Audio file size: $AUDIO_SIZE bytes"
+          
+          # サイズが0または空の場合は10MBをデフォルトに設定
+          if [ -z "$AUDIO_SIZE" ] || [ "$AUDIO_SIZE" = "0" ]; then
+            echo "File size is 0 or empty, using default size"
+            AUDIO_SIZE=10485760
+          fi
+          echo "size=$AUDIO_SIZE" >> $GITHUB_OUTPUT
       
       - name: Create episodes directory
         run: |
