@@ -38,15 +38,34 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           ref: main
       
-      - name: Get current date
+      - name: Get current date and generate episode title
         id: date
         run: |
+          # 基本の日付情報
           echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
           echo "rfc_date=$(date -R)" >> $GITHUB_OUTPUT
           echo "year=$(date +'%Y')" >> $GITHUB_OUTPUT
           echo "month=$(date +'%m')" >> $GITHUB_OUTPUT
           echo "day=$(date +'%d')" >> $GITHUB_OUTPUT
           echo "formatted_date=$(date +'%Y.%-m.%-d')" >> $GITHUB_OUTPUT
+          
+          # 日本時間で日付と時刻を取得
+          TZ='Asia/Tokyo'
+          JP_DATE=$(TZ=$TZ date +'%Y.%-m.%-d')
+          JP_HOUR=$(TZ=$TZ date +'%-H')
+          
+          # morning/afternoonの判定
+          if [ $JP_HOUR -lt 12 ]; then
+            TIME_PERIOD="morning"
+          else
+            TIME_PERIOD="afternoon"
+          fi
+          
+          # タイトルに日付と時間帯を追加
+          BASE_TITLE="${{ inputs.episode-title }}"
+          FULL_TITLE="${BASE_TITLE} ${JP_DATE} ${TIME_PERIOD}"
+          echo "episode_title=$FULL_TITLE" >> $GITHUB_OUTPUT
+          echo "📻 Episode title: $FULL_TITLE"
       
       - name: Generate episode summary
         id: summary
@@ -141,7 +160,7 @@ jobs:
           <body>
               <a href="/RADIO-workflow/" class="back-link">← 戻る</a>
               <div class="episode-container">
-                  <h1>${{ inputs.episode-title }}</h1>
+                  <h1>${{ steps.date.outputs.episode_title }}</h1>
                   <div class="episode-meta">
                       <p>配信日: ${{ steps.date.outputs.date }}</p>
                       <p>エピソード #${{ inputs.episode-number }}</p>
@@ -175,7 +194,7 @@ jobs:
           # 新しいエピソードのXML生成（ヒアドキュメント使用）
           cat > episode_temp.xml << EPISODE_EOF
               <item>
-                  <title>${{ inputs.episode-title }}</title>
+                  <title>${{ steps.date.outputs.episode_title }}</title>
                   <description><![CDATA[${{ steps.summary.outputs.summary }}]]></description>
                   <link>$EPISODE_GUID</link>
                   <guid isPermaLink="true">$EPISODE_GUID</guid>
