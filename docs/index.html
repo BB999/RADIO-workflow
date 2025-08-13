@@ -452,7 +452,7 @@
 </head>
 <body>
     <div class="radio-header">
-        <div class="visualizer" style="position: relative; margin: 0 2rem 0 0; max-width: 150px;">
+        <div class="visualizer" style="position: relative; margin: 0 2rem; max-width: 150px;">
             <div class="bar"></div>
             <div class="bar"></div>
             <div class="bar"></div>
@@ -546,7 +546,7 @@
                 
                 itemsArray.forEach((item, index) => {
                         // エピソード番号は最新話から順に振り直す（1番が最新）
-                        const episodeNumber = index + 1;
+                        const episodeNumber = itemsArray.length - index;
                     if (index < 10) {
                         const title = item.querySelector("title").textContent;
                         const description = item.querySelector("description").textContent;
