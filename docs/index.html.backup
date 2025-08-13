@@ -541,12 +541,9 @@
                 }
                 
                 episodesDiv.innerHTML = '';
+                let episodeNumber = items.length;
                 
-                const itemsArray = Array.from(items).reverse();
-                
-                itemsArray.forEach((item, index) => {
-                        // エピソード番号は最新話から順に振り直す（1番が最新）
-                        const episodeNumber = index + 1;
+                items.forEach((item, index) => {
                     if (index < 10) {
                         const title = item.querySelector("title").textContent;
                         const description = item.querySelector("description").textContent;
@@ -560,7 +557,7 @@
                             <div class="episode" style="${imageUrl ? 'display: grid; grid-template-columns: 150px 1fr; gap: 1.5rem; align-items: start;' : ''}">
                                 ${imageUrl ? `<img src="${imageUrl}" alt="Episode thumbnail" class="episode-thumbnail" style="width: 150px; height: 150px; object-fit: cover; border-radius: 10px;" onclick="openImageModal('${imageUrl}')">` : ''}
                                 <div>
-                                    <span class="episode-number">Episode ${episodeNumber}</span>
+                                    <span class="episode-number">Episode ${episodeNumber - index}</span>
                                     <h3 class="episode-title">${title}</h3>
                                     <p class="episode-date">📅 ${new Date(pubDate).toLocaleDateString('ja-JP', {
                                         year: 'numeric',
