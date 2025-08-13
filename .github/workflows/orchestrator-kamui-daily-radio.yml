@@ -469,4 +469,4 @@ jobs:
       audio-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3"
       image-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/radio-title.png"
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
