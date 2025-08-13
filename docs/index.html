@@ -339,6 +339,39 @@
                 padding: 1.5rem;
             }
         }
+        
+        /* 画像拡大モーダル */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            cursor: pointer;
+        }
+        
+        .image-modal img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+        
+        .episode-thumbnail {
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .episode-thumbnail:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -376,9 +409,9 @@
             </div>
             
             <p style="text-align: center; color: #bbb; line-height: 1.8;">
-                神威アプリの開発進捗を、明るく楽しい20代女性AIパーソナリティがお届け！<br>
+                神威アプリの開発進捗を、明るく楽しい20代女性パーソナリティがお届け！<br>
                 最新のAI技術、生成AI活用法、ユーザー投稿楽曲など、<br>
-                エンターテインメント満載の4分間。
+                エンターテインメント満載の10分間。
             </p>
         </div>
         
@@ -386,7 +419,7 @@
             <h2 style="color: #feca57; margin-bottom: 0.5rem;">🎧 お好きな方法で購読</h2>
             <p style="color: #888;">毎日の最新エピソードを自動でお届けします</p>
             <div class="subscribe-buttons">
-                <a href="https://podcasters.spotify.com/pod/show/kamui-daily-radio" class="subscribe-button">
+                <a href="https://open.spotify.com/show/2rOSvKrneg9mKUMxlYW1uc" class="subscribe-button" target="_blank">
                     🎵 Spotify で聴く
                 </a>
                 <a href="/RADIO-workflow/podcast.xml" class="subscribe-button rss-button">
@@ -444,7 +477,7 @@
                         
                         const episodeHtml = `
                             <div class="episode" style="${imageUrl ? 'display: grid; grid-template-columns: 150px 1fr; gap: 1.5rem; align-items: start;' : ''}">
-                                ${imageUrl ? `<img src="${imageUrl}" alt="Episode thumbnail" style="width: 150px; height: 150px; object-fit: cover; border-radius: 10px;">` : ''}
+                                ${imageUrl ? `<img src="${imageUrl}" alt="Episode thumbnail" class="episode-thumbnail" style="width: 150px; height: 150px; object-fit: cover; border-radius: 10px;" onclick="openImageModal('${imageUrl}')">` : ''}
                                 <div>
                                     <span class="episode-number">Episode ${episodeNumber - index}</span>
                                     <h3 class="episode-title">${title}</h3>
@@ -469,6 +502,31 @@
             .catch(err => {
                 console.error('Failed to load episodes:', err);
             });
+    </script>
+    
+    <!-- 画像拡大モーダル -->
+    <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+        <img id="modalImage" src="" alt="Expanded image">
+    </div>
+    
+    <script>
+        function openImageModal(imageUrl) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'block';
+            modalImg.src = imageUrl;
+        }
+        
+        function closeImageModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+        
+        // ESCキーでモーダルを閉じる
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeImageModal();
+            }
+        });
     </script>
 </body>
 </html>
