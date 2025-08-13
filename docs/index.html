@@ -1,10 +1,10 @@
-<\!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>神威日報ラジオ - Kamui Daily Radio Podcast</title>
-    <link rel="alternate" type="application/rss+xml" title="神威日報ラジオ Podcast" href="/radio-work/podcast.xml">
+    <link rel="alternate" type="application/rss+xml" title="神威日報ラジオ Podcast" href="/RADIO-workflow/podcast.xml">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -58,14 +58,13 @@
                 <li>毎日の開発進捗をわかりやすく解説</li>
                 <li>最新のAI・生成技術情報</li>
                 <li>ユーザー投稿楽曲の紹介</li>
-                <li>4分間のコンパクトな構成</li>
             </ul>
         </div>
         <div class="subscribe-section">
             <h2>🎧 購読する</h2>
             <p style="margin-bottom: 1rem;">お好きなポッドキャストアプリで購読できます</p>
             <a href="https://podcasters.spotify.com/pod/show/kamui-daily-radio" class="subscribe-button">Spotify で聴く</a>
-            <a href="/radio-work/podcast.xml" class="rss-link">RSS フィード</a>
+            <a href="/RADIO-workflow/podcast.xml" class="rss-link">RSS フィード</a>
         </div>
         <div class="episode-list">
             <h2>📝 最新エピソード</h2>
@@ -75,7 +74,7 @@
         </div>
     </div>
     <script>
-        fetch('/radio-work/podcast.xml')
+        fetch('/RADIO-workflow/podcast.xml')
             .then(response => response.text())
             .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
             .then(data => {

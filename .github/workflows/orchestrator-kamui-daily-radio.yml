@@ -504,7 +504,7 @@ jobs:
               "messages": [
                 {
                   "type": "text",
-                  "text": "${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(前半): ${VOICE_MAIN_STATUS}\n・音声生成(後半): ${VOICE_MAIN_PART2_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(前半): ${BGM_MAIN_STATUS}\n・BGM生成(後半): ${BGM_MAIN_PART2_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・リリース作成: ${PUBLISH_STATUS}\n・Podcast配信: ${PODCAST_STATUS}\n\n📡 配信URL:\n・GitHub Pages: https://noranekob.github.io/radio-work/\n・RSS フィード: https://noranekob.github.io/radio-work/podcast.xml\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}"
+                  "text": "${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(前半): ${VOICE_MAIN_STATUS}\n・音声生成(後半): ${VOICE_MAIN_PART2_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(前半): ${BGM_MAIN_STATUS}\n・BGM生成(後半): ${BGM_MAIN_PART2_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・リリース作成: ${PUBLISH_STATUS}\n・Podcast配信: ${PODCAST_STATUS}\n\n📡 配信URL:\n・GitHub Pages: https://bb999.github.io/RADIO-workflow/\n・Podcast フィード: https://bb999.github.io/RADIO-workflow/podcast.xml\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}"
                 }
               ]
             }"          
@@ -590,8 +590,8 @@ jobs:
             <item>\\
                 <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」${{ steps.podcast-date.outputs.formatted_date }}</title>\\
                 <description><\![CDATA[${{ steps.summary.outputs.summary }}]]></description>\\
-                <link>https://noranekob.github.io/radio-work/episodes/episode-${{ github.run_number }}.html</link>\\
-                <guid isPermaLink=\"true\">https://noranekob.github.io/radio-work/episodes/episode-${{ github.run_number }}.html</guid>\\
+                <link>https://bb999.github.io/RADIO-workflow/episodes/episode-${{ github.run_number }}.html</link>\\
+                <guid isPermaLink=\"true\">https://bb999.github.io/RADIO-workflow/episodes/episode-${{ github.run_number }}.html</guid>\\
                 <pubDate>${{ steps.podcast-date.outputs.rfc_date }}</pubDate>\\
                 <enclosure url=\"https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3\" length=\"5760000\" type=\"audio/mpeg\"/>\\
                 <itunes:author>Kamui Radio AI</itunes:author>\\
