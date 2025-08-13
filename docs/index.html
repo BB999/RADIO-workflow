@@ -1,0 +1,116 @@
+<\!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神威日報ラジオ - Kamui Daily Radio Podcast</title>
+    <link rel="alternate" type="application/rss+xml" title="神威日報ラジオ Podcast" href="/radio-work/podcast.xml">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6; color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        header { text-align: center; color: white; padding: 3rem 0; }
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .tagline { font-size: 1.2rem; opacity: 0.95; }
+        .podcast-info {
+            background: white; border-radius: 15px; padding: 2rem; margin: 2rem 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .subscribe-section { margin: 2rem 0; padding: 1.5rem; background: #f8f9fa; border-radius: 10px; }
+        .subscribe-button {
+            display: inline-block; background: #1DB954; color: white;
+            padding: 12px 24px; border-radius: 50px; text-decoration: none;
+            font-weight: bold; margin: 0.5rem; transition: transform 0.2s;
+        }
+        .subscribe-button:hover { transform: translateY(-2px); }
+        .rss-link {
+            display: inline-block; background: #FF6600; color: white;
+            padding: 12px 24px; border-radius: 50px; text-decoration: none;
+            font-weight: bold; margin: 0.5rem;
+        }
+        .episode-list {
+            background: white; border-radius: 15px; padding: 2rem; margin: 2rem 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .episode { padding: 1.5rem 0; border-bottom: 1px solid #eee; }
+        .episode:last-child { border-bottom: none; }
+        .episode-title { font-size: 1.3rem; color: #667eea; margin-bottom: 0.5rem; }
+        .episode-date { color: #666; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .episode-description { color: #555; line-height: 1.6; }
+        .audio-player { margin-top: 1rem; width: 100%; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎙️ 神威日報振り返りエンターテインメントラジオ「KAMURAJI」</h1>
+            <p class="tagline">AIが毎日お届けする、神威アプリ開発進捗レポート</p>
+        </header>
+        <div class="podcast-info">
+            <h2>📻 番組について</h2>
+            <p>神威日報ラジオは、元木さんの神威アプリ開発進捗を明るく楽しくお伝えする、AI自動生成ラジオ番組です。</p>
+            <ul style="margin: 1rem 0; padding-left: 2rem;">
+                <li>毎日の開発進捗をわかりやすく解説</li>
+                <li>最新のAI・生成技術情報</li>
+                <li>ユーザー投稿楽曲の紹介</li>
+                <li>4分間のコンパクトな構成</li>
+            </ul>
+        </div>
+        <div class="subscribe-section">
+            <h2>🎧 購読する</h2>
+            <p style="margin-bottom: 1rem;">お好きなポッドキャストアプリで購読できます</p>
+            <a href="https://podcasters.spotify.com/pod/show/kamui-daily-radio" class="subscribe-button">Spotify で聴く</a>
+            <a href="/radio-work/podcast.xml" class="rss-link">RSS フィード</a>
+        </div>
+        <div class="episode-list">
+            <h2>📝 最新エピソード</h2>
+            <div id="episodes">
+                <p style="color: #999;">まだエピソードがありません。最初のラジオワークフローを実行してください。</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        fetch('/radio-work/podcast.xml')
+            .then(response => response.text())
+            .then(str => new window.DOMParser().parseFromString(str, "text/xml"))
+            .then(data => {
+                const items = data.querySelectorAll("item");
+                const episodesDiv = document.getElementById('episodes');
+                if (items.length === 0) {
+                    episodesDiv.innerHTML = '<p style="color: #999;">まだエピソードがありません。</p>';
+                    return;
+                }
+                episodesDiv.innerHTML = '';
+                items.forEach((item, index) => {
+                    if (index < 10) {
+                        const title = item.querySelector("title").textContent;
+                        const description = item.querySelector("description").textContent;
+                        const pubDate = item.querySelector("pubDate").textContent;
+                        const enclosure = item.querySelector("enclosure");
+                        const audioUrl = enclosure ? enclosure.getAttribute("url") : "";
+                        const episodeHtml = `
+                            <div class="episode">
+                                <h3 class="episode-title">${title}</h3>
+                                <p class="episode-date">${new Date(pubDate).toLocaleDateString('ja-JP')}</p>
+                                <p class="episode-description">${description}</p>
+                                ${audioUrl ? `<audio class="audio-player" controls>
+                                    <source src="${audioUrl}" type="audio/mpeg">
+                                </audio>` : ''}
+                            </div>
+                        `;
+                        episodesDiv.innerHTML += episodeHtml;
+                    }
+                });
+            })
+            .catch(err => {
+                document.getElementById('episodes').innerHTML = '<p style="color: #999;">エピソード読み込み失敗</p>';
+            });
+    </script>
+</body>
+</html>
+EOF < /dev/null
