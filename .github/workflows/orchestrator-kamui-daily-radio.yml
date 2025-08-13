@@ -505,4 +505,4 @@ jobs:
       script-content: ${{ needs.planning.outputs.script-opening }}
       audio-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_number }}/final-radio.mp3"
     secrets: inherit
-EOF < /dev/null
+
