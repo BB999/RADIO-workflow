@@ -162,22 +162,23 @@ jobs:
       
       - name: Update RSS feed
         run: |
-          # RSSフィードを更新するNode.jsスクリプト
-          cat > update-rss.js << 'EOF'
-          const fs = require('fs');
-          const path = require('path');
+          # シェルスクリプトでRSSフィードを更新
+          RSS_FILE="docs/podcast.xml"
+          EPISODE_GUID="https://bb999.github.io/RADIO-workflow/episodes/episode-${{ inputs.episode-number }}.html"
           
-          // 既存のRSSを読み込み
-          const rssPath = path.join('docs', 'podcast.xml');
-          let rssContent = fs.readFileSync(rssPath, 'utf-8');
+          # 既存のエピソードチェック（重複防止）
+          if grep -q "<guid[^>]*>$EPISODE_GUID</guid>" "$RSS_FILE"; then
+            echo "⚠️ Episode #${{ inputs.episode-number }} already exists in RSS feed. Skipping duplicate."
+            exit 0
+          fi
           
-          // 新しいエピソードのXML
-          const newEpisode = `
+          # 新しいエピソードのXML生成（ヒアドキュメント使用）
+          cat > episode_temp.xml << EPISODE_EOF
               <item>
                   <title>${{ inputs.episode-title }}</title>
                   <description><![CDATA[${{ steps.summary.outputs.summary }}]]></description>
-                  <link>https://bb999.github.io/RADIO-workflow/episodes/episode-${{ inputs.episode-number }}.html</link>
-                  <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-${{ inputs.episode-number }}.html</guid>
+                  <link>$EPISODE_GUID</link>
+                  <guid isPermaLink="true">$EPISODE_GUID</guid>
                   <pubDate>${{ steps.date.outputs.rfc_date }}</pubDate>
                   <enclosure url="${{ inputs.audio-url }}" length="${{ steps.audio-size.outputs.size }}" type="audio/mpeg"/>
                   <itunes:author>Kamui Radio AI</itunes:author>
@@ -186,30 +187,40 @@ jobs:
                   <itunes:explicit>false</itunes:explicit>
                   <itunes:episode>${{ inputs.episode-number }}</itunes:episode>
                   <itunes:season>1</itunes:season>
-                  ${{ inputs.image-url && format('<itunes:image href="{0}"/>', inputs.image-url) || '' }}
-              </item>`;
+          EPISODE_EOF
           
-          // lastBuildDateを更新
-          rssContent = rssContent.replace(
-              /<lastBuildDate>.*?<\/lastBuildDate>/,
-              `<lastBuildDate>${{ steps.date.outputs.rfc_date }}</lastBuildDate>`
-          );
+          # 画像URLが存在する場合は追加
+          if [ -n "${{ inputs.image-url }}" ]; then
+            echo "        <itunes:image href=\"${{ inputs.image-url }}\"/>" >> episode_temp.xml
+          fi
           
-          // 新しいエピソードを追加（</channel>の前に挿入）
-          const insertPosition = rssContent.lastIndexOf('</channel>');
-          if (insertPosition !== -1) {
-              rssContent = 
-                  rssContent.slice(0, insertPosition) +
-                  newEpisode + '\n    ' +
-                  rssContent.slice(insertPosition);
-          }
+          echo "    </item>" >> episode_temp.xml
           
-          // 更新されたRSSを保存
-          fs.writeFileSync(rssPath, rssContent);
-          console.log('✅ RSS feed updated successfully');
-          EOF
+          # 一時ファイルを作成
+          TEMP_FILE=$(mktemp)
           
-          node update-rss.js
+          # lastBuildDateを更新し、新しいエピソードを追加
+          awk -v new_date="${{ steps.date.outputs.rfc_date }}" '
+            /<lastBuildDate>/ { 
+              print "        <lastBuildDate>" new_date "</lastBuildDate>"
+              next
+            }
+            /<\/channel>/ {
+              # 新しいエピソードを挿入
+              while ((getline line < "episode_temp.xml") > 0) {
+                print line
+              }
+              close("episode_temp.xml")
+              print $0
+              next
+            }
+            { print }
+          ' "$RSS_FILE" > "$TEMP_FILE"
+          
+          # 更新されたRSSを保存
+          mv "$TEMP_FILE" "$RSS_FILE"
+          rm -f episode_temp.xml
+          echo "✅ RSS feed updated successfully with episode #${{ inputs.episode-number }}"
       
       - name: Commit and push changes
         run: |
