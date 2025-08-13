@@ -1,0 +1,219 @@
+name: Publish to Podcast
+
+on:
+  workflow_call:
+    inputs:
+      episode-number:
+        required: true
+        type: string
+      episode-title:
+        required: true
+        type: string
+      episode-description:
+        required: true
+        type: string
+      audio-url:
+        required: true
+        type: string
+      image-url:
+        required: false
+        type: string
+      script-content:
+        required: false
+        type: string
+      transcript:
+        required: false
+        type: string
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  update-rss:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+      
+      - name: Get current date
+        id: date
+        run: |
+          echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "rfc_date=$(date -R)" >> $GITHUB_OUTPUT
+          echo "year=$(date +'%Y')" >> $GITHUB_OUTPUT
+          echo "month=$(date +'%m')" >> $GITHUB_OUTPUT
+          echo "day=$(date +'%d')" >> $GITHUB_OUTPUT
+          echo "formatted_date=$(date +'%Y.%-m.%-d')" >> $GITHUB_OUTPUT
+      
+      - name: Generate episode summary
+        id: summary
+        run: |
+          # デフォルトの要約を使用
+          SUMMARY="${{ inputs.episode-description }}"
+          
+          # 300文字に制限
+          if [ ${#SUMMARY} -gt 300 ]; then
+            SUMMARY="${SUMMARY:0:297}..."
+          fi
+          
+          # 改行をエスケープ
+          SUMMARY=$(echo "$SUMMARY" | tr '\n' ' ')
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+      
+      - name: Calculate audio duration
+        id: duration
+        run: |
+          # デフォルト4分
+          echo "duration=04:00" >> $GITHUB_OUTPUT
+      
+      - name: Get audio file size
+        id: audio-size
+        run: |
+          # 音声ファイルのサイズを取得（URLから）
+          AUDIO_SIZE=$(curl -sI "${{ inputs.audio-url }}" | grep -i content-length | awk '{print $2}' | tr -d '\r')
+          echo "size=${AUDIO_SIZE:-10000000}" >> $GITHUB_OUTPUT
+      
+      - name: Create episodes directory
+        run: |
+          mkdir -p docs/episodes
+      
+      - name: Generate episode HTML
+        run: |
+          cat > docs/episodes/episode-${{ inputs.episode-number }}.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="ja">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>${{ inputs.episode-title }} - 神威日報ラジオ</title>
+              <meta property="og:title" content="${{ inputs.episode-title }}">
+              <meta property="og:description" content="${{ steps.summary.outputs.summary }}">
+              <meta property="og:image" content="${{ inputs.image-url }}">
+              <meta property="og:type" content="music.radio_station">
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                      max-width: 800px;
+                      margin: 0 auto;
+                      padding: 2rem;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                  }
+                  .episode-container {
+                      background: white;
+                      border-radius: 15px;
+                      padding: 2rem;
+                      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                  }
+                  h1 { color: #667eea; }
+                  .episode-meta { color: #666; margin: 1rem 0; }
+                  audio { width: 100%; margin: 2rem 0; }
+                  .transcript {
+                      background: #f8f9fa;
+                      padding: 1.5rem;
+                      border-radius: 10px;
+                      margin-top: 2rem;
+                      white-space: pre-wrap;
+                      line-height: 1.8;
+                  }
+                  .back-link {
+                      display: inline-block;
+                      margin-top: 2rem;
+                      color: white;
+                      text-decoration: none;
+                      background: rgba(255,255,255,0.2);
+                      padding: 10px 20px;
+                      border-radius: 50px;
+                  }
+              </style>
+          </head>
+          <body>
+              <a href="/RADIO-workflow/" class="back-link">← 戻る</a>
+              <div class="episode-container">
+                  <h1>${{ inputs.episode-title }}</h1>
+                  <div class="episode-meta">
+                      <p>配信日: ${{ steps.date.outputs.date }}</p>
+                      <p>エピソード #${{ inputs.episode-number }}</p>
+                  </div>
+                  ${{ inputs.image-url && format('<img src="{0}" alt="Episode thumbnail" style="width: 100%; border-radius: 10px; margin: 1rem 0;">', inputs.image-url) || '' }}
+                  <audio controls>
+                      <source src="${{ inputs.audio-url }}" type="audio/mpeg">
+                      お使いのブラウザは音声タグをサポートしていません。
+                  </audio>
+                  <div class="description">
+                      <h2>📝 概要</h2>
+                      <p>${{ steps.summary.outputs.summary }}</p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+      
+      - name: Update RSS feed
+        run: |
+          # RSSフィードを更新するNode.jsスクリプト
+          cat > update-rss.js << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          
+          // 既存のRSSを読み込み
+          const rssPath = path.join('docs', 'podcast.xml');
+          let rssContent = fs.readFileSync(rssPath, 'utf-8');
+          
+          // 新しいエピソードのXML
+          const newEpisode = `
+              <item>
+                  <title>${{ inputs.episode-title }}</title>
+                  <description><![CDATA[${{ steps.summary.outputs.summary }}]]></description>
+                  <link>https://bb999.github.io/RADIO-workflow/episodes/episode-${{ inputs.episode-number }}.html</link>
+                  <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-${{ inputs.episode-number }}.html</guid>
+                  <pubDate>${{ steps.date.outputs.rfc_date }}</pubDate>
+                  <enclosure url="${{ inputs.audio-url }}" length="${{ steps.audio-size.outputs.size }}" type="audio/mpeg"/>
+                  <itunes:author>Kamui Radio AI</itunes:author>
+                  <itunes:summary><![CDATA[${{ steps.summary.outputs.summary }}]]></itunes:summary>
+                  <itunes:duration>${{ steps.duration.outputs.duration }}</itunes:duration>
+                  <itunes:explicit>false</itunes:explicit>
+                  <itunes:episode>${{ inputs.episode-number }}</itunes:episode>
+                  <itunes:season>1</itunes:season>
+                  ${{ inputs.image-url && format('<itunes:image href="{0}"/>', inputs.image-url) || '' }}
+              </item>`;
+          
+          // lastBuildDateを更新
+          rssContent = rssContent.replace(
+              /<lastBuildDate>.*?<\/lastBuildDate>/,
+              `<lastBuildDate>${{ steps.date.outputs.rfc_date }}</lastBuildDate>`
+          );
+          
+          // 新しいエピソードを追加（</channel>の前に挿入）
+          const insertPosition = rssContent.lastIndexOf('</channel>');
+          if (insertPosition !== -1) {
+              rssContent = 
+                  rssContent.slice(0, insertPosition) +
+                  newEpisode + '\n    ' +
+                  rssContent.slice(insertPosition);
+          }
+          
+          // 更新されたRSSを保存
+          fs.writeFileSync(rssPath, rssContent);
+          console.log('✅ RSS feed updated successfully');
+          EOF
+          
+          node update-rss.js
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add docs/
+          git commit -m "🎙️ Add Episode #${{ inputs.episode-number }}: ${{ inputs.episode-title }}"
+          git push origin main
+      
+      - name: Trigger GitHub Pages build
+        run: |
+          echo "🚀 GitHub Pages will automatically rebuild with the new episode"
+          echo "📡 RSS feed is now updated at: https://bb999.github.io/RADIO-workflow/podcast.xml"
+          echo "🎧 Episode page: https://bb999.github.io/RADIO-workflow/episodes/episode-${{ inputs.episode-number }}.html"

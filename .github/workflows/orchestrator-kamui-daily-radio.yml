@@ -364,7 +364,7 @@ jobs:
 
 
   summary:
-    needs: [planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish]
+    needs: [planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish, podcast-publish]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -396,7 +396,7 @@ jobs:
           EOF
 
   line-notification:
-    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish, summary]
+    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish, podcast-publish, summary]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -424,200 +424,49 @@ jobs:
              [[ "${{ needs.bgm-jingle.result }}" != "success" ]] || \
              [[ "${{ needs.audio-mixing-final.result }}" != "success" ]] || \
              [[ "${{ needs.publish.result }}" != "success" ]]; then
-            STATUS_EMOJI="❌"
-            STATUS_TEXT="失敗"
+            STATUS_EMOJI="⚠️"
+            STATUS_TEXT="一部失敗"
           fi
           
-          # 個別ステータス変数の準備
-          API_STATUS="${{ needs.api-check.result == 'success' && '✅' || '❌ 認証失敗' }}"
-          PLANNING_STATUS="${{ needs.planning.result == 'success' && '✅' || '❌ Claude API異常' }}"
-          VOICE_OPENING_STATUS="${{ needs.voice-opening.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
-          VOICE_MAIN_STATUS="${{ needs.voice-main.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
-          VOICE_MAIN_PART2_STATUS="${{ needs.voice-main-part2.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
-          VOICE_ENDING_STATUS="${{ needs.voice-ending.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
-          VOICE_JINGLE_STATUS="${{ needs.voice-jingle.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
-          BGM_OPENING_STATUS="${{ needs.bgm-opening.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
-          BGM_MAIN_STATUS="${{ needs.bgm-main.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
-          BGM_MAIN_PART2_STATUS="${{ needs.bgm-main-part2.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
-          BGM_ENDING_STATUS="${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
-          BGM_JINGLE_STATUS="${{ needs.bgm-jingle.result == 'success' && '✅' || '❌ ジングルSE選択失敗' }}"
-          MIXING_STATUS="${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌ FFmpeg失敗' }}"
+          # 各ステップの状態確認
+          API_STATUS="${{ needs.api-check.result == 'success' && '✅ 利用可能' || '❌ API確認失敗' }}"
+          PLANNING_STATUS="${{ needs.planning.result == 'success' && '✅' || '❌ 台本生成失敗' }}"
+          VOICE_OPENING_STATUS="${{ needs.voice-opening.result == 'success' && '✅' || '❌' }}"
+          VOICE_MAIN_STATUS="${{ needs.voice-main.result == 'success' && '✅' || '❌' }}"
+          VOICE_MAIN_PART2_STATUS="${{ needs.voice-main-part2.result == 'success' && '✅' || '❌' }}"
+          VOICE_ENDING_STATUS="${{ needs.voice-ending.result == 'success' && '✅' || '❌' }}"
+          VOICE_JINGLE_STATUS="${{ needs.voice-jingle.result == 'success' && '✅' || '❌' }}"
+          BGM_OPENING_STATUS="${{ needs.bgm-opening.result == 'success' && '✅' || '❌' }}"
+          BGM_MAIN_STATUS="${{ needs.bgm-main.result == 'success' && '✅' || '❌' }}"
+          BGM_MAIN_PART2_STATUS="${{ needs.bgm-main-part2.result == 'success' && '✅' || '❌' }}"
+          BGM_ENDING_STATUS="${{ needs.bgm-ending.result == 'success' && '✅' || '❌' }}"
+          BGM_JINGLE_STATUS="${{ needs.bgm-jingle.result == 'success' && '✅' || '❌' }}"
+          MIXING_STATUS="${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌ ミキシング失敗' }}"
           PUBLISH_STATUS="${{ needs.publish.result == 'success' && '✅' || '❌ リリース作成失敗' }}"
-          PODCAST_STATUS="${{ needs.publish.result == 'success' && '✅ GitHub Pages更新完了' || '❌ Podcast配信失敗' }}"          
-          # エラー詳細情報の構築
-          ERROR_DETAILS=""
-          if [[ "${{ needs.api-check.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 API接続エラー: AIVIS Cloud API認証失敗"
-          fi
-          if [[ "${{ needs.planning.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 台本生成エラー: Claude API応答異常"
-          fi
-          if [[ "${{ needs.voice-opening.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニング音声生成エラー: AIVIS API失敗"
-          fi
-          if [[ "${{ needs.voice-main.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン前半音声生成エラー: AIVIS API失敗"
-          fi
-          if [[ "${{ needs.voice-main-part2.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン後半音声生成エラー: AIVIS API失敗"
-          fi
-          if [[ "${{ needs.voice-ending.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディング音声生成エラー: AIVIS API失敗"
-          fi
-          if [[ "${{ needs.voice-jingle.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 ジングル音声生成エラー: AIVIS API失敗"
-          fi
-          if [[ "${{ needs.bgm-opening.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニングBGM生成エラー: Google Lyria API失敗"
-          fi
-          if [[ "${{ needs.bgm-main.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン前半BGM生成エラー: Google Lyria API失敗"
-          fi
-          if [[ "${{ needs.bgm-main-part2.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン後半BGM生成エラー: Google Lyria API失敗"
-          fi
-          if [[ "${{ needs.bgm-ending.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディングBGM生成エラー: Google Lyria API失敗"
-          fi
-          if [[ "${{ needs.bgm-jingle.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 ジングルBGM選択エラー: ファイル処理失敗"
-          fi
-          if [[ "${{ needs.audio-mixing-final.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 音声ミキシングエラー: FFmpeg処理失敗"
-          fi
-          if [[ "${{ needs.publish.result }}" != "success" ]]; then
-            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 リリース作成エラー: GitHub API失敗"
-          fi
           
-          # LINE APIが設定されているか確認
-          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
-            echo "::warning::LINE通知設定がありません。スキップします。"
-            echo "LINE_CHANNEL_ACCESS_TOKEN または LINE_USER_ID が設定されていません"
-            exit 0
-          fi
-          
+          # LINE通知送信（簡潔版）
           curl -X POST https://api.line.me/v2/bot/message/push \
-            -H 'Content-Type: application/json' \
+            -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
             -d "{
-              "to": "${LINE_USER_ID}",
-              "messages": [
+              \"to\": \"${LINE_USER_ID}\",
+              \"messages\": [
                 {
-                  "type": "text",
-                  "text": "${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(前半): ${VOICE_MAIN_STATUS}\n・音声生成(後半): ${VOICE_MAIN_PART2_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(前半): ${BGM_MAIN_STATUS}\n・BGM生成(後半): ${BGM_MAIN_PART2_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・リリース作成: ${PUBLISH_STATUS}\n・Podcast配信: ${PODCAST_STATUS}\n\n📡 配信URL:\n・GitHub Pages: https://bb999.github.io/RADIO-workflow/\n・Podcast フィード: https://bb999.github.io/RADIO-workflow/podcast.xml\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}"
+                  \"type\": \"text\",
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\\n\\n📻 ワークフロー実行結果\\n⏰ 完成時刻: ${COMPLETION_TIME}\\n\\n📊 制作結果:\\n・台本生成: ${PLANNING_STATUS}\\n・音声生成: ${VOICE_OPENING_STATUS} ${VOICE_MAIN_STATUS} ${VOICE_ENDING_STATUS}\\n・BGM生成: ${BGM_OPENING_STATUS} ${BGM_MAIN_STATUS} ${BGM_ENDING_STATUS}\\n・ミキシング: ${MIXING_STATUS}\\n・リリース: ${PUBLISH_STATUS}\\n\\n📋 実行ID: ${{ github.run_id }}\"
                 }
               ]
-            }"          
-      
-      # Spotify Podcast配信
-      - name: Setup Node.js for Podcast
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install Claude Code SDK
-        run: npm install @anthropic-ai/claude-code
-      
-      - name: Get formatted date
-        id: podcast-date
-        run: |
-          # 日本時間で時間帯を判定
-          export TZ=Asia/Tokyo
-          HOUR=$(date +'%H')
-          if [ $HOUR -lt 12 ]; then
-            TIME_PERIOD="morning"
-          else
-            TIME_PERIOD="afternoon"
-          fi
-          
-          echo "formatted_date=$(date +'%Y.%-m.%-d') $TIME_PERIOD" >> $GITHUB_OUTPUT
-          echo "rfc_date=$(date -R)" >> $GITHUB_OUTPUT
-      
-      - name: Generate episode summary
-        id: summary
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-        run: |
-          # デフォルト要約を設定
-          DEFAULT_SUMMARY="神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。毎日の開発現場から生の情報をお伝えし、技術の進歩と実用化への取り組みを詳しくご紹介。エンターテイメント性も交えながら、専門的な内容も親しみやすくお話しします。神威プロジェクトの成長をぜひお楽しみください。"
-          echo "summary=$DEFAULT_SUMMARY" >> $GITHUB_OUTPUT
-      
-      - name: Update Podcast RSS and Site
-        run: |
-          # Create episode directories
-          mkdir -p docs/episodes docs/assets
-          
-          # Generate episode HTML
-          cat > docs/episodes/episode-${{ github.run_number }}.html << 'HTMLEOF'
-          <\!DOCTYPE html>
-          <html lang="ja">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」</title>
-              <style>
-                  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
-                  .episode-container { background: white; border-radius: 15px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-                  h1 { color: #667eea; }
-                  .episode-meta { color: #666; margin: 1rem 0; }
-                  audio { width: 100%; margin: 2rem 0; }
-                  .back-link { display: inline-block; margin-top: 2rem; color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 50px; }
-              </style>
-          </head>
-          <body>
-              <a href="/radio-work/" class="back-link">← 戻る</a>
-              <div class="episode-container">
-                  <h1>神威日報振り返りエンターテインメントラジオ「KAMURAJI」</h1>
-                  <div class="episode-meta">
-                      <p>エピソード #${{ github.run_number }}</p>
-                  </div>
-                  <audio controls>
-                      <source src="https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3" type="audio/mpeg">
-                  </audio>
-                  <div class="description">
-                      <h2>📝 概要</h2>
-                      <p>${{ steps.summary.outputs.summary }}</p>
-                  </div>
-              </div>
-          </body>
-          </html>
-          HTMLEOF
-          
-          # Update RSS feed
-          if [ -f "docs/podcast.xml" ]; then
-            # Add new episode to RSS
-            sed -i '' "/<\/channel>/i\\
-            <item>\\
-                <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」${{ steps.podcast-date.outputs.formatted_date }}</title>\\
-                <description><\![CDATA[${{ steps.summary.outputs.summary }}]]></description>\\
-                <link>https://bb999.github.io/RADIO-workflow/episodes/episode-${{ github.run_number }}.html</link>\\
-                <guid isPermaLink=\"true\">https://bb999.github.io/RADIO-workflow/episodes/episode-${{ github.run_number }}.html</guid>\\
-                <pubDate>${{ steps.podcast-date.outputs.rfc_date }}</pubDate>\\
-                <enclosure url=\"https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3\" length=\"5760000\" type=\"audio/mpeg\"/>\\
-                <itunes:author>Kamui Radio AI</itunes:author>\\
-                <itunes:summary><\![CDATA[${{ steps.summary.outputs.summary }}]]></itunes:summary>\\
-                <itunes:duration>04:00</itunes:duration>\\
-                <itunes:explicit>false</itunes:explicit>\\
-                <itunes:episode>${{ github.run_number }}</itunes:episode>\\
-                <itunes:season>1</itunes:season>\\
-            </item>" docs/podcast.xml
-          fi
-      
-      - name: Commit and push to GitHub Pages
-        run: |
-          # Git設定はチェックアウト後に実行
-          if [ -d ".git" ]; then
-            git config --local user.email "github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
-          
-            git add docs/
-            if git diff --staged --quiet; then
-              echo "No changes to commit"
-            else
-              git commit -m "🎙️ Add KAMURAJI Episode #${{ github.run_number }}: ${{ steps.podcast-date.outputs.formatted_date }}"
-              git push origin main
-              echo "🚀 Podcast episode published to GitHub Pages"
-            fi
-          else
-            echo "⚠️ Not in a git repository, skipping commit"
-          fi
+            }"
+
+  podcast-publish:
+    needs: [publish]
+    if: success()
+    uses: ./.github/workflows/podcast-publish.yml
+    with:
+      episode-number: "${{ github.run_number }}"
+      episode-title: "神威日報振り返りエンターテインメントラジオ「KAMURAJI」"
+      episode-description: "神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。"
+      audio-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3"
+      image-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/radio-title.png"
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
