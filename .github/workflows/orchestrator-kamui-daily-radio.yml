@@ -137,6 +137,7 @@ jobs:
     if: ${{ inputs.gemini-summary == true }}
     uses: ./.github/workflows/module-input-processing.yml
     with:
+      development-report: ${{ inputs.development-report }}
     secrets: inherit
 
   planning:
@@ -146,6 +147,7 @@ jobs:
     with:
       processed-summary: ''
       use-processed-input: false
+      development-report: ${{ inputs.development-report }}
     secrets: inherit
 
   voice-opening:
@@ -345,6 +347,152 @@ jobs:
             release-files/radio-title.png
             release-files/metadata.json
 
+
+  summary:
+    needs: [planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate workflow summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🎙️ ラジオ番組制作結果
+          
+          | ステップ | 状態 | 結果 |
+          |---------|------|-----|
+          | 台本生成 | ${{ needs.planning.result }} | ${{ needs.planning.result == 'success' && '✅' || '❌' }} |
+          | 音声生成(開始) | ${{ needs.voice-opening.result }} | ${{ needs.voice-opening.result == 'success' && '✅' || needs.voice-opening.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(前半) | ${{ needs.voice-main.result }} | ${{ needs.voice-main.result == 'success' && '✅' || needs.voice-main.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(後半) | ${{ needs.voice-main-part2.result }} | ${{ needs.voice-main-part2.result == 'success' && '✅' || needs.voice-main-part2.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(終了) | ${{ needs.voice-ending.result }} | ${{ needs.voice-ending.result == 'success' && '✅' || needs.voice-ending.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声生成(ジングル) | ${{ needs.voice-jingle.result }} | ${{ needs.voice-jingle.result == 'success' && '✅' || needs.voice-jingle.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(開始) | ${{ needs.bgm-opening.result }} | ${{ needs.bgm-opening.result == 'success' && '✅' || needs.bgm-opening.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(前半) | ${{ needs.bgm-main.result }} | ${{ needs.bgm-main.result == 'success' && '✅' || needs.bgm-main.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(後半) | ${{ needs.bgm-main-part2.result }} | ${{ needs.bgm-main-part2.result == 'success' && '✅' || needs.bgm-main-part2.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(終了) | ${{ needs.bgm-ending.result }} | ${{ needs.bgm-ending.result == 'success' && '✅' || needs.bgm-ending.result == 'failure' && '❌' || '⚠️' }} |
+          | BGM生成(ジングル) | ${{ needs.bgm-jingle.result }} | ${{ needs.bgm-jingle.result == 'success' && '✅' || needs.bgm-jingle.result == 'failure' && '❌' || '⚠️' }} |
+          | 音声合成 | ${{ needs.audio-mixing-final.result }} | ${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌' }} |
+          | リリース作成 | ${{ needs.publish.result }} | ${{ needs.publish.result == 'success' && '✅' || '❌' }} |
+          
+          ### 📊 統計情報
+          - ワークフロー実行ID: ${{ github.run_id }}
+          - 音声品質: -23 LUFS (放送基準)
+          - 並列処理: 6つのモジュールを同時実行
+          EOF
+
+  line-notification:
+    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish, summary]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send LINE notification
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: |
+          COMPLETION_TIME=$(date "+%Y/%m/%d %H:%M:%S")
+          STATUS_EMOJI="✅"
+          STATUS_TEXT="完了"
+          
+          # 全体の成功判定
+          if [[ "${{ needs.api-check.result }}" != "success" ]] || \
+             [[ "${{ needs.planning.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-opening.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-main.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-main-part2.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-ending.result }}" != "success" ]] || \
+             [[ "${{ needs.voice-jingle.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-opening.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-main.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-main-part2.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-ending.result }}" != "success" ]] || \
+             [[ "${{ needs.bgm-jingle.result }}" != "success" ]] || \
+             [[ "${{ needs.audio-mixing-final.result }}" != "success" ]] || \
+             [[ "${{ needs.publish.result }}" != "success" ]]; then
+            STATUS_EMOJI="❌"
+            STATUS_TEXT="失敗"
+          fi
+          
+          # 個別ステータス変数の準備
+          API_STATUS="${{ needs.api-check.result == 'success' && '✅' || '❌ 認証失敗' }}"
+          PLANNING_STATUS="${{ needs.planning.result == 'success' && '✅' || '❌ Claude API異常' }}"
+          VOICE_OPENING_STATUS="${{ needs.voice-opening.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_MAIN_STATUS="${{ needs.voice-main.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_MAIN_PART2_STATUS="${{ needs.voice-main-part2.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_ENDING_STATUS="${{ needs.voice-ending.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          VOICE_JINGLE_STATUS="${{ needs.voice-jingle.result == 'success' && '✅' || '❌ AIVIS API失敗' }}"
+          BGM_OPENING_STATUS="${{ needs.bgm-opening.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_MAIN_STATUS="${{ needs.bgm-main.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_MAIN_PART2_STATUS="${{ needs.bgm-main-part2.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_ENDING_STATUS="${{ needs.bgm-ending.result == 'success' && '✅' || '❌ Google Lyria失敗' }}"
+          BGM_JINGLE_STATUS="${{ needs.bgm-jingle.result == 'success' && '✅' || '❌ ジングルSE選択失敗' }}"
+          MIXING_STATUS="${{ needs.audio-mixing-final.result == 'success' && '✅' || '❌ FFmpeg失敗' }}"
+          PUBLISH_STATUS="${{ needs.publish.result == 'success' && '✅' || '❌ リリース作成失敗' }}"
+          
+          # エラー詳細情報の構築
+          ERROR_DETAILS=""
+          if [[ "${{ needs.api-check.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 API接続エラー: AIVIS Cloud API認証失敗"
+          fi
+          if [[ "${{ needs.planning.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 台本生成エラー: Claude API応答異常"
+          fi
+          if [[ "${{ needs.voice-opening.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニング音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-main.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン前半音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-main-part2.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン後半音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-ending.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディング音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.voice-jingle.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 ジングル音声生成エラー: AIVIS API失敗"
+          fi
+          if [[ "${{ needs.bgm-opening.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 オープニングBGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-main.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン前半BGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-main-part2.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 メイン後半BGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-ending.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 エンディングBGM生成エラー: Google Lyria API失敗"
+          fi
+          if [[ "${{ needs.bgm-jingle.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 ジングルBGM選択エラー: ファイル処理失敗"
+          fi
+          if [[ "${{ needs.audio-mixing-final.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 音声ミキシングエラー: FFmpeg処理失敗"
+          fi
+          if [[ "${{ needs.publish.result }}" != "success" ]]; then
+            ERROR_DETAILS="${ERROR_DETAILS}\n🚫 リリース作成エラー: GitHub API失敗"
+          fi
+          
+          # LINE APIが設定されているか確認
+          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
+            echo "::warning::LINE通知設定がありません。スキップします。"
+            echo "LINE_CHANNEL_ACCESS_TOKEN または LINE_USER_ID が設定されていません"
+            exit 0
+          fi
+          
+          curl -X POST https://api.line.me/v2/bot/message/push \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
+            -d "{
+              \"to\": \"${LINE_USER_ID}\",
+              \"messages\": [
+                {
+                  \"type\": \"text\",
+                  \"text\": \"${STATUS_EMOJI} 神威日報ラジオ制作${STATUS_TEXT}！\n\n📻 ワークフロー実行結果をお知らせします。\n⏰ 完成時刻: ${COMPLETION_TIME}\n\n🔍 API状況:\n・AIVIS Cloud API: ${API_STATUS}\n\n📊 制作結果:\n・台本生成: ${PLANNING_STATUS}\n・音声生成(開始): ${VOICE_OPENING_STATUS}\n・音声生成(前半): ${VOICE_MAIN_STATUS}\n・音声生成(後半): ${VOICE_MAIN_PART2_STATUS}\n・音声生成(終了): ${VOICE_ENDING_STATUS}\n・音声生成(ジングル): ${VOICE_JINGLE_STATUS}\n・BGM生成(開始): ${BGM_OPENING_STATUS}\n・BGM生成(前半): ${BGM_MAIN_STATUS}\n・BGM生成(後半): ${BGM_MAIN_PART2_STATUS}\n・BGM生成(終了): ${BGM_ENDING_STATUS}\n・BGM生成(ジングル): ${BGM_JINGLE_STATUS}\n・音声ミキシング: ${MIXING_STATUS}\n・リリース作成: ${PUBLISH_STATUS}\n\n📋 ワークフロー実行ID: ${{ github.run_id }}${ERROR_DETAILS}\"
+                }
+              ]
+            }"
   # Spotify Podcast配信
   podcast-publish:
     needs: [publish]
@@ -357,3 +505,4 @@ jobs:
       script-content: ${{ needs.planning.outputs.script-opening }}
       audio-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_number }}/final-radio.mp3"
     secrets: inherit
+EOF < /dev/null
