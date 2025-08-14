@@ -465,7 +465,7 @@ jobs:
     with:
       episode-number: "${{ github.run_number }}"
       episode-title: "神威日報振り返りエンターテインメントラジオ「KAMURAJI」"
-      episode-description: "神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。"
+      episode-description: ""
       audio-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/final-radio.mp3"
       image-url: "https://github.com/${{ github.repository }}/releases/download/radio-${{ github.run_id }}/radio-title.png"
     secrets:
