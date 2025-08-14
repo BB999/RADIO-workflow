@@ -352,6 +352,32 @@
             transform: translateX(5px);
         }
         
+        /* 画像付きエピソード */
+        .episode-with-image {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+        
+        .episode-thumbnail {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        .episode-thumbnail:hover {
+            transform: scale(1.05);
+        }
+        
+        .episode-audio {
+            width: 100%;
+            margin-top: 1rem;
+        }
+        
         .episode-number {
             display: inline-block;
             background: #ff4757;
@@ -403,16 +429,146 @@
         
         /* レスポンシブ */
         @media (max-width: 768px) {
-            h1 {
-                font-size: 1.8rem;
+            /* 背景アニメーションを軽量化 */
+            body::before,
+            body::after {
+                animation-duration: 60s; /* より長い周期に */
             }
             
+            /* パフォーマンス向上のため一部アニメーション無効化 */
+            @media (prefers-reduced-motion: reduce) {
+                body::before,
+                body::after,
+                .bar,
+                .on-air-dot,
+                .record-icon {
+                    animation: none;
+                }
+            }
+            
+            /* ヘッダー調整 */
+            h1 {
+                font-size: 2.2rem;
+                letter-spacing: 1px;
+            }
+            
+            .radio-header {
+                padding: 0.8rem;
+            }
+            
+            /* コンテナ調整 */
             .container {
                 padding: 1rem;
             }
             
             .radio-player {
-                padding: 1.5rem;
+                padding: 1.5rem 1rem;
+            }
+            
+            .episode-list {
+                padding: 1.5rem 1rem;
+            }
+            
+            /* 番組情報 */
+            .show-title {
+                font-size: 1.5rem;
+            }
+            
+            .show-time {
+                font-size: 1rem;
+            }
+            
+            /* 購読ボタン */
+            .subscribe-buttons {
+                flex-direction: column;
+                align-items: center;
+                gap: 0.8rem;
+            }
+            
+            .subscribe-button {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+                padding: 15px 20px;
+            }
+            
+            /* ビジュアライザー調整 */
+            .visualizer {
+                height: 60px;
+                gap: 2px;
+            }
+            
+            .bar {
+                width: 3px;
+            }
+            
+            /* エピソードカード - グリッドを縦並びに */
+            .episode-with-image {
+                display: block !important;
+            }
+            
+            .episode-thumbnail {
+                width: 100% !important;
+                max-width: 200px !important;
+                height: auto !important;
+                margin: 0 auto 1rem auto !important;
+                display: block !important;
+            }
+            
+            /* エピソード番号とタイトル */
+            .episode-title {
+                font-size: 1.1rem;
+            }
+            
+            .episode-number {
+                font-size: 0.75rem;
+                padding: 3px 8px;
+            }
+            
+            /* 画像モーダル */
+            .image-modal img {
+                max-width: 95%;
+                max-height: 95%;
+            }
+            
+            /* オーディオプレーヤー */
+            audio {
+                height: 35px;
+            }
+        }
+        
+        /* より小さいスマホ画面用 */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .fm-badge {
+                font-size: 0.8rem;
+                padding: 4px 12px;
+            }
+            
+            .show-title {
+                font-size: 1.3rem;
+            }
+            
+            .container {
+                padding: 0.5rem;
+            }
+            
+            .radio-player,
+            .episode-list {
+                padding: 1rem 0.8rem;
+                margin: 1rem 0;
+            }
+            
+            .episode {
+                padding: 1rem;
+            }
+            
+            .subscribe-button {
+                font-size: 0.9rem;
+                padding: 12px 16px;
             }
         }
         
@@ -546,9 +702,9 @@
                         const imageUrl = itunesImage ? itunesImage.getAttribute("href") : "";
                         
                         const episodeHtml = `
-                            <div class="episode" style="${imageUrl ? 'display: grid; grid-template-columns: 150px 1fr; gap: 1.5rem; align-items: start;' : ''}">
-                                ${imageUrl ? `<img src="${imageUrl}" alt="Episode thumbnail" class="episode-thumbnail" style="width: 150px; height: 150px; object-fit: cover; border-radius: 10px;" onclick="openImageModal('${imageUrl}')">` : ''}
-                                <div>
+                            <div class="episode ${imageUrl ? 'episode-with-image' : ''}">
+                                ${imageUrl ? `<img src="${imageUrl}" alt="Episode thumbnail" class="episode-thumbnail" onclick="openImageModal('${imageUrl}')">` : ''}
+                                <div class="episode-content">
                                     <span class="episode-number">Episode ${episodeNumber}</span>
                                     <h3 class="episode-title">${title}</h3>
                                     <p class="episode-date">📅 ${new Date(pubDate).toLocaleDateString('ja-JP', {
@@ -558,7 +714,7 @@
                                         weekday: 'long'
                                     })}</p>
                                     <p class="episode-description">${description}</p>
-                                    ${audioUrl ? `<audio controls style="width: 100%; margin-top: 1rem;">
+                                    ${audioUrl ? `<audio controls class="episode-audio">
                                         <source src="${audioUrl}" type="audio/mpeg">
                                         お使いのブラウザは音声再生に対応していません
                                     </audio>` : ''}
