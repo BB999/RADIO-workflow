@@ -21,6 +21,11 @@ on:
         required: false
         type: boolean
         default: false
+  schedule:
+    # 日本時間 朝6時（UTC 21時 前日）に実行
+    - cron: '0 21 * * *'
+    # 日本時間 午後3時（UTC 6時）に実行  
+    - cron: '0 6 * * *'
 
 permissions:
   contents: write  # リリース作成に必要
@@ -140,7 +145,7 @@ jobs:
   # 文字起こし自動収集（APIチェック後に実行）
   auto-collect-transcript:
     needs: api-check
-    if: ${{ inputs.auto-collect == true && needs.api-check.result == 'success' }}
+    if: ${{ (inputs.auto-collect == true || github.event_name == 'schedule') && needs.api-check.result == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       transcript: ${{ steps.collect.outputs.transcript }}
@@ -200,8 +205,8 @@ jobs:
     with:
       processed-summary: ''
       use-processed-input: false
-      use-auto-collected: ${{ inputs.auto-collect == true && needs.auto-collect-transcript.outputs.has_transcript == 'true' }}
-      development-report: ${{ inputs.development-report }}
+      use-auto-collected: ${{ (inputs.auto-collect == true || github.event_name == 'schedule') && needs.auto-collect-transcript.outputs.has_transcript == 'true' }}
+      development-report: ${{ inputs.development-report || '' }}
     secrets: inherit
 
   voice-opening:
