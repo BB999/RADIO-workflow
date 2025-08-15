@@ -380,8 +380,15 @@ jobs:
           fi
           
           # 開発進捗情報を前半用に分割してファイルに保存
-          HALF_LENGTH=$((${#DEV_REPORT} / 2))
-          DEV_REPORT_PART1=$(echo "$DEV_REPORT" | cut -c1-$HALF_LENGTH)
+          REPORT_LENGTH=${#DEV_REPORT}
+          HALF_LENGTH=$((REPORT_LENGTH / 2))
+          
+          # 最小長をチェック
+          if [ $HALF_LENGTH -lt 1 ]; then
+            HALF_LENGTH=$REPORT_LENGTH
+          fi
+          
+          DEV_REPORT_PART1=$(echo "$DEV_REPORT" | head -c $HALF_LENGTH)
           
           # 開発レポートをファイルに保存（引数制限回避）
           echo "$DEV_REPORT_PART1" > "$WORK_DIR/dev_report_part1.txt"
@@ -553,8 +560,17 @@ jobs:
           echo "  - 半分の位置: ${HALF_LENGTH}"
           echo "  - レポートの先頭100文字: ${DEV_REPORT:0:100}"
           
+          # 最小長をチェック
+          if [ $HALF_LENGTH -lt 1 ]; then
+            HALF_LENGTH=1
+          fi
+          
           # bashの部分文字列取得構文を使用（より確実）
-          DEV_REPORT_PART2="${DEV_REPORT:$HALF_LENGTH}"
+          if [ $HALF_LENGTH -ge $REPORT_LENGTH ]; then
+            DEV_REPORT_PART2="$DEV_REPORT"
+          else
+            DEV_REPORT_PART2="${DEV_REPORT:$HALF_LENGTH}"
+          fi
           
           echo "  - 後半部分の長さ: ${#DEV_REPORT_PART2} bytes"
           echo "  - 後半部分の先頭100文字: ${DEV_REPORT_PART2:0:100}"
