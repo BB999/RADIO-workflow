@@ -352,6 +352,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Download auto-collected transcript
+        if: ${{ inputs.use-auto-collected == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-collected-transcript
+          path: ./transcript/
+      
+      - name: Setup transcript data
+        run: |
+          if [ "${{ inputs.use-auto-collected }}" == "true" ]; then
+            if [ -f "./transcript/transcript.txt" ]; then
+              cp "./transcript/transcript.txt" "./development-report.txt"
+              echo "✅ 自動収集された文字起こしを使用します"
+              echo "文字数: $(wc -c < ./development-report.txt)"
+            else
+              echo "::error::自動収集された文字起こしが見つかりません"
+              exit 1
+            fi
+          else
+            echo '${{ inputs.development-report }}' > ./development-report.txt
+            echo "✅ 手動入力のレポートを使用します"
+            echo "文字数: $(wc -c < ./development-report.txt)"
+          fi
+      
       - name: Generate main part1 script
         id: planning
         env:
@@ -705,6 +729,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Download auto-collected transcript
+        if: ${{ inputs.use-auto-collected == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-collected-transcript
+          path: ./transcript/
+      
+      - name: Setup transcript data
+        run: |
+          if [ "${{ inputs.use-auto-collected }}" == "true" ]; then
+            if [ -f "./transcript/transcript.txt" ]; then
+              cp "./transcript/transcript.txt" "./development-report.txt"
+              echo "✅ 自動収集された文字起こしを使用します"
+              echo "文字数: $(wc -c < ./development-report.txt)"
+            else
+              echo "::error::自動収集された文字起こしが見つかりません"
+              exit 1
+            fi
+          else
+            echo '${{ inputs.development-report }}' > ./development-report.txt
+            echo "✅ 手動入力のレポートを使用します"
+            echo "文字数: $(wc -c < ./development-report.txt)"
+          fi
+      
       - name: Generate ending script
         id: planning
         env:
@@ -724,16 +772,31 @@ jobs:
             echo "::warning::パーソナリティデータファイルが見つかりません"
           fi
           
+          # 統一された文字起こしデータを読み込み（要約用）
+          if [ -f "./development-report.txt" ]; then
+            DEV_REPORT=$(cat ./development-report.txt)
+            # 最初の500文字を要約用に使用
+            DEV_SUMMARY="${DEV_REPORT:0:500}"
+          else
+            DEV_SUMMARY=""
+          fi
+          
+          # 開発レポートの要約をファイルに保存
+          echo "$DEV_SUMMARY" > "$WORK_DIR/dev_summary.txt"
+          echo "📝 開発レポートの要約をファイルに保存しました"
+          
           PROMPT="エンディング台本を生成してください。
+
+          まず、dev_summary.txt ファイルを読み込んで、今回の放送内容の要約として使用してください。
 
           パーソナリティ: $PERSONALITY_DATA
 
-          要件: 1分（300-400文字）、まとめと次回予告
+          要件: 1分（300-400文字）、今回の内容のまとめと次回予告
           
           以下のJSONファイルを ending.json として現在のディレクトリに保存してください：
           {\"ending\": \"台本テキスト\"}
           
-          **重要**: Writeツールを使用してファイルを確実に保存してください。"
+          **重要**: Readツールでdev_summary.txtを読み込んでから、Writeツールを使用してファイルを確実に保存してください。"
           
           echo "🔍 Claude Code実行前のデバッグ情報:"
           echo "  現在のディレクトリ: $(pwd)"
@@ -742,7 +805,7 @@ jobs:
           echo "  WORK_DIR内の内容: $(ls -la "$WORK_DIR" 2>/dev/null || echo "空またはアクセス不可")"
           
           cd "$WORK_DIR" && echo "✅ ディレクトリ移動成功: $(pwd)" && npx @anthropic-ai/claude-code \
-            --allowedTools "Write" \
+            --allowedTools "Read,Write" \
             --max-turns 8 \
             --permission-mode "acceptEdits" \
             -p "$PROMPT"
