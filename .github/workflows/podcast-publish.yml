@@ -82,26 +82,118 @@ jobs:
           SUMMARY=$(echo "$SUMMARY" | tr '\n' ' ')
           echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
       
-      - name: Calculate audio duration
-        id: duration
+      - name: Analyze audio file
+        id: audio-analysis
         run: |
-          # デフォルト4分
-          echo "duration=04:00" >> $GITHUB_OUTPUT
-      
-      - name: Get audio file size
-        id: audio-size
-        run: |
-          # 実際に音声ファイルをダウンロードしてサイズを測定
-          echo "Downloading audio file to measure size..."
-          AUDIO_SIZE=$(curl -s "${{ inputs.audio-url }}" | wc -c)
-          echo "Audio file size: $AUDIO_SIZE bytes"
+          echo "::group::Installing ffmpeg"
+          # Install ffmpeg for audio analysis
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          echo "::endgroup::"
           
-          # サイズが0または空の場合は10MBをデフォルトに設定
-          if [ -z "$AUDIO_SIZE" ] || [ "$AUDIO_SIZE" = "0" ]; then
-            echo "File size is 0 or empty, using default size"
-            AUDIO_SIZE=10485760
+          echo "::group::Downloading audio file"
+          # Download audio file once for both duration and size analysis
+          echo "📥 Starting download from: ${{ inputs.audio-url }}"
+          TEMP_AUDIO=$(mktemp --suffix=.mp3)
+          echo "📁 Temporary file: $TEMP_AUDIO"
+          
+          # Download with verbose logging
+          echo "⏳ Downloading audio file..."
+          HTTP_CODE=$(curl -L -s -w "%{http_code}" -o "$TEMP_AUDIO" "${{ inputs.audio-url }}")
+          CURL_EXIT_CODE=$?
+          
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "::error::Failed to download audio file (curl exit code: $CURL_EXIT_CODE)"
+            echo "❌ URL: ${{ inputs.audio-url }}"
+            rm -f "$TEMP_AUDIO"
+            exit 1
           fi
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::HTTP error $HTTP_CODE when downloading audio file"
+            echo "❌ URL: ${{ inputs.audio-url }}"
+            rm -f "$TEMP_AUDIO"
+            exit 1
+          fi
+          
+          echo "✅ Successfully downloaded audio file (HTTP $HTTP_CODE)"
+          echo "::endgroup::"
+          
+          echo "::group::Analyzing file size"
+          # Get file size
+          AUDIO_SIZE=$(stat -c%s "$TEMP_AUDIO" 2>/dev/null || stat -f%z "$TEMP_AUDIO" 2>/dev/null)
+          if [ -z "$AUDIO_SIZE" ]; then
+            echo "::error::Failed to get file size using stat command"
+            ls -la "$TEMP_AUDIO"
+            rm -f "$TEMP_AUDIO"
+            exit 1
+          fi
+          
+          # Calculate size in different units
+          SIZE_KB=$(($AUDIO_SIZE / 1024))
+          SIZE_MB=$(($AUDIO_SIZE / 1024 / 1024))
+          
+          echo "📊 File size analysis:"
+          echo "   - Bytes: $AUDIO_SIZE"
+          echo "   - KB: $SIZE_KB"
+          echo "   - MB: $SIZE_MB"
+          
+          # Check if file size is valid
+          if [ "$AUDIO_SIZE" -lt 1000 ]; then
+            echo "::error::Audio file is too small ($AUDIO_SIZE bytes). File may be corrupted."
+            echo "❌ Expected at least 1KB, got $AUDIO_SIZE bytes"
+            rm -f "$TEMP_AUDIO"
+            exit 1
+          fi
+          
+          echo "✅ File size is valid"
+          echo "::endgroup::"
+          
+          echo "::group::Analyzing audio duration"
+          # Get actual duration with error output
+          echo "⏳ Running ffprobe..."
+          FFPROBE_OUTPUT=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$TEMP_AUDIO" 2>&1)
+          FFPROBE_EXIT_CODE=$?
+          
+          if [ $FFPROBE_EXIT_CODE -ne 0 ]; then
+            echo "::error::ffprobe failed with exit code $FFPROBE_EXIT_CODE"
+            echo "❌ ffprobe output: $FFPROBE_OUTPUT"
+            rm -f "$TEMP_AUDIO"
+            exit 1
+          fi
+          
+          DURATION_SECONDS=$(echo "$FFPROBE_OUTPUT" | head -n 1)
+          
+          if [ -z "$DURATION_SECONDS" ]; then
+            echo "::error::ffprobe returned empty duration"
+            echo "❌ ffprobe output was: $FFPROBE_OUTPUT"
+            rm -f "$TEMP_AUDIO"
+            exit 1
+          fi
+          
+          # Convert seconds to MM:SS format
+          MINUTES=$(echo "$DURATION_SECONDS" | awk '{print int($1/60)}')
+          SECONDS=$(echo "$DURATION_SECONDS" | awk '{print int($1%60)}')
+          FORMATTED_DURATION=$(printf "%02d:%02d" $MINUTES $SECONDS)
+          
+          echo "📊 Duration analysis:"
+          echo "   - Total seconds: $DURATION_SECONDS"
+          echo "   - Minutes: $MINUTES"
+          echo "   - Seconds: $SECONDS"
+          echo "   - Formatted: $FORMATTED_DURATION"
+          
+          echo "✅ Duration analysis complete"
+          echo "::endgroup::"
+          
+          # Summary
+          echo "::notice title=Audio Analysis Complete::File size: $SIZE_MB MB, Duration: $FORMATTED_DURATION"
+          
+          # Output both values
           echo "size=$AUDIO_SIZE" >> $GITHUB_OUTPUT
+          echo "duration=$FORMATTED_DURATION" >> $GITHUB_OUTPUT
+          
+          # Cleanup
+          rm -f "$TEMP_AUDIO"
+          echo "🧹 Temporary file cleaned up"
       
       - name: Create episodes directory
         run: |
@@ -199,10 +291,10 @@ jobs:
                   <link>$EPISODE_GUID</link>
                   <guid isPermaLink="true">$EPISODE_GUID</guid>
                   <pubDate>${{ steps.date.outputs.rfc_date }}</pubDate>
-                  <enclosure url="${{ inputs.audio-url }}" length="${{ steps.audio-size.outputs.size }}" type="audio/mpeg"/>
+                  <enclosure url="${{ inputs.audio-url }}" length="${{ steps.audio-analysis.outputs.size }}" type="audio/mpeg"/>
                   <itunes:author>Kamui Radio AI</itunes:author>
                   <itunes:summary><![CDATA[${{ steps.summary.outputs.summary }}]]></itunes:summary>
-                  <itunes:duration>${{ steps.duration.outputs.duration }}</itunes:duration>
+                  <itunes:duration>${{ steps.audio-analysis.outputs.duration }}</itunes:duration>
                   <itunes:explicit>false</itunes:explicit>
                   <itunes:episode>${{ inputs.episode-number }}</itunes:episode>
                   <itunes:season>1</itunes:season>

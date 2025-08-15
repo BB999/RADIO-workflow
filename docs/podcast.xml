@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" 
-    xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
-    xmlns:spotify="http://www.spotify.com/ns/rss"
-    xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss xmlns:spotify="http://www.spotify.com/ns/rss" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" version="2.0">
     <channel>
         <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」</title>
         <link>https://bb999.github.io/RADIO-workflow/</link>
@@ -20,108 +17,108 @@
         </itunes:owner>
         <itunes:explicit>false</itunes:explicit>
         <itunes:category text="Technology">
-            <itunes:category text="Tech News"/>
+            <itunes:category text="Tech News" />
         </itunes:category>
-        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16984827731/radio-title.png"/>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16984827731/radio-title.png" />
         
         <itunes:type>episodic</itunes:type>
         <itunes:complete>no</itunes:complete>
         
         <generator>Kamui Radio Workflow System</generator>
         <lastBuildDate>Fri, 15 Aug 2025 07:02:49 +0000</lastBuildDate>
-        <pubDate>Tue, 13 Aug 2025 00:00:00 +0900</pubDate>
+        <pubDate>Tue, 13 Aug 2025 00:00:00 +0000</pubDate>
         
-        <!-- エピソードはラジオワークフローで自動追加される -->
+        
     
     <item>
         <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」</title>
-        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></description>
+        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></description>
         <link>https://bb999.github.io/RADIO-workflow/episodes/episode-231.html</link>
         <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-231.html</guid>
         <pubDate>Wed, 13 Aug 2025 02:56:04 +0000</pubDate>
-        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16926132814/final-radio.mp3" length="10485760" type="audio/mpeg"/>
+        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16926132814/final-radio.mp3" length="18048045" type="audio/mpeg" />
         <itunes:author>Kamui Radio AI</itunes:author>
-        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></itunes:summary>
-        <itunes:duration>04:00</itunes:duration>
+        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></itunes:summary>
+        <itunes:duration>07:31</itunes:duration>
         <itunes:explicit>false</itunes:explicit>
         <itunes:episode>231</itunes:episode>
         <itunes:season>1</itunes:season>
-        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16926132814/radio-title.png"/>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16926132814/radio-title.png" />
     </item>
     <item>
         <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」 2025.8.13 afternoon</title>
-        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></description>
+        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></description>
         <link>https://bb999.github.io/RADIO-workflow/episodes/episode-232.html</link>
         <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-232.html</guid>
         <pubDate>Wed, 13 Aug 2025 09:11:34 +0000</pubDate>
-        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16932683490/final-radio.mp3" length="10485760" type="audio/mpeg"/>
+        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16932683490/final-radio.mp3" length="20539245" type="audio/mpeg" />
         <itunes:author>Kamui Radio AI</itunes:author>
-        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></itunes:summary>
-        <itunes:duration>04:00</itunes:duration>
+        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></itunes:summary>
+        <itunes:duration>08:33</itunes:duration>
         <itunes:explicit>false</itunes:explicit>
         <itunes:episode>232</itunes:episode>
         <itunes:season>1</itunes:season>
-        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16932683490/radio-title.png"/>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16932683490/radio-title.png" />
     </item>
     <item>
         <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」 2025.8.14 morning</title>
-        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></description>
+        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></description>
         <link>https://bb999.github.io/RADIO-workflow/episodes/episode-238.html</link>
         <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-238.html</guid>
         <pubDate>Wed, 13 Aug 2025 22:59:47 +0000</pubDate>
-        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16951202899/final-radio.mp3" length="10485760" type="audio/mpeg"/>
+        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16951202899/final-radio.mp3" length="20041005" type="audio/mpeg" />
         <itunes:author>Kamui Radio AI</itunes:author>
-        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></itunes:summary>
-        <itunes:duration>04:00</itunes:duration>
+        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></itunes:summary>
+        <itunes:duration>08:21</itunes:duration>
         <itunes:explicit>false</itunes:explicit>
         <itunes:episode>238</itunes:episode>
         <itunes:season>1</itunes:season>
-        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16951202899/radio-title.png"/>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16951202899/radio-title.png" />
     </item>
     <item>
         <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」 2025.8.14 afternoon</title>
-        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></description>
+        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></description>
         <link>https://bb999.github.io/RADIO-workflow/episodes/episode-239.html</link>
         <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-239.html</guid>
         <pubDate>Thu, 14 Aug 2025 05:23:35 +0000</pubDate>
-        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16956532389/final-radio.mp3" length="10485760" type="audio/mpeg"/>
+        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16956532389/final-radio.mp3" length="19374765" type="audio/mpeg" />
         <itunes:author>Kamui Radio AI</itunes:author>
-        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。 ]]></itunes:summary>
-        <itunes:duration>04:00</itunes:duration>
+        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></itunes:summary>
+        <itunes:duration>08:04</itunes:duration>
         <itunes:explicit>false</itunes:explicit>
         <itunes:episode>239</itunes:episode>
         <itunes:season>1</itunes:season>
-        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16956532389/radio-title.png"/>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16956532389/radio-title.png" />
     </item>
     <item>
         <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」 2025.8.15 morning</title>
-        <description><![CDATA[ ]]></description>
+        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></description>
         <link>https://bb999.github.io/RADIO-workflow/episodes/episode-240.html</link>
         <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-240.html</guid>
         <pubDate>Thu, 14 Aug 2025 22:15:26 +0000</pubDate>
-        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16977815001/final-radio.mp3" length="10485760" type="audio/mpeg"/>
+        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16977815001/final-radio.mp3" length="20089965" type="audio/mpeg" />
         <itunes:author>Kamui Radio AI</itunes:author>
-        <itunes:summary><![CDATA[ ]]></itunes:summary>
-        <itunes:duration>04:00</itunes:duration>
+        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></itunes:summary>
+        <itunes:duration>08:22</itunes:duration>
         <itunes:explicit>false</itunes:explicit>
         <itunes:episode>240</itunes:episode>
         <itunes:season>1</itunes:season>
-        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16977815001/radio-title.png"/>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16977815001/radio-title.png" />
     </item>
     <item>
         <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」 2025.8.15 afternoon</title>
-        <description><![CDATA[ ]]></description>
+        <description><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></description>
         <link>https://bb999.github.io/RADIO-workflow/episodes/episode-241.html</link>
         <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-241.html</guid>
         <pubDate>Fri, 15 Aug 2025 07:02:49 +0000</pubDate>
-        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16984827731/final-radio.mp3" length="10485760" type="audio/mpeg"/>
+        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-16984827731/final-radio.mp3" length="22715565" type="audio/mpeg" />
         <itunes:author>Kamui Radio AI</itunes:author>
-        <itunes:summary><![CDATA[ ]]></itunes:summary>
-        <itunes:duration>04:00</itunes:duration>
+        <itunes:summary><![CDATA[神威アプリの最新開発状況をお届けする今回のエピソード。AI技術を活用した新機能や開発進捗について、分かりやすく解説します。]]></itunes:summary>
+        <itunes:duration>09:27</itunes:duration>
         <itunes:explicit>false</itunes:explicit>
         <itunes:episode>241</itunes:episode>
         <itunes:season>1</itunes:season>
-        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16984827731/radio-title.png"/>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-16984827731/radio-title.png" />
     </item>
     </channel>
 </rss>
