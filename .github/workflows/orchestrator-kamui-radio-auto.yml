@@ -169,7 +169,7 @@ jobs:
           # 実際のAPI呼び出しコードをここに実装
           
       - name: Upload audio artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: audio-${{ matrix.section }}
           path: audio-${{ matrix.section }}.wav
@@ -198,7 +198,7 @@ jobs:
           # 実際のAPI呼び出しコードをここに実装
           
       - name: Upload BGM artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bgm-${{ matrix.section }}
           path: bgm-${{ matrix.section }}.mp3
@@ -239,7 +239,7 @@ jobs:
           # ミキシング処理
       
       - name: Upload jingle artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: jingle-final
           path: jingle-final.mp3
@@ -256,7 +256,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
       
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
