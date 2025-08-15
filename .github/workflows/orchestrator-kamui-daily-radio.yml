@@ -2,9 +2,14 @@ name: Kamui Daily Radio Production (Minimal)
 on:
   workflow_dispatch:
     inputs:
+      auto-collect:
+        description: 'Notionから文字起こしを自動収集'
+        required: false
+        type: boolean
+        default: true
       development-report:
-        description: '神威アプリの開発進捗・最新情報'
-        required: true
+        description: '神威アプリの開発進捗・最新情報（自動収集がOFFの場合は必須）'
+        required: false
         type: string
       public:
         description: '公開設定'
@@ -22,6 +27,56 @@ permissions:
   pull-requests: write  # PR作成に必要
 
 jobs:
+  # 文字起こし自動収集（オプション）
+  auto-collect-transcript:
+    if: ${{ inputs.auto-collect == true }}
+    runs-on: ubuntu-latest
+    outputs:
+      transcript: ${{ steps.collect.outputs.transcript }}
+      has_transcript: ${{ steps.collect.outputs.has_transcript }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      
+      - name: Install Python dependencies
+        run: |
+          pip install selenium webdriver-manager pytz python-dotenv requests
+      
+      - name: Run auto collector
+        id: collect
+        env:
+          NOTION_URL: ${{ secrets.NOTION_URL }}
+          GITHUB_ACTIONS: true
+        run: |
+          cd radio-workflow/scripts
+          python auto_daily_collector.py
+          
+          # 文字起こしファイルの存在確認
+          if [ -f transcript.txt ]; then
+            echo "has_transcript=true" >> $GITHUB_OUTPUT
+            # 文字起こしを環境変数に保存（改行を保持）
+            {
+              echo "transcript<<EOF"
+              cat transcript.txt
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+            echo "✅ 文字起こし自動収集成功"
+          else
+            echo "has_transcript=false" >> $GITHUB_OUTPUT
+            echo "❌ 文字起こしの自動収集に失敗しました"
+            exit 1
+          fi
+
   api-check:
     runs-on: ubuntu-latest
     outputs:
@@ -141,13 +196,16 @@ jobs:
     secrets: inherit
 
   planning:
-    needs: [api-check]
-    if: needs.api-check.result == 'success'
+    needs: [api-check, auto-collect-transcript]
+    if: |
+      always() && 
+      needs.api-check.result == 'success' &&
+      (needs.auto-collect-transcript.result == 'skipped' || needs.auto-collect-transcript.outputs.has_transcript == 'true')
     uses: ./.github/workflows/module-radio-planning.yml
     with:
       processed-summary: ''
       use-processed-input: false
-      development-report: ${{ inputs.development-report }}
+      development-report: ${{ inputs.auto-collect == true && needs.auto-collect-transcript.outputs.transcript || inputs.development-report }}
     secrets: inherit
 
   voice-opening:
