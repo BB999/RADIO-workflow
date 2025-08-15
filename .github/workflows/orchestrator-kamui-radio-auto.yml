@@ -350,21 +350,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send LINE notification
-        if: secrets.LINE_CHANNEL_ACCESS_TOKEN && secrets.LINE_USER_ID
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
-          if [ "${{ needs.final-mixing.result }}" == "success" ]; then
-            message="🎙️ 神威日報ラジオの生成が完了しました！"
+          # LINE通知の送信（シークレットが設定されている場合のみ）
+          if [ -n "$LINE_CHANNEL_ACCESS_TOKEN" ] && [ -n "$LINE_USER_ID" ]; then
+            if [ "${{ needs.final-mixing.result }}" == "success" ]; then
+              message="🎙️ 神威日報ラジオの生成が完了しました！"
+            else
+              message="⚠️ 神威日報ラジオの生成でエラーが発生しました"
+            fi
+            
+            curl -X POST https://api.line.me/v2/bot/message/push \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
+              -d "{
+                \"to\": \"$LINE_USER_ID\",
+                \"messages\": [{\"type\": \"text\", \"text\": \"$message\"}]
+              }"
           else
-            message="⚠️ 神威日報ラジオの生成でエラーが発生しました"
+            echo "LINE通知はスキップされました（シークレットが設定されていません）"
           fi
-          
-          curl -X POST https://api.line.me/v2/bot/message/push \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
-            -d "{
-              \"to\": \"$LINE_USER_ID\",
-              \"messages\": [{\"type\": \"text\", \"text\": \"$message\"}]
-            }"
