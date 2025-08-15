@@ -27,56 +27,6 @@ permissions:
   pull-requests: write  # PR作成に必要
 
 jobs:
-  # 文字起こし自動収集（オプション）
-  auto-collect-transcript:
-    if: ${{ inputs.auto-collect == true }}
-    runs-on: ubuntu-latest
-    outputs:
-      transcript: ${{ steps.collect.outputs.transcript }}
-      has_transcript: ${{ steps.collect.outputs.has_transcript }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      
-      - name: Install Chrome
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-      
-      - name: Install Python dependencies
-        run: |
-          pip install selenium webdriver-manager pytz python-dotenv requests
-      
-      - name: Run auto collector
-        id: collect
-        env:
-          NOTION_URL: ${{ secrets.NOTION_URL }}
-          GITHUB_ACTIONS: true
-        run: |
-          cd radio-workflow/scripts
-          python auto_daily_collector.py
-          
-          # 文字起こしファイルの存在確認
-          if [ -f transcript.txt ]; then
-            echo "has_transcript=true" >> $GITHUB_OUTPUT
-            # 文字起こしを環境変数に保存（改行を保持）
-            {
-              echo "transcript<<EOF"
-              cat transcript.txt
-              echo "EOF"
-            } >> $GITHUB_OUTPUT
-            echo "✅ 文字起こし自動収集成功"
-          else
-            echo "has_transcript=false" >> $GITHUB_OUTPUT
-            echo "❌ 文字起こしの自動収集に失敗しました"
-            exit 1
-          fi
-
   api-check:
     runs-on: ubuntu-latest
     outputs:
@@ -187,13 +137,56 @@ jobs:
           fi
 
 
-  input-processing:
+  # 文字起こし自動収集（APIチェック後に実行）
+  auto-collect-transcript:
     needs: api-check
-    if: ${{ inputs.gemini-summary == true }}
-    uses: ./.github/workflows/module-input-processing.yml
-    with:
-      development-report: ${{ inputs.development-report }}
-    secrets: inherit
+    if: ${{ inputs.auto-collect == true && needs.api-check.result == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      transcript: ${{ steps.collect.outputs.transcript }}
+      has_transcript: ${{ steps.collect.outputs.has_transcript }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      
+      - name: Install Python dependencies
+        run: |
+          pip install selenium webdriver-manager pytz python-dotenv requests
+      
+      - name: Run auto collector
+        id: collect
+        env:
+          NOTION_URL: ${{ secrets.NOTION_URL }}
+          GITHUB_ACTIONS: true
+        run: |
+          cd radio-workflow/scripts
+          python auto_daily_collector.py
+          
+          # 文字起こしファイルの存在確認
+          if [ -f transcript.txt ]; then
+            echo "has_transcript=true" >> $GITHUB_OUTPUT
+            # 文字起こしを環境変数に保存（改行を保持、より安全なデリミタ使用）
+            {
+              echo "transcript<<ENDOFCONTENT_DELIMITER_9999"
+              cat transcript.txt
+              echo "ENDOFCONTENT_DELIMITER_9999"
+            } >> $GITHUB_OUTPUT
+            echo "✅ 文字起こし自動収集成功"
+          else
+            echo "has_transcript=false" >> $GITHUB_OUTPUT
+            echo "❌ 文字起こしの自動収集に失敗しました"
+            exit 1
+          fi
 
   planning:
     needs: [api-check, auto-collect-transcript]
@@ -454,7 +447,7 @@ jobs:
           EOF
 
   line-notification:
-    needs: [api-check, input-processing, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish, podcast-publish, summary]
+    needs: [api-check, auto-collect-transcript, planning, voice-opening, voice-main, voice-main-part2, voice-ending, voice-jingle, bgm-opening, bgm-main, bgm-main-part2, bgm-ending, bgm-jingle, audio-mixing-final, publish, podcast-publish, summary]
     if: always()
     runs-on: ubuntu-latest
     steps:
