@@ -1,0 +1,55 @@
+# テスト用: 文字起こし自動収集のみ
+name: Test Auto Collector
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-collector:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      
+      - name: Install Python dependencies
+        run: |
+          pip install selenium webdriver-manager pytz python-dotenv requests
+      
+      - name: Test auto collector
+        env:
+          NOTION_URL: ${{ secrets.NOTION_URL }}
+          GITHUB_ACTIONS: true
+        run: |
+          cd radio-workflow/scripts
+          python auto_daily_collector.py
+          
+          # 結果確認
+          if [ -f transcript.txt ]; then
+            echo "✅ 文字起こし取得成功！"
+            echo "文字数: $(wc -c < transcript.txt)"
+            echo ""
+            echo "=== 最初の500文字 ==="
+            head -c 500 transcript.txt
+            echo ""
+            echo "===================="
+          else
+            echo "❌ 文字起こしファイルが見つかりません"
+            exit 1
+          fi
+      
+      - name: Upload transcript
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: transcript-test
+          path: radio-workflow/scripts/transcript.txt

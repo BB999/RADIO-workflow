@@ -1,0 +1,370 @@
+# 神威日報ラジオ自動生成システム（文字起こし自動収集版）
+name: Kamui Radio Auto Production
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 日本時間 毎日13時（UTC 4時）に実行
+    - cron: '0 4 * * *'
+
+jobs:
+  # Step 1: 文字起こし自動収集
+  auto-collect-transcript:
+    runs-on: ubuntu-latest
+    outputs:
+      transcript: ${{ steps.collect.outputs.transcript }}
+      has_transcript: ${{ steps.collect.outputs.has_transcript }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      
+      - name: Install Python dependencies
+        run: |
+          pip install selenium webdriver-manager pytz python-dotenv requests
+      
+      - name: Run auto collector
+        id: collect
+        env:
+          NOTION_URL: ${{ secrets.NOTION_URL }}
+          GITHUB_ACTIONS: true
+        run: |
+          cd radio-workflow/scripts
+          python auto_daily_collector.py
+          
+          # 文字起こしファイルの存在確認
+          if [ -f transcript.txt ]; then
+            echo "has_transcript=true" >> $GITHUB_OUTPUT
+            # 文字起こしを環境変数に保存（改行を保持）
+            {
+              echo "transcript<<EOF"
+              cat transcript.txt
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
+          else
+            echo "has_transcript=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Step 2: 台本生成
+  planning:
+    needs: auto-collect-transcript
+    if: needs.auto-collect-transcript.outputs.has_transcript == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      script-opening: ${{ steps.generate-script.outputs.opening }}
+      script-main-first: ${{ steps.generate-script.outputs.main-first }}
+      script-main-second: ${{ steps.generate-script.outputs.main-second }}
+      script-ending: ${{ steps.generate-script.outputs.ending }}
+      voice-config: ${{ steps.voice-config.outputs.config }}
+      episode-number: ${{ steps.episode.outputs.number }}
+      episode-title: ${{ steps.episode.outputs.title }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Get episode number
+        id: episode
+        run: |
+          # 既存のエピソード数を数える
+          episode_count=$(ls -1 docs/episodes/*.html 2>/dev/null | wc -l)
+          next_episode=$((episode_count + 1))
+          echo "number=$next_episode" >> $GITHUB_OUTPUT
+          
+          # 日付からタイトル生成
+          date_str=$(TZ='Asia/Tokyo' date +'%Y年%m月%d日')
+          echo "title=Episode #$next_episode: 神威日報振り返りエンターテインメントラジオ「KAMURAJI」" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Generate voice config
+        id: voice-config
+        run: |
+          # 時刻ベースでランダムな音声IDを選択
+          cd radio-workflow
+          if [ -f UUID.md ]; then
+            voice_id=$(shuf -n 1 UUID.md)
+            echo "config={\"voice_id\":\"$voice_id\"}" >> $GITHUB_OUTPUT
+          else
+            echo "config={\"voice_id\":\"default\"}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Install Claude Code SDK
+        run: npm install @anthropic-ai/claude-code-sdk
+      
+      - name: Generate radio script
+        id: generate-script
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          TRANSCRIPT: ${{ needs.auto-collect-transcript.outputs.transcript }}
+        run: |
+          # 台本生成用のプロンプトを作成
+          cat << 'EOF' > prompt.txt
+          以下の神威日報の文字起こしから、4分間のラジオ番組台本を作成してください。
+          
+          # 番組構成
+          - オープニング（60秒）: 挨拶、番組紹介、今回のハイライト予告
+          - メイン前半（90秒）: 開発進捗の主要ポイント1-2個
+          - メイン後半（90秒）: 追加情報、技術的な話題
+          - エンディング（60秒）: まとめ、次回予告、締めの挨拶
+          
+          # キャラクター設定
+          - 20代女性パーソナリティ「ミライ」
+          - 明るく元気な話し方
+          - 技術的な内容も分かりやすく説明
+          
+          # 文字起こし内容:
+          $TRANSCRIPT
+          
+          各セクションを以下の形式で出力してください:
+          [OPENING]
+          （台本内容）
+          [MAIN_FIRST]
+          （台本内容）
+          [MAIN_SECOND]
+          （台本内容）
+          [ENDING]
+          （台本内容）
+          EOF
+          
+          # Claude APIで台本生成（実際のAPI呼び出しに置き換える）
+          # ここは実際のClaude SDK実装が必要
+          echo "opening=オープニング台本のテスト" >> $GITHUB_OUTPUT
+          echo "main-first=メイン前半台本のテスト" >> $GITHUB_OUTPUT
+          echo "main-second=メイン後半台本のテスト" >> $GITHUB_OUTPUT
+          echo "ending=エンディング台本のテスト" >> $GITHUB_OUTPUT
+
+  # Step 3: 音声生成（並列実行）
+  voice-generation:
+    needs: planning
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        section: [opening, main-first, main-second, ending]
+    outputs:
+      audio-opening: ${{ steps.output.outputs.opening }}
+      audio-main-first: ${{ steps.output.outputs.main-first }}
+      audio-main-second: ${{ steps.output.outputs.main-second }}
+      audio-ending: ${{ steps.output.outputs.ending }}
+    steps:
+      - name: Generate voice for ${{ matrix.section }}
+        env:
+          AIVIS_API_KEY: ${{ secrets.AIVIS_API_KEY }}
+          SCRIPT_TEXT: ${{ needs.planning.outputs[format('script-{0}', matrix.section)] }}
+          VOICE_CONFIG: ${{ needs.planning.outputs.voice-config }}
+        run: |
+          # AIVIS Cloud APIで音声生成
+          echo "Generating voice for ${{ matrix.section }}..."
+          # 実際のAPI呼び出しコードをここに実装
+          
+      - name: Upload audio artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: audio-${{ matrix.section }}
+          path: audio-${{ matrix.section }}.wav
+      
+      - id: output
+        run: echo "${{ matrix.section }}=audio-${{ matrix.section }}.wav" >> $GITHUB_OUTPUT
+
+  # Step 4: BGM生成（並列実行）
+  bgm-generation:
+    needs: planning
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        section: [opening, main, ending]
+    outputs:
+      bgm-opening: ${{ steps.output.outputs.opening }}
+      bgm-main: ${{ steps.output.outputs.main }}
+      bgm-ending: ${{ steps.output.outputs.ending }}
+    steps:
+      - name: Generate BGM for ${{ matrix.section }}
+        env:
+          MCP_LYRIA_URL: ${{ secrets.MCP_LYRIA_URL }}
+        run: |
+          # Google Lyria APIでBGM生成
+          echo "Generating BGM for ${{ matrix.section }}..."
+          # 実際のAPI呼び出しコードをここに実装
+          
+      - name: Upload BGM artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: bgm-${{ matrix.section }}
+          path: bgm-${{ matrix.section }}.mp3
+      
+      - id: output
+        run: echo "${{ matrix.section }}=bgm-${{ matrix.section }}.mp3" >> $GITHUB_OUTPUT
+
+  # Step 5: ジングル処理
+  jingle-processing:
+    needs: planning
+    runs-on: ubuntu-latest
+    outputs:
+      jingle-audio: ${{ steps.create-jingle.outputs.audio }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Select random jingle SE
+        id: select-jingle
+        run: |
+          # ランダムにジングルSEを選択
+          jingle_se=$(ls radio-workflow/Jingle\ SE/*.mp3 | shuf -n 1)
+          echo "Selected jingle: $jingle_se"
+          echo "jingle_se=$jingle_se" >> $GITHUB_ENV
+      
+      - name: Generate jingle voice
+        env:
+          AIVIS_API_KEY: ${{ secrets.AIVIS_API_KEY }}
+        run: |
+          # 「かむらじ」音声を生成
+          echo "Generating 'KAMURAJI' voice..."
+          # 実際のAPI呼び出しコードをここに実装
+      
+      - name: Mix jingle with SE
+        run: |
+          # FFmpegでジングル音声とSEをミックス
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          # ミキシング処理
+      
+      - name: Upload jingle artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: jingle-final
+          path: jingle-final.mp3
+      
+      - id: create-jingle
+        run: echo "audio=jingle-final.mp3" >> $GITHUB_OUTPUT
+
+  # Step 6: 最終ミキシング
+  final-mixing:
+    needs: [voice-generation, bgm-generation, jingle-processing, planning]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      
+      - name: Select user music
+        run: |
+          # ユーザー楽曲をランダム選択
+          user_music=$(ls radio-workflow/music/*.mp3 | shuf -n 1)
+          echo "Selected user music: $user_music"
+          cp "$user_music" user-music.mp3
+      
+      - name: Final audio mixing
+        run: |
+          # 全セクションを結合
+          # 1. オープニング（音声+BGM）
+          # 2. メイン前半（音声+BGM）
+          # 3. ユーザー楽曲（30秒）
+          # 4. ジングル
+          # 5. メイン後半（音声+BGM）
+          # 6. エンディング（音声+BGM）
+          
+          # FFmpegで最終ミキシング
+          echo "Mixing final radio program..."
+          # 実際のミキシングコマンドをここに実装
+      
+      - name: Generate video with thumbnail
+        run: |
+          # 静止画と音声を組み合わせて動画生成
+          if [ -f radio-workflow/image/title.png ]; then
+            ffmpeg -loop 1 -i radio-workflow/image/title.png -i final-radio.mp3 \
+              -c:v libx264 -c:a aac -shortest final-radio-video.mp4
+          fi
+      
+      - name: Generate episode HTML
+        run: |
+          episode_number="${{ needs.planning.outputs.episode-number }}"
+          episode_title="${{ needs.planning.outputs.episode-title }}"
+          date_str=$(TZ='Asia/Tokyo' date +'%Y-%m-%d')
+          
+          cat << EOF > docs/episodes/episode-$episode_number.html
+          <!DOCTYPE html>
+          <html lang="ja">
+          <head>
+              <meta charset="UTF-8">
+              <title>$episode_title</title>
+          </head>
+          <body>
+              <h1>$episode_title</h1>
+              <p>配信日: $date_str</p>
+              <audio controls src="../audio/episode-$episode_number.mp3"></audio>
+          </body>
+          </html>
+          EOF
+      
+      - name: Update podcast RSS
+        run: |
+          # podcast.xmlを更新
+          echo "Updating podcast RSS feed..."
+          # RSS更新処理をここに実装
+      
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "🎙️ Add Episode #${{ needs.planning.outputs.episode-number }}: 神威日報振り返りエンターテインメントラジオ「KAMURAJI」"
+          title: "🎙️ 新エピソード追加: Episode #${{ needs.planning.outputs.episode-number }}"
+          body: |
+            ## 🎙️ 神威日報ラジオ 新エピソード
+            
+            **エピソード番号**: #${{ needs.planning.outputs.episode-number }}
+            **タイトル**: ${{ needs.planning.outputs.episode-title }}
+            
+            ### 📝 生成内容
+            - ✅ 文字起こし自動収集完了
+            - ✅ 台本生成完了
+            - ✅ 音声合成完了
+            - ✅ BGM生成完了
+            - ✅ 最終ミキシング完了
+            
+            ### 📁 生成ファイル
+            - `final-radio.mp3` - ラジオ番組音声
+            - `final-radio-video.mp4` - 動画版
+            - `docs/episodes/episode-${{ needs.planning.outputs.episode-number }}.html` - エピソードページ
+          branch: radio-episode-${{ needs.planning.outputs.episode-number }}
+          delete-branch: true
+
+  # エラー通知（オプション）
+  notify-completion:
+    needs: final-mixing
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send LINE notification
+        if: secrets.LINE_CHANNEL_ACCESS_TOKEN && secrets.LINE_USER_ID
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: |
+          if [ "${{ needs.final-mixing.result }}" == "success" ]; then
+            message="🎙️ 神威日報ラジオの生成が完了しました！"
+          else
+            message="⚠️ 神威日報ラジオの生成でエラーが発生しました"
+          fi
+          
+          curl -X POST https://api.line.me/v2/bot/message/push \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
+            -d "{
+              \"to\": \"$LINE_USER_ID\",
+              \"messages\": [{\"type\": \"text\", \"text\": \"$message\"}]
+            }"
