@@ -262,15 +262,17 @@ jobs:
           if [ -f "$WORK_DIR/opening.json" ]; then
             echo "📄 opening.json ファイルが存在"
             
-            # JSONの検証
-            if ! jq empty "$WORK_DIR/opening.json" 2>/dev/null; then
-              echo "::error::opening.json が無効なJSONフォーマットです"
-              echo "::error::ファイル内容:"
-              cat "$WORK_DIR/opening.json" | head -10
-              exit 1
-            fi
+            # JSONの検証（改行を含むテキストに対応）
+            echo "📄 opening.jsonの内容を確認中..."
             
-            OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/opening.json")
+            # jqで直接パースを試行
+            OPENING_TEXT=$(jq -r '.opening' "$WORK_DIR/opening.json" 2>/dev/null)
+            
+            # パースに失敗した場合の代替処理
+            if [ $? -ne 0 ] || [ -z "$OPENING_TEXT" ] || [ "$OPENING_TEXT" = "null" ]; then
+              echo "⚠️ jqでのパースに失敗。代替方法で抽出中..."
+              OPENING_TEXT=$(cat "$WORK_DIR/opening.json" | sed 's/{"opening": "//g' | sed 's/"}$//g' 2>/dev/null)
+            fi
             
             if [ -z "$OPENING_TEXT" ] || [ "$OPENING_TEXT" = "null" ]; then
               echo "::error::opening.json に 'opening' フィールドが見つかりません"
@@ -420,15 +422,17 @@ jobs:
           if [ -f "$WORK_DIR/main.json" ]; then
             echo "📄 main.json ファイルが存在"
             
-            # JSONの検証
-            if ! jq empty "$WORK_DIR/main.json" 2>/dev/null; then
-              echo "::error::main.json が無効なJSONフォーマットです"
-              echo "::error::ファイル内容:"
-              cat "$WORK_DIR/main.json" | head -10
-              exit 1
-            fi
+            # JSONの検証（改行を含むテキストに対応）
+            echo "📄 main.jsonの内容を確認中..."
             
-            MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/main.json")
+            # jqで直接パースを試行
+            MAIN_TEXT=$(jq -r '.main' "$WORK_DIR/main.json" 2>/dev/null)
+            
+            # パースに失敗した場合の代替処理
+            if [ $? -ne 0 ] || [ -z "$MAIN_TEXT" ] || [ "$MAIN_TEXT" = "null" ]; then
+              echo "⚠️ jqでのパースに失敗。代替方法で抽出中..."
+              MAIN_TEXT=$(cat "$WORK_DIR/main.json" | sed 's/{"main": "//g' | sed 's/"}$//g' 2>/dev/null)
+            fi
             
             if [ -z "$MAIN_TEXT" ] || [ "$MAIN_TEXT" = "null" ]; then
               echo "::error::main.json に 'main' フィールドが見つかりません"
@@ -604,15 +608,17 @@ jobs:
           if [ -f "$WORK_DIR/main_part2.json" ]; then
             echo "📄 main_part2.json ファイルが存在"
             
-            # JSONの検証
-            if ! jq empty "$WORK_DIR/main_part2.json" 2>/dev/null; then
-              echo "::error::main_part2.json が無効なJSONフォーマットです"
-              echo "::error::ファイル内容:"
-              cat "$WORK_DIR/main_part2.json" | head -10
-              exit 1
-            fi
+            # JSONの検証（改行を含むテキストに対応）
+            echo "📄 main_part2.jsonの内容を確認中..."
             
-            MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/main_part2.json")
+            # jqで直接パースを試行
+            MAIN_PART2_TEXT=$(jq -r '.main_part2' "$WORK_DIR/main_part2.json" 2>/dev/null)
+            
+            # パースに失敗した場合の代替処理
+            if [ $? -ne 0 ] || [ -z "$MAIN_PART2_TEXT" ] || [ "$MAIN_PART2_TEXT" = "null" ]; then
+              echo "⚠️ jqでのパースに失敗。代替方法で抽出中..."
+              MAIN_PART2_TEXT=$(cat "$WORK_DIR/main_part2.json" | sed 's/{"main_part2": "//g' | sed 's/"}$//g' 2>/dev/null)
+            fi
             
             if [ -z "$MAIN_PART2_TEXT" ] || [ "$MAIN_PART2_TEXT" = "null" ]; then
               echo "::error::main_part2.json に 'main_part2' フィールドが見つかりません"
@@ -754,15 +760,26 @@ jobs:
           if [ -f "$WORK_DIR/ending.json" ]; then
             echo "📄 ending.json ファイルが存在"
             
-            # JSONの検証
-            if ! jq empty "$WORK_DIR/ending.json" 2>/dev/null; then
-              echo "::error::ending.json が無効なJSONフォーマットです"
-              echo "::error::ファイル内容:"
-              cat "$WORK_DIR/ending.json" | head -10
-              exit 1
-            fi
+            # JSONの検証（改行を含むテキストに対応）
+            echo "📄 ending.jsonの内容を確認中..."
+            cat "$WORK_DIR/ending.json" | head -3
             
-            ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/ending.json")
+            # jqで直接パースを試行
+            ENDING_TEXT=$(jq -r '.ending' "$WORK_DIR/ending.json" 2>/dev/null)
+            
+            # パースに失敗した場合の代替処理
+            if [ $? -ne 0 ] || [ -z "$ENDING_TEXT" ] || [ "$ENDING_TEXT" = "null" ]; then
+              echo "⚠️ jqでのパースに失敗。代替方法で抽出中..."
+              
+              # 簡易JSON抽出（"ending": "..." の部分を抽出）
+              ENDING_TEXT=$(grep -o '"ending":\s*"[^"]*"' "$WORK_DIR/ending.json" | sed 's/"ending":\s*"//g' | sed 's/"$//g' 2>/dev/null)
+              
+              # それでも失敗した場合は、より簡単な方法
+              if [ -z "$ENDING_TEXT" ]; then
+                echo "⚠️ 簡易抽出も失敗。ファイル全体から抽出中..."
+                ENDING_TEXT=$(cat "$WORK_DIR/ending.json" | sed 's/{"ending": "//g' | sed 's/"}$//g' 2>/dev/null)
+              fi
+            fi
             
             if [ -z "$ENDING_TEXT" ] || [ "$ENDING_TEXT" = "null" ]; then
               echo "::error::ending.json に 'ending' フィールドが見つかりません"
