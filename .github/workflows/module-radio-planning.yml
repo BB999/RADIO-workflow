@@ -409,12 +409,20 @@ jobs:
           REPORT_LENGTH=${#DEV_REPORT}
           HALF_LENGTH=$((REPORT_LENGTH / 2))
           
+          echo "🔍 デバッグ情報:"
+          echo "  - レポート全体長: ${REPORT_LENGTH} bytes"
+          echo "  - 半分の位置: ${HALF_LENGTH}"
+          echo "  - レポートの先頭100文字: ${DEV_REPORT:0:100}"
+          
           # 最小長をチェック
           if [ $HALF_LENGTH -lt 1 ]; then
             HALF_LENGTH=$REPORT_LENGTH
           fi
           
           DEV_REPORT_PART1=$(echo "$DEV_REPORT" | head -c $HALF_LENGTH)
+          
+          echo "  - 前半部分の長さ: ${#DEV_REPORT_PART1} bytes"
+          echo "  - 前半部分の先頭100文字: ${DEV_REPORT_PART1:0:100}"
           
           # 開発レポートをファイルに保存（引数制限回避）
           echo "$DEV_REPORT_PART1" > "$WORK_DIR/dev_report_part1.txt"
