@@ -175,18 +175,20 @@ jobs:
           # 文字起こしファイルの存在確認
           if [ -f transcript.txt ]; then
             echo "has_transcript=true" >> $GITHUB_OUTPUT
-            # 文字起こしを環境変数に保存（改行を保持、より安全なデリミタ使用）
-            {
-              echo "transcript<<ENDOFCONTENT_DELIMITER_9999"
-              cat transcript.txt
-              echo "ENDOFCONTENT_DELIMITER_9999"
-            } >> $GITHUB_OUTPUT
             echo "✅ 文字起こし自動収集成功"
+            echo "文字数: $(wc -c < transcript.txt)"
           else
             echo "has_transcript=false" >> $GITHUB_OUTPUT
             echo "❌ 文字起こしの自動収集に失敗しました"
             exit 1
           fi
+      
+      - name: Upload transcript artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-collected-transcript
+          path: radio-workflow/scripts/transcript.txt
 
   planning:
     needs: [api-check, auto-collect-transcript]
@@ -198,7 +200,8 @@ jobs:
     with:
       processed-summary: ''
       use-processed-input: false
-      development-report: ${{ inputs.auto-collect == true && needs.auto-collect-transcript.outputs.transcript || inputs.development-report }}
+      use-auto-collected: ${{ inputs.auto-collect == true && needs.auto-collect-transcript.outputs.has_transcript == 'true' }}
+      development-report: ${{ inputs.development-report }}
     secrets: inherit
 
   voice-opening:

@@ -14,6 +14,11 @@ on:
         required: false
         type: boolean
         default: false
+      use-auto-collected:
+        description: '自動収集された文字起こしを使用するかどうか'
+        required: false
+        type: boolean
+        default: false
     outputs:
       script-opening:
         value: ${{ jobs.generate-opening.outputs.script-opening }}
@@ -45,6 +50,30 @@ jobs:
       
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Download auto-collected transcript
+        if: ${{ inputs.use-auto-collected == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-collected-transcript
+          path: ./transcript/
+      
+      - name: Setup transcript data
+        run: |
+          if [ "${{ inputs.use-auto-collected }}" == "true" ]; then
+            if [ -f "./transcript/transcript.txt" ]; then
+              cp "./transcript/transcript.txt" "./development-report.txt"
+              echo "✅ 自動収集された文字起こしを使用します"
+              echo "文字数: $(wc -c < ./development-report.txt)"
+            else
+              echo "::error::自動収集された文字起こしが見つかりません"
+              exit 1
+            fi
+          else
+            echo '${{ inputs.development-report }}' > ./development-report.txt
+            echo "✅ 手動入力のレポートを使用します"
+            echo "文字数: $(wc -c < ./development-report.txt)"
+          fi
       
       - name: Setup music file selection
         run: |
@@ -343,8 +372,14 @@ jobs:
           # SSMLフォーマッターをコピー
           cp radio-workflow/ssml_formatter.js $WORK_DIR/
           
+          # 統一された文字起こしデータを読み込み
+          if [ -f "./development-report.txt" ]; then
+            DEV_REPORT=$(cat ./development-report.txt)
+          else
+            DEV_REPORT='${{ inputs.development-report }}'
+          fi
+          
           # 開発進捗情報を前半用に分割してファイルに保存
-          DEV_REPORT='${{ inputs.development-report }}'
           HALF_LENGTH=$((${#DEV_REPORT} / 2))
           DEV_REPORT_PART1=$(echo "$DEV_REPORT" | cut -c1-$HALF_LENGTH)
           
@@ -456,6 +491,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Download auto-collected transcript
+        if: ${{ inputs.use-auto-collected == true }}
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-collected-transcript
+          path: ./transcript/
+      
+      - name: Setup transcript data
+        run: |
+          if [ "${{ inputs.use-auto-collected }}" == "true" ]; then
+            if [ -f "./transcript/transcript.txt" ]; then
+              cp "./transcript/transcript.txt" "./development-report.txt"
+              echo "✅ 自動収集された文字起こしを使用します"
+              echo "文字数: $(wc -c < ./development-report.txt)"
+            else
+              echo "::error::自動収集された文字起こしが見つかりません"
+              exit 1
+            fi
+          else
+            echo '${{ inputs.development-report }}' > ./development-report.txt
+            echo "✅ 手動入力のレポートを使用します"
+            echo "文字数: $(wc -c < ./development-report.txt)"
+          fi
+      
       - name: Generate main part2 script
         id: planning
         env:
@@ -478,8 +537,14 @@ jobs:
           # SSMLフォーマッターをコピー
           cp radio-workflow/ssml_formatter.js $WORK_DIR/
           
+          # 統一された文字起こしデータを読み込み
+          if [ -f "./development-report.txt" ]; then
+            DEV_REPORT=$(cat ./development-report.txt)
+          else
+            DEV_REPORT='${{ inputs.development-report }}'
+          fi
+          
           # 開発進捗情報を後半用に分割してファイルに保存
-          DEV_REPORT='${{ inputs.development-report }}'
           REPORT_LENGTH=${#DEV_REPORT}
           HALF_LENGTH=$((REPORT_LENGTH / 2))
           
