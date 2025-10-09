@@ -25,7 +25,7 @@
         <itunes:complete>no</itunes:complete>
         
         <generator>Kamui Radio Workflow System</generator>
-        <lastBuildDate>Mon, 06 Oct 2025 21:39:19 +0000</lastBuildDate>
+        <lastBuildDate>Thu, 09 Oct 2025 06:20:47 +0000</lastBuildDate>
         <pubDate>Tue, 13 Aug 2025 00:00:00 +0000</pubDate>
         
         
@@ -1364,6 +1364,21 @@
         <itunes:episode>391</itunes:episode>
         <itunes:season>1</itunes:season>
         <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-18294363444/radio-title.png"/>
+    </item>
+    <item>
+        <title>神威日報振り返りエンターテインメントラジオ「KAMURAJI」 2025.10.9 afternoon</title>
+        <description><![CDATA[ ]]></description>
+        <link>https://bb999.github.io/RADIO-workflow/episodes/episode-399.html</link>
+        <guid isPermaLink="true">https://bb999.github.io/RADIO-workflow/episodes/episode-399.html</guid>
+        <pubDate>Thu, 09 Oct 2025 06:20:47 +0000</pubDate>
+        <enclosure url="https://github.com/BB999/RADIO-workflow/releases/download/radio-18367130779/final-radio.mp3" length="16307565" type="audio/mpeg"/>
+        <itunes:author>Kamui Radio AI</itunes:author>
+        <itunes:summary><![CDATA[ ]]></itunes:summary>
+        <itunes:duration>06:47</itunes:duration>
+        <itunes:explicit>false</itunes:explicit>
+        <itunes:episode>399</itunes:episode>
+        <itunes:season>1</itunes:season>
+        <itunes:image href="https://github.com/BB999/RADIO-workflow/releases/download/radio-18367130779/radio-title.png"/>
     </item>
     </channel>
 </rss>
